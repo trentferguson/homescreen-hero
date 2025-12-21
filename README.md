@@ -177,6 +177,7 @@ For local development, you will typically run the frontend and backend services 
 -   **Frontend:** Node.js (v18+) and npm/yarn/pnpm
 -   **Backend:** Python (v3.9+) and pip
 -   Docker and Docker Compose (optional, but useful for database or other services)
+-   Use provided example.config.yaml or example from above and **create config.yaml in your root folder** (homescreen-hero)
 
 ### Frontend Development (`homescreen-hero-ui`)
 
