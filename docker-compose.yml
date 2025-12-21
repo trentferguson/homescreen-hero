@@ -1,0 +1,20 @@
+services:
+  homescreen-hero:
+    build: .
+    container_name: homescreen-hero
+    ports:
+      - "8000:8000"
+    environment:
+      HOMESCREEN_HERO_CONFIG: /data/config.yaml
+      # If you use SQLite and support env-driven DB url:
+      HOMESCREEN_HERO_DB: sqlite:////data/homescreen_hero.sqlite
+      # If you support env-driven log dir:
+      HOMESCREEN_HERO_LOG_DIR: /data/logs
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

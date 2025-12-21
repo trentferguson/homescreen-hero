@@ -1,0 +1,10 @@
+pydantic
+pyyaml
+sqlalchemy
+plexapi
+fastapi
+uvicorn
+jinja2
+requests
+apscheduler
+python-multipart

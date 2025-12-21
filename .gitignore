@@ -1,0 +1,51 @@
+# --- Python files ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- IDE / Editor stuff ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Local config (DO NOT COMMIT THIS) ---
+config.yaml
+
+# --- SQLite database & logs ---
+*.sqlite
+homescreen_hero.sqlite
+logs/
+*.log
+
+# --- Uvicorn reload cache ---
+*.reload
+
+# --- Build / dist ---
+build/
+dist/
+*.egg-info/
+
+# --- Coverage / test artifacts ---
+.coverage
+htmlcov/
+pytest_cache/
+
+# --- Other ---
+scripts
+homescreen-hero-ui/dist
+homescreen-hero-ui/node_modules
+data/
+

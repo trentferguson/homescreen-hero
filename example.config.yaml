@@ -1,0 +1,31 @@
+plex:
+  base_url: "YOUR_PLEX_SERVER_URL"
+  token: "YOUR_PLEX_TOKEN"
+  library_name: "YOUR_PLEX_LIBRARY_NAME"
+rotation:
+  enabled: true
+  interval_hours: 12
+  max_collections: 5
+  strategy: random
+  allow_repeats: false
+trakt:
+  enabled: false
+  client_id: "YOUR_TRAKT_CLIENT_ID"
+  base_url: https://api.trakt.tv
+  sources:
+  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
+    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
+    plex_library: "YOUR_PLEX_LIBRARY_NAME"
+logging:
+  level: INFO
+groups:
+- name: ExampleGroup
+  enabled: true
+  min_picks: 1
+  max_picks: 1
+  weight: 1
+  min_gap_rotations: 0
+  collections:
+  - Example Collection 1
+  - Example Collection 2
+  - Testing Testing
