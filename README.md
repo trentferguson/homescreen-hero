@@ -82,15 +82,16 @@ This project is designed for easy deployment using Docker and Docker Compose.
     ```
 
 2.  **Configure HomeScreen Hero**
-    The application uses `config.yaml` for its settings. A template is provided:
+    - The application uses `config.yaml` for its settings. A sample file is provided (*example.config.yaml*), as well as an example down below:
     ```bash
-    cp example.config.yaml config.yaml
+    create /data folder in root directory and place your config.yaml file inside of it
     ```
     Open `config.yaml` and adjust the settings according to your Plex Media Server and desired rotation logic. Key settings will include:
-    -   `PLEX_URL`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    -   `PLEX_TOKEN`: Your Plex authentication token.
-    -   `LOG_LEVEL`: Logging verbosity.
-    -   <!-- TODO: List other critical configuration options from example.config.yaml -->
+    -   `base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
+    -   `token`: Your Plex authentication token. (more info [here](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
+    -   `LOG_LEVEL`: Logging verbosity. (INFO, ERROR, DEBUG, WARNING)
+    -   `client_id` Your Trakt application API Key (more info [here](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
+   <!-- TODO: List other critical configuration options from example.config.yaml -->
 
 3.  **Start the application with Docker Compose**
     ```bash
