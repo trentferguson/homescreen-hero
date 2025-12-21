@@ -309,17 +309,10 @@ export default function GroupsPage() {
                                                 className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:border-primary/70 hover:text-white"
                                             >
                                                 <SlidersHorizontal className="h-4 w-4" />
-                                                Advanced
+                                                Open Editor
                                                 <ArrowRight className="h-3.5 w-3.5" />
                                             </button>
                                             <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => navigate(`/groups/${originalIndex}`)}
-                                                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-600 hover:bg-slate-800"
-                                                >
-                                                    Open editor
-                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleDelete(originalIndex)}
