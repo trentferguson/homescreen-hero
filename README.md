@@ -211,7 +211,7 @@ For local development, you will typically run the frontend and backend services 
     ```
 4.  Start the FastAPI development server:
     ```bash
-    uvicorn app.main:app --reload --port 8000
+    uvicorn homescreen_hero.web.app:app --reload --port 8000
     ```
     The backend API will be available at `http://localhost:8000`. Access the auto-generated API documentation at `http://localhost:8000/docs` or `http://localhost:8000/redoc`.
 
