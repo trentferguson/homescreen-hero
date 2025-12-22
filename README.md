@@ -174,6 +174,16 @@ Key sections:
 - **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
 
+## What's on my radar
+### Features
+- Implement other third-party list sources (IMDb, TVDb, TMDb, more?)
+- Add other selection methods outside of random (weighted selection, etc.) and collection dependencies ("if A then also B")
+- Simple user authentication (not really necessary for an app like this, but I wanna learn how to implement basic auth)
+
+### Fixes & Improvements
+- Clean up any remaining deprecated form-based endpoints if unused (leftovers from before I switched to a React frontend)
+- Implement basic unit tests (I know, I know- vibe-coded app doesn't have any tests. I swear I'll get around to this)
+
 ## Docker
 A ready-to-use Compose file builds the service, exposes the API on **port 8000**, and mounts `./data` for config, database, and logs:
 ```bash
