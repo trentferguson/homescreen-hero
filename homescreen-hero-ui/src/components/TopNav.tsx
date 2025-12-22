@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, User, LogOut, Moon, Sun } from "lucide-react";
+import { User, LogOut, Moon, Sun } from "lucide-react";
 import IconButton from "./IconButton";
 import { useTheme } from "../utils/theme";
 import { useAuth } from "../utils/auth";

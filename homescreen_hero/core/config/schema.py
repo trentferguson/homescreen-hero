@@ -12,7 +12,10 @@ class DateRange(BaseModel):
 class PlexSettings(BaseModel):
     # Plex connection details.
     base_url: str = Field(..., description="Base URL of your Plex server")
-    token: str = Field(..., description="Plex API token")
+    token: Optional[str] = Field(
+        default=None,
+        description="Plex API token (can be set via HSH_PLEX_TOKEN env var)",
+    )
     library_name: str = Field(..., description="Name of the Plex library to use")
 
 
@@ -90,13 +93,13 @@ class AuthSettings(BaseModel):
         default="admin",
         description="Username for authentication",
     )
-    password: str = Field(
-        ...,  # Required when auth is enabled
-        description="Password (will be hashed on first startup if plaintext detected)",
+    password: Optional[str] = Field(
+        default=None,
+        description="Password (can be set via HSH_AUTH_PASSWORD env var)",
     )
-    secret_key: str = Field(
-        ...,  # Required when auth is enabled
-        description="Secret key for JWT token signing (generate a random string)",
+    secret_key: Optional[str] = Field(
+        default=None,
+        description="Secret key for JWT token signing (can be set via HSH_AUTH_SECRET_KEY env var)",
     )
     token_expire_days: int = Field(
         default=30,
@@ -117,7 +120,10 @@ class TraktSettings(BaseModel):
         default=False,
         description="Whether Trakt integration is enabled",
     )
-    client_id: str = Field(..., description="Trakt application client id")
+    client_id: Optional[str] = Field(
+        default=None,
+        description="Trakt application client id (can be set via HSH_TRAKT_CLIENT_ID env var)",
+    )
     base_url: str = Field(
         "https://api.trakt.tv",
         description="Base URL for Trakt API",

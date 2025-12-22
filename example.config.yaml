@@ -1,23 +1,40 @@
+# HomeScreen Hero Configuration Example
+# For security best practices, use environment variables for sensitive values.
+# See .env.example for the recommended approach.
+
 plex:
-  base_url: "YOUR_PLEX_SERVER_URL"
-  token: "YOUR_PLEX_TOKEN"
-  library_name: "YOUR_PLEX_LIBRARY_NAME"
+  base_url: "YOUR_PLEX_SERVER_URL"  # e.g., "http://192.168.1.100:32400"
+  # token: "YOUR_PLEX_TOKEN"  # RECOMMENDED: Use HSH_PLEX_TOKEN environment variable instead
+  library_name: "YOUR_PLEX_LIBRARY_NAME"  # e.g., "Movies" or "TV Shows"
+
 rotation:
   enabled: true
   interval_hours: 12
   max_collections: 5
   strategy: random
   allow_repeats: false
+
+# Optional: Authentication settings
+auth:
+  enabled: false
+  username: "admin"
+  # password: ""  # RECOMMENDED: Use HSH_AUTH_PASSWORD environment variable instead
+  # secret_key: ""  # RECOMMENDED: Use HSH_AUTH_SECRET_KEY environment variable instead
+  token_expire_days: 30
+
+# Optional: Trakt integration
 trakt:
   enabled: false
-  client_id: "YOUR_TRAKT_CLIENT_ID"
+  # client_id: "YOUR_TRAKT_CLIENT_ID"  # RECOMMENDED: Use HSH_TRAKT_CLIENT_ID environment variable instead
   base_url: https://api.trakt.tv
   sources:
-  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
-    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
+  - name: "TRAKT_COLLECTION_NAME"  # This is the name that will show up in Plex
+    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST"  # e.g., https://trakt.tv/users/username/collections/movies
     plex_library: "YOUR_PLEX_LIBRARY_NAME"
+
 logging:
   level: INFO
+
 groups:
 - name: ExampleGroup
   enabled: true

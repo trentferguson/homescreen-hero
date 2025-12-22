@@ -81,17 +81,32 @@ This project is designed for easy deployment using Docker and Docker Compose.
     cd homescreen-hero
     ```
 
-2.  **Configure HomeScreen Hero** <br>
-    The application uses `config.yaml` for its settings. A sample file is provided (*example.config.yaml*), as well as an example down below:
+2.  **Configure HomeScreen Hero**
+
+    a. **Create configuration file:**
     ```bash
-    create /data folder in root directory and place your config.yaml file inside of it
+    mkdir -p data
+    cp example.config.yaml data/config.yaml
     ```
-    Open `config.yaml` and adjust the settings according to your Plex Media Server and desired rotation logic. Key settings will include:
-    -   `base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    -   `token`: Your Plex authentication token. (more info [here](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
-    -   `LOG_LEVEL`: Logging verbosity. (INFO, ERROR, DEBUG, WARNING)
-    -   `client_id` Your Trakt application API Key (more info [here](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
-   <!-- TODO: List other critical configuration options from example.config.yaml -->
+
+    b. **Set up environment variables (recommended for security):**
+    ```bash
+    cp .env.example .env
+    ```
+    Edit `.env` and fill in your sensitive values:
+    - `HSH_PLEX_TOKEN`: Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
+    - `HSH_AUTH_PASSWORD`: Your desired admin password (if enabling auth)
+    - `HSH_AUTH_SECRET_KEY`: Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+    - `HSH_TRAKT_CLIENT_ID`: Your Trakt API key (if using Trakt) ([how to get it](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
+
+    c. **Edit config.yaml:**
+    Open `data/config.yaml` and configure non-sensitive settings:
+    - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
+    - `plex.library_name`: The library to manage (e.g., "Movies")
+    - `rotation` settings: interval, max collections, strategy
+    - `groups`: Define your collection groups
+
+    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
 
 3.  **Start the application with Docker Compose**
     ```bash
@@ -132,6 +147,37 @@ homescreen-hero/
 ```
 
 ## Configuration
+
+### Security Best Practices
+
+For enhanced security, sensitive values (tokens, passwords, API keys) can be stored in environment variables instead of directly in `config.yaml`. This is especially important when:
+- Committing your config to version control
+- Running in production environments
+- Sharing your config with others
+
+**Supported Environment Variables:**
+- `HSH_PLEX_TOKEN` - Your Plex authentication token
+- `HSH_AUTH_PASSWORD` - Authentication password (when auth is enabled)
+- `HSH_AUTH_SECRET_KEY` - JWT secret key (when auth is enabled)
+- `HSH_TRAKT_CLIENT_ID` - Trakt API client ID (when Trakt is enabled)
+
+**Setup:**
+1. Copy [.env.example](.env.example) to `.env`
+2. Fill in your sensitive values in the `.env` file
+3. Remove or leave empty the corresponding fields in `config.yaml`
+4. The application will automatically use environment variables as fallback
+
+**Example `.env` file:**
+```bash
+HSH_PLEX_TOKEN=your-plex-token-here
+HSH_AUTH_PASSWORD=your-secure-password
+HSH_AUTH_SECRET_KEY=your-secret-key-here
+```
+
+Environment variables take precedence over values in `config.yaml`.
+
+### Configuration File
+
 Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/config/schema.py`. Here is the provided starter layout:
 ```yaml
 plex:
@@ -175,11 +221,42 @@ Key sections:
 - **logging** – Log level for both CLI and API processes.
 
 ## Docker
+
 A ready-to-use Compose file builds the service, exposes the API on **port 8000**, and mounts `./data` for config, database, and logs:
+
 ```bash
 docker-compose up -d
 ```
-Environment variables can override paths for config (`HOMESCREEN_HERO_CONFIG`), database (`HOMESCREEN_HERO_DB`), and logs (`HOMESCREEN_HERO_LOG_DIR`). Health checks ping `/api/health` to confirm the API is ready.
+
+### Environment Variables in Docker
+
+The `docker-compose.yml` is configured to read sensitive values from a `.env` file:
+
+1. **Copy the example:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your values:**
+   ```bash
+   HSH_PLEX_TOKEN=your-actual-plex-token
+   HSH_AUTH_PASSWORD=your-secure-password
+   HSH_AUTH_SECRET_KEY=your-generated-secret-key
+   ```
+
+3. **Start the container:**
+   ```bash
+   docker-compose up -d
+   ```
+
+Docker Compose automatically loads variables from `.env` and passes them to the container. The syntax `${HSH_PLEX_TOKEN}` references the variable from your `.env` file, and `${HSH_AUTH_PASSWORD:-}` uses the value if set or an empty string if not.
+
+**Additional environment variables:**
+- `HOMESCREEN_HERO_CONFIG` - Path to config file (default: `/data/config.yaml`)
+- `HOMESCREEN_HERO_DB` - Database path (default: `sqlite:////data/homescreen_hero.sqlite`)
+- `HOMESCREEN_HERO_LOG_DIR` - Log directory (default: `/data/logs`)
+
+Health checks ping `/api/health` to confirm the API is ready.
 
 ## Development
 
