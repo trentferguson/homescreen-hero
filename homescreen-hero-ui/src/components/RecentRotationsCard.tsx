@@ -66,27 +66,32 @@ export default function RecentRotationsCard({
     const displayItems = limit ? items.slice(0, limit) : items;
 
     return (
-        <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm p-5 space-y-4 dark:bg-card-dark dark:border-slate-800">
+        <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md p-5 space-y-4 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Rotations</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">Latest sync attempts and their outcomes.</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Recent Rotations</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">Latest sync attempts and their outcomes.</p>
                 </div>
                 {lastRun ? (
                     <div
-                        className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-right text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300"
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-100/80 px-4 py-2 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300 backdrop-blur-sm transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-700"
                         title={formatTimestamp(lastRun.created_at)}
                     >
-                        <div className="font-semibold text-slate-900 dark:text-slate-100">Last run</div>
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-600 dark:text-slate-400">Last run:</span>
                             <StatusPill success={lastRun.success} />
-                            <span className="text-slate-500 dark:text-slate-400">{formatTimeAgo(lastRun.created_at)}</span>
                         </div>
-                        {typeof lastRun.duration === "number" ? (
-                            <div className="mt-1 text-slate-600 dark:text-slate-500">
-                                {(lastRun.duration / 1000).toFixed(1)}s
-                            </div>
-                        ) : null}
+                        <div className="flex items-center gap-2 border-l border-slate-300 dark:border-slate-700 pl-3">
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">{formatTimeAgo(lastRun.created_at)}</span>
+                            {typeof lastRun.duration === "number" ? (
+                                <>
+                                    <span className="text-slate-400 dark:text-slate-600">•</span>
+                                    <span className="text-slate-600 dark:text-slate-400">
+                                        {(lastRun.duration / 1000).toFixed(1)}s
+                                    </span>
+                                </>
+                            ) : null}
+                        </div>
                     </div>
                 ) : null}
             </div>
@@ -102,19 +107,19 @@ export default function RecentRotationsCard({
                     No rotation history available yet.
                 </div>
             ) : (
-                <ul className="space-y-3">
+                <ul className="space-y-3 max-h-[440px] overflow-y-auto scrollbar-hover-only pr-1">
                     {displayItems.map((event, idx) => {
                         const { created_at, success, summary, error_message } = event;
                         return (
                             <li
                                 key={`${created_at}-${idx}`}
-                                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800/80 dark:bg-white/5"
+                                className="group flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800/80 dark:bg-white/5 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm transition-all duration-200"
                             >
                                 <div className="pt-1">
                                     <div
-                                        className={`h-2.5 w-2.5 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.35)] ${success
-                                            ? "bg-emerald-400 shadow-emerald-500/40"
-                                            : "bg-rose-400 shadow-rose-500/40"
+                                        className={`h-2.5 w-2.5 rounded-full shadow-[0_0_12px_rgba(0,0,0,0.35)] transition-all duration-200 ${success
+                                            ? "bg-emerald-400 shadow-emerald-500/40 group-hover:shadow-emerald-500/60"
+                                            : "bg-rose-400 shadow-rose-500/40 group-hover:shadow-rose-500/60"
                                             }`}
                                     />
                                 </div>
@@ -128,7 +133,7 @@ export default function RecentRotationsCard({
                                     </div>
 
                                     {error_message ? (
-                                        <p className="text-xs text-rose-600 dark:text-rose-200/90">
+                                        <p className="text-xs text-rose-600 dark:text-rose-200/90 leading-relaxed">
                                             {error_message}
                                         </p>
                                     ) : null}
@@ -136,7 +141,7 @@ export default function RecentRotationsCard({
 
                                 <div className="shrink-0 text-right text-xs leading-5 text-slate-500 dark:text-slate-400" title={formatTimestamp(created_at)}>
                                     <div className="font-semibold text-slate-800 dark:text-slate-200">{formatTimeAgo(created_at)}</div>
-                                    <div className="text-slate-500">{formatTimestamp(created_at)}</div>
+                                    <div className="text-slate-500 dark:text-slate-500">{formatTimestamp(created_at)}</div>
                                 </div>
                             </li>
                         );

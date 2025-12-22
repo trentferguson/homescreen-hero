@@ -220,17 +220,17 @@ export default function Dashboard() {
     return (
         <>
             {showSimulationModal && simulation ? (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800">
-                        <div className="flex items-start justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800/80 animate-in zoom-in-95 duration-300">
+                        <div className="flex items-start justify-between p-5 border-b border-slate-200 dark:border-slate-800/80">
                             <div className="flex flex-col gap-1">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Simulation Results</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Simulation Results</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     Simulation ID: {simulation.simulation_id ?? "N/A"}
                                 </p>
                             </div>
                             <button
-                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-200 text-2xl leading-none px-2"
                                 onClick={() => setShowSimulationModal(false)}
                                 aria-label="Close simulation results"
                             >
@@ -238,7 +238,7 @@ export default function Dashboard() {
                             </button>
                         </div>
 
-                        <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
+                        <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hover-only">
                             <div>
                                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Selected Collections</h4>
                                 {simulation.rotation.selected_collections.length ? (
@@ -330,16 +330,16 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 p-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="flex justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50">
                             <button
-                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 active:scale-95"
                                 onClick={() => setShowSimulationModal(false)}
                                 disabled={busy !== null}
                             >
                                 Close
                             </button>
                             <button
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-colors disabled:opacity-60"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                 onClick={applySimulation}
                                 disabled={busy !== null}
                             >
@@ -353,7 +353,7 @@ export default function Dashboard() {
             <div className="max-w-8xl mx-auto flex flex-col gap-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                         <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
                             Monitor rotation status, history, and collection usage.
@@ -364,7 +364,7 @@ export default function Dashboard() {
                         <button
                             onClick={simulateRotation}
                             disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors disabled:opacity-60"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
                         >
                             {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
                         </button>
@@ -372,7 +372,7 @@ export default function Dashboard() {
                         <button
                             onClick={forceRunRotation}
                             disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/25 text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
                         >
                             {busy === "sync" ? "Syncing…" : "Run Rotation Now"}
                         </button>
@@ -381,7 +381,7 @@ export default function Dashboard() {
 
                 {/* Errors */}
                 {error ? (
-                    <pre className="p-4 rounded-xl bg-red-900/30 border border-red-900/40 text-red-200 whitespace-pre-wrap">
+                    <pre className="p-4 rounded-xl bg-red-900/30 border border-red-900/50 text-red-200 whitespace-pre-wrap shadow-lg">
                         {error}
                     </pre>
                 ) : null}
@@ -461,7 +461,6 @@ export default function Dashboard() {
                     lastRun={lastRun}
                     loading={historyLoading}
                     formatTimeAgo={timeAgo}
-                    limit={5}
                 />
 
 

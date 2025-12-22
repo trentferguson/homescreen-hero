@@ -47,22 +47,23 @@ export default function HealthCard({
     ].join(" ");
 
     return (
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm p-5 h-32 dark:bg-card-dark dark:border-slate-800">
+        <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md p-5 h-32 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300">
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100/60 via-transparent to-transparent dark:from-white/5" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/40 dark:to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="relative h-full flex items-center justify-between">
                 {/* text */}
                 <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400">{title}</div>
+                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{title}</div>
 
-                    <div className="mt-2 text-4xl font-extrabold tracking-tight leading-none text-slate-900 dark:text-white">
+                    <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-slate-900 dark:text-white transition-all duration-200">
                         {statusLabel}
                     </div>
 
                     <div
                         className={[
-                            "mt-3 font-semibold",
-                            "text-sm sm:text-base",
+                            "mt-2.5 font-semibold",
+                            "text-xs sm:text-sm",
                             "whitespace-nowrap overflow-hidden text-ellipsis",
                             detailClass,
                         ].join(" ")}
@@ -75,10 +76,10 @@ export default function HealthCard({
                 {/* icon + status dot */}
                 <div className="relative w-16 h-16 flex items-center justify-center justify-self-end shrink-0">
                     <div className="absolute -top-1 -right-0.5 z-10">
-                        <div className={statusDotClass} />
+                        <div className={statusDotClass + (loading ? " animate-pulse" : "")} />
                     </div>
 
-                    <div className="text-slate-600 dark:text-slate-200">{icon ?? <DefaultStackIcon />}</div>
+                    <div className="text-slate-600 dark:text-slate-200 transition-transform duration-200 group-hover:scale-110">{icon ?? <DefaultStackIcon />}</div>
                 </div>
             </div>
         </div>
