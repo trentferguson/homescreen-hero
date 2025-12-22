@@ -8,3 +8,5 @@ jinja2
 requests
 apscheduler
 python-multipart
+passlib[bcrypt]
+python-jose[cryptography]

@@ -80,6 +80,31 @@ class LoggingSettings(BaseModel):
     )
 
 
+class AuthSettings(BaseModel):
+    # Authentication settings
+    enabled: bool = Field(
+        default=False,
+        description="Whether authentication is required",
+    )
+    username: str = Field(
+        default="admin",
+        description="Username for authentication",
+    )
+    password: str = Field(
+        ...,  # Required when auth is enabled
+        description="Password (will be hashed on first startup if plaintext detected)",
+    )
+    secret_key: str = Field(
+        ...,  # Required when auth is enabled
+        description="Secret key for JWT token signing (generate a random string)",
+    )
+    token_expire_days: int = Field(
+        default=30,
+        ge=1,
+        description="Number of days before JWT tokens expire",
+    )
+
+
 class TraktSource(BaseModel):
     name: str
     url: str
@@ -107,6 +132,7 @@ class AppConfig(BaseModel):
     groups: List[CollectionGroupConfig]
     trakt: Optional[TraktSettings] = None
     logging: LoggingSettings = LoggingSettings()
+    auth: Optional[AuthSettings] = None
 
 
 class GroupSelectionResult(BaseModel):
