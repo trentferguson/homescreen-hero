@@ -6,28 +6,28 @@
 
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
-<!-- TODO: Add live demo link if available -->
-<!-- [Live Demo](https://demo-link.com) -->
+<!-- TODO: Add live demo link maybe? -->
 
 </div>
 
-## :exclamation:Disclaimer
+## 🚫A Quick Heads Up
 
-This app is very much a work in progress. This started as a simple Python script to rotate my Plex homescreen, and turned in to much more. Please note, a good portion of this app is vibe-coded
-(especially the frontend). While I went to school for full-stack software development, I ended up becoming a Data Engineer. The main part of creating this app was to further develop my Python skills, but then turned
-into an experiment to see how much AI could assist me with building a fully self-hosted and usable application.
+This app is very much a **WIP**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
 
+**Please note**- a good portion of this app is vibe-coded
+(especially the frontend). As a Data Engineer who originally went to school to become a full-stack developer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
 ## Overview
 
-HomeScreen Hero provides a powerful, self-hosted solution for Plex Media Server users to dynamically manage their home screen content. It empowers you to automate the rotation of Plex collections, ensuring your content recommendations stay fresh and engaging without manual intervention. The application features a sleek web dashboard built with React, facilitating easy configuration and control over your collection rotation schedules, all backed by a robust FastAPI backend.
+HomeScreen Hero provides a powerful, self-hosted solution for Plex Media Server users to dynamically manage their home screen content. It empowers you to automate the rotation of Plex collections, ensuring your content recommendations stay fresh and engaging without manual intervention. The application features a sleek web dashboard built with React (thanks Chat GPT!), facilitating easy configuration and control over your collection rotation schedules, all backed by a robust FastAPI backend.
 
 ## Features
 
 -   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals.
--   **Manual Collection Rotation:** Trigger instant rotation of collections directly from the web dashboard.
+-   **Manual Collection Rotation:** Trigger instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and apply them if you like them!
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex integration.
--   **Plex Media Server Integration:** Seamlessly connects with your Plex server to fetch libraries and manage collections.
--   **Flexible Configuration:** Utilize a YAML-based configuration file for detailed control over application settings and Plex interactions, or configure settings in the Web UI.
+-   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections.
+-   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
+-   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
 -   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
 ## Screenshots
@@ -53,7 +53,6 @@ HomeScreen Hero provides a powerful, self-hosted solution for Plex Media Server 
 **Frontend:**
 
 ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-<!-- TODO: Detect and add specific styling framework (e.g., Tailwind CSS, Styled Components) and build tool (e.g., Vite) -->
 
 **Backend:**
 
@@ -82,8 +81,8 @@ This project is designed for easy deployment using Docker and Docker Compose.
     cd homescreen-hero
     ```
 
-2.  **Configure HomeScreen Hero**
-    - The application uses `config.yaml` for its settings. A sample file is provided (*example.config.yaml*), as well as an example down below:
+2.  **Configure HomeScreen Hero** <br>
+    The application uses `config.yaml` for its settings. A sample file is provided (*example.config.yaml*), as well as an example down below:
     ```bash
     create /data folder in root directory and place your config.yaml file inside of it
     ```
@@ -231,7 +230,7 @@ For local development, you will typically run the frontend and backend services 
     The backend API will be available at `http://localhost:8000`. Access the auto-generated API documentation at `http://localhost:8000/docs` or `http://localhost:8000/redoc`.
 
 
-## 🚀 Deployment
+##  Deployment
 
 The recommended deployment method for HomeScreen Hero is using Docker and Docker Compose.
 
@@ -254,7 +253,7 @@ The `docker-compose.yml` file is configured to build the frontend and backend im
 -   **Kubernetes/Other Orchestrators:**
     While not directly provided, the Docker images can be adapted for deployment on Kubernetes or other container orchestration platforms.
 
-## 📚 API Reference
+## API Reference
 
 The FastAPI backend automatically generates interactive API documentation.
 Once the backend is running (either via `docker-compose` or locally), you can access:
@@ -272,22 +271,30 @@ These interfaces provide detailed information about all available endpoints, the
 -   `/api/rotation/trigger`: Manually trigger a collection rotation.
 -   `/api/config`: Manage application configuration.
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions to HomeScreen Hero! If you're interested in improving the project, please refer to our contribution guidelines (once available).
+Any and all contributions to HomeScreen Hero are welcome! If you're interested in improving the project, please refer to our contribution guidelines (once available).
 
 ### Development Setup for Contributors
 
 Follow the **Development** section above to set up your local environment for both frontend and backend development.
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
--   **Agregarr:** For inspiring to try building something myself. Seriously, this app is awesome.
--   **ColleXions:** For initially doing exactly what I needed this app today. Another great inspiration for me to try my own hand at an app like this.
+-   **Agregarr:** For being an amazing self-hosted app and inspiring me to try building something myself. Seriously, this app is awesome.
+-   **ColleXions:** For initially doing exactly what I needed this app today. Another great inspiration for me to try my own hand at an creating something like this.
+-   **Chat GPT & Github Copilot:** For building ~90% of my frontend. As a Data Engineer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
+
+## 🐶 Puppy Tax 
+I'm not ashamed to use my cutie for free internet points! (*she was also great moral support on the "I've been banging my head against a wall for days trying to figure out why the rotation runs every thirty seconds lol*)
+
+<img width="25%" height="25%" alt="IMG_3015" src="https://github.com/user-attachments/assets/e24b34da-b541-4ead-b822-98ec31b5154e" />
+<img width="25%" height="25%" alt="IMG_1225" src="https://github.com/user-attachments/assets/a4b6ad17-063b-4068-ac2d-91ec60f117f2" />
+<img width="25%" height="25%" alt="IMG_3017" src="https://github.com/user-attachments/assets/300e1e92-ea19-4dc0-8dfc-8a17413725c6" />
 
 ---
 
