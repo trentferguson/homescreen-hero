@@ -6,6 +6,7 @@ fastapi
 uvicorn
 jinja2
 requests
+httpx
 apscheduler
 python-multipart
 passlib[bcrypt]

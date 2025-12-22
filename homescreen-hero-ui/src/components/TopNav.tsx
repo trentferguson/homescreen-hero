@@ -23,7 +23,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { theme, toggleTheme } = useTheme();
-    const { logout } = useAuth();
+    const { logout, username } = useAuth();
     const navigate = useNavigate();
     const isDark = theme === "dark";
 
@@ -67,13 +67,16 @@ export default function TopNav() {
                         <span className="hidden sm:inline">{isDark ? "Light" : "Dark"} mode</span>
                     </button>
 
+                    {/*
                     <IconButton label="Notifications">
                         <Bell size={20} />
                     </IconButton>
+                    */}
 
-                    <IconButton label="Profile">
-                        <User size={20} />
-                    </IconButton>
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                        <User size={18} />
+                        <span>{username}</span>
+                    </div>
 
                     <IconButton label="Logout" onClick={handleLogout}>
                         <LogOut size={20} />
