@@ -1,7 +1,8 @@
 
 
 <div align="center">
-<img width="400" height="270" alt="homescreen-hero_logo_text_cropped" src="https://github.com/user-attachments/assets/42f40210-3c87-411c-b946-2340bc9186fe" />
+<img width="400" height="270" alt="homescreen-hero_logo_text" src="https://github.com/user-attachments/assets/1904eb65-4d8c-4b85-8fd9-c3983e0488af" />
+
 
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
