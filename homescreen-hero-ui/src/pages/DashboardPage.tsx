@@ -45,6 +45,16 @@ const healthEndpoints = {
 } as const;
 
 type HealthMap = Partial<Record<keyof typeof healthEndpoints, HealthComponent>>;
+
+// Cache configuration
+const HEALTH_CACHE_KEY = "healthscreen-hero-health-cache";
+const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+type HealthCache = {
+    data: HealthMap;
+    timestamp: number;
+};
+
 export default function Dashboard() {
     const [health, setHealth] = useState<HealthMap>({});
     const [healthLoading, setHealthLoading] = useState(true);
@@ -57,6 +67,7 @@ export default function Dashboard() {
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
+    const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
 
     const plex = health.plex;
     const cfg = health.config;
@@ -69,7 +80,50 @@ export default function Dashboard() {
         .filter((value): value is string => Boolean(value))
         .join(" • ");
 
-    const loadHealth = async () => {
+    const loadHealthFromCache = (): HealthCache | null => {
+        try {
+            const cached = localStorage.getItem(HEALTH_CACHE_KEY);
+            if (!cached) return null;
+
+            const parsedCache: HealthCache = JSON.parse(cached);
+            const age = Date.now() - parsedCache.timestamp;
+
+            if (age > HEALTH_CACHE_TTL_MS) {
+                localStorage.removeItem(HEALTH_CACHE_KEY);
+                return null;
+            }
+
+            return parsedCache;
+        } catch {
+            return null;
+        }
+    };
+
+    const saveHealthToCache = (data: HealthMap) => {
+        try {
+            const cache: HealthCache = {
+                data,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(HEALTH_CACHE_KEY, JSON.stringify(cache));
+            setLastHealthCheck(Date.now());
+        } catch {
+            // Ignore cache save errors
+        }
+    };
+
+    const loadHealth = async (forceRefresh = false) => {
+        // Try to load from cache first
+        if (!forceRefresh) {
+            const cached = loadHealthFromCache();
+            if (cached) {
+                setHealth(cached.data);
+                setLastHealthCheck(cached.timestamp);
+                setHealthLoading(false);
+                return;
+            }
+        }
+
         setHealthLoading(true);
 
         const entries = await Promise.all(
@@ -92,7 +146,9 @@ export default function Dashboard() {
             ),
         );
 
-        setHealth(Object.fromEntries(entries) as HealthMap);
+        const healthData = Object.fromEntries(entries) as HealthMap;
+        setHealth(healthData);
+        saveHealthToCache(healthData);
         setHealthLoading(false);
     };
 
@@ -123,10 +179,14 @@ export default function Dashboard() {
         void loadActiveCollections();
     }, []);
 
+    const refreshHealth = async () => {
+        await loadHealth(true);
+    };
+
     const refresh = () => {
         setError(null);
         setHistoryLoading(true);
-        loadHealth();
+        void loadHealth();
         void loadActiveCollections();
         fetch("/api/history/all?limit=10")
             .then(async (r) => {
@@ -360,7 +420,16 @@ export default function Dashboard() {
                         </p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                        <button
+                            onClick={refreshHealth}
+                            disabled={healthLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
+                            title={lastHealthCheck ? `Last checked: ${new Date(lastHealthCheck).toLocaleTimeString()}` : undefined}
+                        >
+                            {healthLoading ? "Checking…" : "Refresh Health"}
+                        </button>
+
                         <button
                             onClick={simulateRotation}
                             disabled={busy !== null}
