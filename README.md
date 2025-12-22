@@ -13,7 +13,7 @@
 
 ## :exclamation:Disclaimer
 
-This app is very much a work in progress. This started as a simple Python script to rotate my Plex homescreen, and turned to much more. Please note, a good portion of this app is vibe-coded
+This app is very much a work in progress. This started as a simple Python script to rotate my Plex homescreen, and turned in to much more. Please note, a good portion of this app is vibe-coded
 (especially the frontend). While I went to school for full-stack software development, I ended up becoming a Data Engineer. The main part of creating this app was to further develop my Python skills, but then turned
 into an experiment to see how much AI could assist me with building a fully self-hosted and usable application.
 
