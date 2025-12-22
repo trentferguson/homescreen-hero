@@ -1,7 +1,8 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Bell, User, LogOut, Moon, Sun } from "lucide-react";
 import IconButton from "./IconButton";
 import { useTheme } from "../utils/theme";
+import { useAuth } from "../utils/auth";
 
 function NavItem({ to, label }: { to: string; label: string }) {
     return (
@@ -22,7 +23,14 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { theme, toggleTheme } = useTheme();
+    const { logout } = useAuth();
+    const navigate = useNavigate();
     const isDark = theme === "dark";
+
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
+    };
 
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80 transition-all duration-300">
@@ -67,7 +75,7 @@ export default function TopNav() {
                         <User size={20} />
                     </IconButton>
 
-                    <IconButton label="Logout">
+                    <IconButton label="Logout" onClick={handleLogout}>
                         <LogOut size={20} />
                     </IconButton>
                 </div>

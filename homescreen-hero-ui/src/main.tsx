@@ -10,12 +10,23 @@ import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
+import LoginPage from "./pages/LoginPage";
 import { ThemeProvider } from "./utils/theme";
+import { AuthProvider } from "./utils/auth";
 import NotFoundPage from "./pages/NotFoundPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const router = createBrowserRouter([
   {
-    element: <AppLayout />,
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     errorElement: <NotFoundPage />,
     children: [
       { path: "/", element: <DashboardPage /> },
@@ -32,7 +43,9 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

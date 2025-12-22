@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 import { Copy, Pause, Play, RefreshCw, Search, Trash2 } from "lucide-react";
 
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "ALL";
@@ -72,7 +73,7 @@ export default function LogsPage() {
         setError(null);
 
         try {
-            const res = await fetch("/api/logs/tail"); // or "/logs" depending on your proxy
+            const res = await fetchWithAuth("/api/logs/tail"); // or "/logs" depending on your proxy
             const text = await res.text();
 
             if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
