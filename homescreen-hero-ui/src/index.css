@@ -25,3 +25,92 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: rgba(148, 163, 184, .55);
 }
+
+/* ===== Hidden scrollbar that appears on hover ===== */
+.scrollbar-hover-only {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    /* Firefox - hidden by default */
+}
+
+.scrollbar-hover-only:hover {
+    scrollbar-color: rgba(148, 163, 184, .4) transparent;
+    /* Firefox - visible on hover */
+}
+
+.scrollbar-hover-only::-webkit-scrollbar {
+    height: 8px;
+}
+
+.scrollbar-hover-only::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-hover-only::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    /* Hidden by default */
+    border-radius: 9999px;
+    transition: background-color 0.2s;
+}
+
+.scrollbar-hover-only:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, .35);
+    /* Visible on hover */
+}
+
+.scrollbar-hover-only::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, .55);
+    /* Brighter when hovering the thumb itself */
+}
+
+/* Dark mode scrollbar */
+.dark .scrollbar-hover-only:hover {
+    scrollbar-color: rgba(71, 85, 105, .5) transparent;
+}
+
+.dark .scrollbar-hover-only:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(71, 85, 105, .4);
+}
+
+.dark .scrollbar-hover-only::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(71, 85, 105, .6);
+}
+
+/* ===== Custom number input spinners and select dropdowns ===== */
+/* Remove default spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Custom select dropdown arrow */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748b' d='M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+}
+
+.dark select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%2394a3b8' d='M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z'/%3E%3C/svg%3E");
+}
+
+/* Custom select dropdown options */
+select option {
+    background-color: white;
+    color: #0f172a;
+    padding: 0.5rem 0.75rem;
+}
+
+.dark select option {
+    background-color: #0f172a;
+    color: #f1f5f9;
+}
