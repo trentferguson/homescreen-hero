@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, Form, HTTPException, Path, Depends
+from pydantic import BaseModel
 
 from homescreen_hero.core.auth import get_current_user
 from homescreen_hero.core.service import (
@@ -10,6 +13,8 @@ from homescreen_hero.core.service import (
     simulate_rotation_once,
 )
 from homescreen_hero.core.config.schema import RotationExecution
+from homescreen_hero.core.config.loader import load_config
+from homescreen_hero.core.scheduler import get_scheduler, JOB_ID
 
 logger = logging.getLogger(__name__)
 
@@ -82,4 +87,38 @@ def use_simulation_form(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+class SchedulerStatusResponse(BaseModel):
+    enabled: bool
+    interval_hours: int
+    next_run_time: Optional[datetime] = None
+    is_running: bool
+
+
+@router.get("/scheduler-status", response_model=SchedulerStatusResponse)
+def get_scheduler_status(current_user: str = Depends(get_current_user)) -> SchedulerStatusResponse:
+    """Get the current scheduler status including next scheduled rotation time."""
+    try:
+        config = load_config()
+
+        next_run_time = None
+        is_running = False
+
+        scheduler = get_scheduler()
+        if scheduler and scheduler.running:
+            is_running = True
+            job = scheduler.get_job(JOB_ID)
+            if job and job.next_run_time:
+                next_run_time = job.next_run_time
+
+        return SchedulerStatusResponse(
+            enabled=config.rotation.enabled,
+            interval_hours=config.rotation.interval_hours,
+            next_run_time=next_run_time,
+            is_running=is_running
+        )
+    except Exception as exc:
+        logger.exception("Failed to get scheduler status")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

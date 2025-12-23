@@ -18,6 +18,11 @@ JOB_ID = "rotation-job"
 _scheduler: Optional[BackgroundScheduler] = None
 
 
+def get_scheduler() -> Optional[BackgroundScheduler]:
+    """Get the current scheduler instance."""
+    return _scheduler
+
+
 def _run_scheduled_rotation() -> None:
     try:
         logger.info("Running scheduled rotation")

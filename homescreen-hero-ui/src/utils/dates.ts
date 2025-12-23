@@ -25,3 +25,29 @@ export function timeAgo(iso: string) {
     const day = Math.floor(hr / 24);
     return `${day}d ago`;
 }
+
+export function timeUntil(iso: string, now: number = Date.now()) {
+    const t = Date.parse(normalizeIso(iso));
+
+    if (Number.isNaN(t)) return iso;
+
+    let sec = Math.floor((t - now) / 1000);
+
+    // If in the past, return "overdue"
+    if (sec < 0) return "overdue";
+
+    const days = Math.floor(sec / 86400);
+    sec %= 86400;
+    const hours = Math.floor(sec / 3600);
+    sec %= 3600;
+    const minutes = Math.floor(sec / 60);
+    const seconds = sec % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+    return parts.join(" ");
+}

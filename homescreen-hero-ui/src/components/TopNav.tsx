@@ -50,7 +50,7 @@ export default function TopNav() {
                 {/* CENTER: Nav */}
                 <nav className="hidden md:flex items-center gap-1">
                     <NavItem to="/" label="Dashboard" />
-                    <NavItem to="/groups" label="Collection Groups" />
+                    <NavItem to="/groups" label="Groups" />
                     <NavItem to="/settings" label="Settings" />
                     <NavItem to="/logs" label="Logs" />
                 </nav>
