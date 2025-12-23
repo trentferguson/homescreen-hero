@@ -1,12 +1,15 @@
 
 
 <div align="center">
-<img width="400" height="270" alt="homescreen-hero_logo_text" src="https://github.com/user-attachments/assets/1904eb65-4d8c-4b85-8fd9-c3983e0488af" />
+<img width="35%" height="35%" alt="homescreen-hero_logo_cropped_wide_again" src="https://github.com/user-attachments/assets/892ea966-cf31-4a2e-8494-c92afe08ad49" />
 
+[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Oxanium&size=36&pause=1000&color=F3B358&background=FFFFFF00&center=true&repeat=false&width=435&lines=homescreen-hero)](https://git.io/typing-svg)
 
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
-<!-- TODO: Add live demo link maybe? -->
+![GitHub last commit](https://img.shields.io/github/last-commit/trentferguson/homescreen-hero)
+![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero) 
+
 
 </div>
 
@@ -18,14 +21,14 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 (especially the frontend). As a Data Engineer who originally went to school to become a full-stack developer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
 ## Overview
 
-HomeScreen Hero provides a powerful, self-hosted solution for Plex Media Server users to dynamically manage their home screen content. It empowers you to automate the rotation of Plex collections, ensuring your content recommendations stay fresh and engaging without manual intervention. The application features a sleek web dashboard built with React (thanks Chat GPT!), facilitating easy configuration and control over your collection rotation schedules, all backed by a robust FastAPI backend.
+**HomeScreen Hero** aims to be your one-stop-shop for managing your Plex homescreen. Right now, HomeScreen Hero is a self-hosted Plex companion app that I built to solve a simple problem: keeping my Plex home screen from getting stale. It automatically rotates collections on a schedule, so featured content stays fresh without constantly tweaking things by hand. There’s a clean React-based web UI (Thanks Chat GPT!) for configuring and monitoring everything, with a FastAPI backend doing the heavy lifting behind the scenes.
 
 ## Features
 
--   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals.
--   **Manual Collection Rotation:** Trigger instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and apply them if you like them!
--   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex integration.
--   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections.
+-   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
+-   **Manual Collection Rotation:** If you want more control over what shows up on your homescreen, you can trigger an instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and only apply them if you like it!
+-   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
+-   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
 -   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
 -   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
 -   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
@@ -81,17 +84,32 @@ This project is designed for easy deployment using Docker and Docker Compose.
     cd homescreen-hero
     ```
 
-2.  **Configure HomeScreen Hero** <br>
-    The application uses `config.yaml` for its settings. A sample file is provided (*example.config.yaml*), as well as an example down below:
+2.  **Configure HomeScreen Hero**
+
+    a. **Create configuration file:**
     ```bash
-    create /data folder in root directory and place your config.yaml file inside of it
+    mkdir -p data
+    cp example.config.yaml data/config.yaml
     ```
-    Open `config.yaml` and adjust the settings according to your Plex Media Server and desired rotation logic. Key settings will include:
-    -   `base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    -   `token`: Your Plex authentication token. (more info [here](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
-    -   `LOG_LEVEL`: Logging verbosity. (INFO, ERROR, DEBUG, WARNING)
-    -   `client_id` Your Trakt application API Key (more info [here](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
-   <!-- TODO: List other critical configuration options from example.config.yaml -->
+
+    b. **Set up environment variables (recommended for security):**
+    ```bash
+    cp .env.example .env
+    ```
+    Edit `.env` and fill in your sensitive values:
+    - `HSH_PLEX_TOKEN`: Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
+    - `HSH_AUTH_PASSWORD`: Your desired admin password (if enabling auth)
+    - `HSH_AUTH_SECRET_KEY`: Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+    - `HSH_TRAKT_CLIENT_ID`: Your Trakt API key (if using Trakt) ([how to get it](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
+
+    c. **Edit config.yaml:**
+    Open `data/config.yaml` and configure non-sensitive settings:
+    - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
+    - `plex.library_name`: The library to manage (e.g., "Movies")
+    - `rotation` settings: interval, max collections, strategy
+    - `groups`: Define your collection groups
+
+    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
 
 3.  **Start the application with Docker Compose**
     ```bash
@@ -132,6 +150,37 @@ homescreen-hero/
 ```
 
 ## Configuration
+
+### Security Best Practices
+
+For enhanced security, sensitive values (tokens, passwords, API keys) can be stored in environment variables instead of directly in `config.yaml`. This is especially important when:
+- Committing your config to version control
+- Running in production environments
+- Sharing your config with others
+
+**Supported Environment Variables:**
+- `HSH_PLEX_TOKEN` - Your Plex authentication token
+- `HSH_AUTH_PASSWORD` - Authentication password (when auth is enabled)
+- `HSH_AUTH_SECRET_KEY` - JWT secret key (when auth is enabled)
+- `HSH_TRAKT_CLIENT_ID` - Trakt API client ID (when Trakt is enabled)
+
+**Setup:**
+1. Copy [.env.example](.env.example) to `.env`
+2. Fill in your sensitive values in the `.env` file
+3. Remove or leave empty the corresponding fields in `config.yaml`
+4. The application will automatically use environment variables as fallback
+
+**Example `.env` file:**
+```bash
+HSH_PLEX_TOKEN=your-plex-token-here
+HSH_AUTH_PASSWORD=your-secure-password
+HSH_AUTH_SECRET_KEY=your-secret-key-here
+```
+
+Environment variables take precedence over values in `config.yaml`.
+
+### Configuration File
+
 Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/config/schema.py`. Here is the provided starter layout:
 ```yaml
 plex:
@@ -174,22 +223,43 @@ Key sections:
 - **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
 
-## What's on my radar
-### Features
-- Implement other third-party list sources (IMDb, TVDb, TMDb, more?)
-- Add other selection methods outside of random (weighted selection, etc.) and collection dependencies ("if A then also B")
-- Simple user authentication (not really necessary for an app like this, but I wanna learn how to implement basic auth)
-
-### Fixes & Improvements
-- Clean up any remaining deprecated form-based endpoints if unused (leftovers from before I switched to a React frontend)
-- Implement basic unit tests (I know, I know- vibe-coded app doesn't have any tests. I swear I'll get around to this)
-
 ## Docker
+
 A ready-to-use Compose file builds the service, exposes the API on **port 8000**, and mounts `./data` for config, database, and logs:
+
 ```bash
 docker-compose up -d
 ```
-Environment variables can override paths for config (`HOMESCREEN_HERO_CONFIG`), database (`HOMESCREEN_HERO_DB`), and logs (`HOMESCREEN_HERO_LOG_DIR`). Health checks ping `/api/health` to confirm the API is ready.
+
+### Environment Variables in Docker
+
+The `docker-compose.yml` is configured to read sensitive values from a `.env` file:
+
+1. **Copy the example:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your values:**
+   ```bash
+   HSH_PLEX_TOKEN=your-actual-plex-token
+   HSH_AUTH_PASSWORD=your-secure-password
+   HSH_AUTH_SECRET_KEY=your-generated-secret-key
+   ```
+
+3. **Start the container:**
+   ```bash
+   docker-compose up -d
+   ```
+
+Docker Compose automatically loads variables from `.env` and passes them to the container. The syntax `${HSH_PLEX_TOKEN}` references the variable from your `.env` file, and `${HSH_AUTH_PASSWORD:-}` uses the value if set or an empty string if not.
+
+**Additional environment variables:**
+- `HOMESCREEN_HERO_CONFIG` - Path to config file (default: `/data/config.yaml`)
+- `HOMESCREEN_HERO_DB` - Database path (default: `sqlite:////data/homescreen_hero.sqlite`)
+- `HOMESCREEN_HERO_LOG_DIR` - Log directory (default: `/data/logs`)
+
+Health checks ping `/api/health` to confirm the API is ready.
 
 ## Development
 
@@ -316,4 +386,3 @@ Made with ❤️ by [trentferguson](https://github.com/trentferguson)
 
 </div>
 ```
-
