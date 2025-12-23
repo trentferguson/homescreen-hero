@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../utils/auth";
 import PosterBackground from "../components/PosterBackground";
@@ -9,7 +9,14 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, authEnabled, loading: authLoading } = useAuth();
+
+    // If auth is disabled, redirect to dashboard
+    useEffect(() => {
+        if (!authLoading && !authEnabled) {
+            navigate("/");
+        }
+    }, [authEnabled, authLoading, navigate]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();

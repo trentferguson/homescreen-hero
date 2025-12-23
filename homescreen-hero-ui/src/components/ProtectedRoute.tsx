@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { isAuthenticated, loading } = useAuth();
+    const { isAuthenticated, authEnabled, loading } = useAuth();
 
     if (loading) {
         // Show a loading spinner while checking auth
@@ -23,8 +23,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         );
     }
 
+    // If auth is disabled, allow access without authentication
+    if (!authEnabled) {
+        return <>{children}</>;
+    }
+
+    // If auth is enabled but user is not authenticated, redirect to login
     if (!isAuthenticated) {
-        // Redirect to login if not authenticated
         return <Navigate to="/login" replace />;
     }
 

@@ -6,11 +6,19 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+from dotenv import load_dotenv
 
 from .schema import AppConfig
 
 
 logger = logging.getLogger(__name__)
+
+# Load .env file if it exists (for local development)
+# Docker Compose will handle env vars automatically
+env_file = Path(".env")
+if env_file.exists():
+    load_dotenv(env_file)
+    logger.debug(f"Loaded environment variables from {env_file}")
 
 
 # Default path to the config file.

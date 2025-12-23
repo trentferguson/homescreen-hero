@@ -23,7 +23,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { theme, toggleTheme } = useTheme();
-    const { logout, username } = useAuth();
+    const { logout, username, authEnabled } = useAuth();
     const navigate = useNavigate();
     const isDark = theme === "dark";
 
@@ -78,9 +78,11 @@ export default function TopNav() {
                         <span>{username}</span>
                     </div>
 
-                    <IconButton label="Logout" onClick={handleLogout}>
-                        <LogOut size={20} />
-                    </IconButton>
+                    {authEnabled && (
+                        <IconButton label="Logout" onClick={handleLogout}>
+                            <LogOut size={20} />
+                        </IconButton>
+                    )}
                 </div>
             </div>
         </header>
