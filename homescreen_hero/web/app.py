@@ -21,6 +21,7 @@ from homescreen_hero.web.routers import (
     logs_router,
     rotation_router,
     collections_router,
+    auth_router,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(history_router, prefix="/api")
     app.include_router(logs_router, prefix="/api")
     app.include_router(collections_router, prefix="/api")
+    app.include_router(auth_router, prefix="/api")
 
     # Frontend (serve only if build exists)
     logger.info(

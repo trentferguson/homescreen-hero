@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 
 type ConfigFileResponse = { path: string; content: string };
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
@@ -11,7 +12,7 @@ export default function ConfigPage() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        fetch("/api/admin/config/file")
+        fetchWithAuth("/api/admin/config/file")
             .then((r) => r.json())
             .then((d: ConfigFileResponse) => {
                 setPath(d.path);
@@ -26,7 +27,7 @@ export default function ConfigPage() {
             setMsg(null);
             setError(null);
 
-            const r = await fetch("/api/admin/config/file", {
+            const r = await fetchWithAuth("/api/admin/config/file", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content }),

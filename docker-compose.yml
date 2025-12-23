@@ -5,11 +5,16 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # Config and data paths
       HOMESCREEN_HERO_CONFIG: /data/config.yaml
-      # If you use SQLite and support env-driven DB url:
       HOMESCREEN_HERO_DB: sqlite:////data/homescreen_hero.sqlite
-      # If you support env-driven log dir:
       HOMESCREEN_HERO_LOG_DIR: /data/logs
+      # Sensitive values (loaded from .env file)
+      # Copy .env.example to .env and fill in your values
+      HSH_PLEX_TOKEN: ${HSH_PLEX_TOKEN}
+      HSH_AUTH_PASSWORD: ${HSH_AUTH_PASSWORD:-}
+      HSH_AUTH_SECRET_KEY: ${HSH_AUTH_SECRET_KEY:-}
+      HSH_TRAKT_CLIENT_ID: ${HSH_TRAKT_CLIENT_ID:-}
     volumes:
       - ./data:/data
     restart: unless-stopped

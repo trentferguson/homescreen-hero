@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 import { Bell, Shield, SlidersHorizontal } from "lucide-react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
@@ -103,7 +104,7 @@ export default function SettingsPage() {
         try {
             setTestStatus("testing");
 
-            const r = await fetch("/api/health/plex");
+            const r = await fetchWithAuth("/api/health/plex");
             if (!r.ok) {
                 throw new Error(await r.text());
             }
@@ -128,7 +129,7 @@ export default function SettingsPage() {
         try {
             setTestStatus("testing");
 
-            const r = await fetch("/api/health/trakt");
+            const r = await fetchWithAuth("/api/health/trakt");
             if (!r.ok) {
                 throw new Error(await r.text());
             }
@@ -151,7 +152,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         let isMounted = true;
-        fetch("/api/admin/config/rotation")
+        fetchWithAuth("/api/admin/config/rotation")
             .then(async (r) => {
                 if (!r.ok) {
                     throw new Error(await r.text());
@@ -178,7 +179,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         let isMounted = true;
-        fetch("/api/admin/config/plex")
+        fetchWithAuth("/api/admin/config/plex")
             .then(async (r) => {
                 if (!r.ok) {
                     throw new Error(await r.text());
@@ -205,7 +206,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         let isMounted = true;
-        fetch("/api/admin/config/trakt")
+        fetchWithAuth("/api/admin/config/trakt")
             .then(async (r) => {
                 if (!r.ok) {
                     throw new Error(await r.text());
@@ -238,7 +239,7 @@ export default function SettingsPage() {
 
     useEffect(() => {
         let isMounted = true;
-        fetch("/api/admin/config/trakt/sources")
+        fetchWithAuth("/api/admin/config/trakt/sources")
             .then(async (r) => {
                 if (!r.ok) {
                     throw new Error(await r.text());
@@ -269,7 +270,7 @@ export default function SettingsPage() {
             setRotationError(null);
             setRotationMessage(null);
 
-            const r = await fetch("/api/admin/config/rotation", {
+            const r = await fetchWithAuth("/api/admin/config/rotation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(rotationSettings),
@@ -294,7 +295,7 @@ export default function SettingsPage() {
             setTraktSourcesError(null);
             setTraktSourcesMessage(null);
 
-            const r = await fetch("/api/admin/config/trakt/sources", {
+            const r = await fetchWithAuth("/api/admin/config/trakt/sources", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newSource),
@@ -304,7 +305,7 @@ export default function SettingsPage() {
                 throw new Error(await r.text());
             }
 
-            await fetch("/api/admin/config/trakt/sources")
+            await fetchWithAuth("/api/admin/config/trakt/sources")
                 .then((resp) => resp.json())
                 .then((data: TraktSource[]) => setTraktSources(data || []));
 
@@ -324,7 +325,7 @@ export default function SettingsPage() {
             setTraktSourcesError(null);
             setTraktSourcesMessage(null);
 
-            const r = await fetch(`/api/admin/config/trakt/sources/${index}`, {
+            const r = await fetchWithAuth(`/api/admin/config/trakt/sources/${index}`, {
                 method: "DELETE",
             });
 
@@ -332,7 +333,7 @@ export default function SettingsPage() {
                 throw new Error(await r.text());
             }
 
-            await fetch("/api/admin/config/trakt/sources")
+            await fetchWithAuth("/api/admin/config/trakt/sources")
                 .then((resp) => resp.json())
                 .then((data: TraktSource[]) => setTraktSources(data || []));
 
@@ -362,7 +363,7 @@ export default function SettingsPage() {
             setPlexError(null);
             setPlexMessage(null);
 
-            const r = await fetch("/api/admin/config/plex", {
+            const r = await fetchWithAuth("/api/admin/config/plex", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(plexSettings),
@@ -386,7 +387,7 @@ export default function SettingsPage() {
             setTraktError(null);
             setTraktMessage(null);
 
-            const r = await fetch("/api/admin/config/trakt", {
+            const r = await fetchWithAuth("/api/admin/config/trakt", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(traktSettings),

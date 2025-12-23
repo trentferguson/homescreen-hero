@@ -1,7 +1,8 @@
-import { NavLink } from "react-router-dom";
-import { Bell, User, LogOut, Moon, Sun } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { User, LogOut, Moon, Sun } from "lucide-react";
 import IconButton from "./IconButton";
 import { useTheme } from "../utils/theme";
+import { useAuth } from "../utils/auth";
 
 function NavItem({ to, label }: { to: string; label: string }) {
     return (
@@ -22,7 +23,14 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { theme, toggleTheme } = useTheme();
+    const { logout, username, authEnabled } = useAuth();
+    const navigate = useNavigate();
     const isDark = theme === "dark";
+
+    const handleLogout = () => {
+        logout();
+        navigate("/login");
+    };
 
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80 transition-all duration-300">
@@ -59,17 +67,22 @@ export default function TopNav() {
                         <span className="hidden sm:inline">{isDark ? "Light" : "Dark"} mode</span>
                     </button>
 
+                    {/*
                     <IconButton label="Notifications">
                         <Bell size={20} />
                     </IconButton>
+                    */}
 
-                    <IconButton label="Profile">
-                        <User size={20} />
-                    </IconButton>
+                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                        <User size={18} />
+                        <span>{username}</span>
+                    </div>
 
-                    <IconButton label="Logout">
-                        <LogOut size={20} />
-                    </IconButton>
+                    {authEnabled && (
+                        <IconButton label="Logout" onClick={handleLogout}>
+                            <LogOut size={20} />
+                        </IconButton>
+                    )}
                 </div>
             </div>
         </header>

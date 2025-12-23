@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowRight,
@@ -72,7 +73,7 @@ export default function GroupsPage() {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetch("/api/admin/config/groups").then((r) => r.json());
+            const data = await fetchWithAuth("/api/admin/config/groups").then((r) => r.json());
             setGroups(data);
         } catch (e) {
             setError(String(e));
@@ -106,7 +107,7 @@ export default function GroupsPage() {
             setCreating(true);
             setMessage(null);
             const payload = { ...emptyGroup, name: newName.trim() };
-            const r = await fetch("/api/admin/config/groups", {
+            const r = await fetchWithAuth("/api/admin/config/groups", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -131,7 +132,7 @@ export default function GroupsPage() {
             setProcessingIndex(renaming.index);
             setMessage(null);
             const payload = { ...target, name: renaming.value.trim() || target.name };
-            const r = await fetch(`/api/admin/config/groups/${renaming.index}`, {
+            const r = await fetchWithAuth(`/api/admin/config/groups/${renaming.index}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -154,7 +155,7 @@ export default function GroupsPage() {
         try {
             setProcessingIndex(index);
             setMessage(null);
-            const r = await fetch(`/api/admin/config/groups/${index}`, { method: "DELETE" });
+            const r = await fetchWithAuth(`/api/admin/config/groups/${index}`, { method: "DELETE" });
             const text = await r.text();
             if (!r.ok) throw new Error(text || "Failed to delete group");
             setMessage("Group deleted");

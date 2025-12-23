@@ -4,6 +4,7 @@ import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import HealthCard from "../components/HealthCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
 import { timeAgo } from "../utils/dates";
+import { fetchWithAuth } from "../utils/api";
 
 type RotationHistoryItem = {
     id: number;
@@ -130,7 +131,7 @@ export default function Dashboard() {
             (Object.entries(healthEndpoints) as [keyof typeof healthEndpoints, string][]).map(
                 async ([key, url]) => {
                     try {
-                        const response = await fetch(url);
+                        const response = await fetchWithAuth(url);
                         const payload = await response.json();
 
                         if (!response.ok) {
@@ -165,7 +166,7 @@ export default function Dashboard() {
         setActiveLoading(true);
 
         try {
-            const response = await fetch("/api/collections/active");
+            const response = await fetchWithAuth("/api/collections/active");
             const payload = await response.json();
             setActiveCollections(payload.collections ?? []);
         } catch (e) {
@@ -188,7 +189,7 @@ export default function Dashboard() {
         setHistoryLoading(true);
         void loadHealth();
         void loadActiveCollections();
-        fetch("/api/history/all?limit=10")
+        fetchWithAuth("/api/history/all?limit=10")
             .then(async (r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
                 return r.json();
@@ -226,7 +227,7 @@ export default function Dashboard() {
         try {
             setBusy("simulate");
             setError(null);
-            const r = await fetch("/api/rotate/simulate-next", { method: "POST" });
+            const r = await fetchWithAuth("/api/rotate/simulate-next", { method: "POST" });
             if (!r.ok) throw new Error(`Simulation failed: HTTP ${r.status} ${await r.text()}`);
             const payload: RotationExecution = await r.json();
             setSimulation(payload);
@@ -248,7 +249,7 @@ export default function Dashboard() {
         try {
             setBusy("apply");
             setError(null);
-            const r = await fetch(`/api/rotate/use-simulation/${simulation.simulation_id}`, { method: "POST" });
+            const r = await fetchWithAuth(`/api/rotate/use-simulation/${simulation.simulation_id}`, { method: "POST" });
             if (!r.ok) throw new Error(`Apply simulation failed: HTTP ${r.status} ${await r.text()}`);
             await r.json();
             setShowSimulationModal(false);
@@ -265,7 +266,7 @@ export default function Dashboard() {
         try {
             setBusy("sync");
             setError(null);
-            const r = await fetch("/api/rotate/rotate-now", { method: "POST" });
+            const r = await fetchWithAuth("/api/rotate/rotate-now", { method: "POST" });
             if (!r.ok) throw new Error(`Force sync failed: HTTP ${r.status} ${await r.text()}`);
             refresh();
             void loadActiveCollections();

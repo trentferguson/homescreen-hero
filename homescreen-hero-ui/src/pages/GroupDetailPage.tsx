@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { CalendarRange, Check, Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import FieldRow from "../components/FieldRow";
@@ -73,7 +74,7 @@ export default function GroupDetailPage() {
 
     useEffect(() => {
         setLoading(true);
-        fetch("/api/admin/config/groups")
+        fetchWithAuth("/api/admin/config/groups")
             .then((r) => r.json())
             .then((data: CollectionGroup[]) => {
                 setGroups(data);
@@ -104,7 +105,7 @@ export default function GroupDetailPage() {
     }, [groupId, groups]);
 
     useEffect(() => {
-        fetch("/api/admin/config/group-sources")
+        fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
                 const combined = [...(data.plex || []), ...(data.trakt || [])];
@@ -186,7 +187,7 @@ export default function GroupDetailPage() {
             const endpoint = isNew ? "/api/admin/config/groups" : `/api/admin/config/groups/${selectedIndex}`;
             const method = isNew ? "POST" : "PUT";
 
-            const r = await fetch(endpoint, {
+            const r = await fetchWithAuth(endpoint, {
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -199,7 +200,7 @@ export default function GroupDetailPage() {
             setMessage(resp.message);
 
             // Refresh groups list after save
-            const nextGroups = await fetch("/api/admin/config/groups").then((res) => res.json());
+            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
             setGroups(nextGroups);
             const targetIndex = isNew ? nextGroups.length - 1 : Number(selectedIndex);
             if (!Number.isNaN(targetIndex) && targetIndex >= 0) {
@@ -219,14 +220,14 @@ export default function GroupDetailPage() {
             setError(null);
             setMessage(null);
 
-            const r = await fetch(`/api/admin/config/groups/${selectedIndex}`, { method: "DELETE" });
+            const r = await fetchWithAuth(`/api/admin/config/groups/${selectedIndex}`, { method: "DELETE" });
             const text = await r.text();
             if (!r.ok) throw new Error(text || "Failed to delete group");
 
             const resp = JSON.parse(text) as ConfigSaveResponse;
             setMessage(resp.message);
 
-            const nextGroups = await fetch("/api/admin/config/groups").then((res) => res.json());
+            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
             setGroups(nextGroups);
             if (nextGroups.length) {
                 navigate(`/groups/0`, { replace: true });
