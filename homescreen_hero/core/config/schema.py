@@ -65,6 +65,18 @@ class CollectionGroupConfig(BaseModel):
         ge=0,
         description="Minimum number of rotations that must pass before reusing a collection from this group",
     )
+    visibility_home: bool = Field(
+        default=True,
+        description="Promote collections to server admin's Home page",
+    )
+    visibility_shared: bool = Field(
+        default=False,
+        description="Promote collections to shared users' Home pages",
+    )
+    visibility_recommended: bool = Field(
+        default=False,
+        description="Promote collections to Library Recommended section",
+    )
     date_range: Optional[DateRange] = Field(
         default=None,
         description="Optional yearly date window when this group is active",

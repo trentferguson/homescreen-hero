@@ -50,6 +50,7 @@ def apply_home_screen_selection(
     server: PlexServer,
     config: AppConfig,
     selected_collection_names: Iterable[str],
+    collection_visibility: Dict[str, Dict[str, bool]],
     *,
     dry_run: bool = False,
 ) -> List[str]:
@@ -59,8 +60,12 @@ def apply_home_screen_selection(
     #   - Build the union of all config-defined collection names
     #   - Fetch those collections from Plex
     #   - For each:
-    #       - If in selected_collection_names -> home=True
-    #       - Else -> home=False
+    #       - If in selected_collection_names -> apply visibility settings from collection_visibility
+    #       - Else -> disable all visibility (home=False, shared=False, recommended=False)
+    #
+    # Args:
+    #   collection_visibility: Dict mapping collection name to visibility settings
+    #       e.g. {"Christmas Classics": {"home": True, "shared": True, "recommended": False}}
     #
     # Returns a list of collection titles that were (or would be) set to show on Home
 
@@ -93,14 +98,31 @@ def apply_home_screen_selection(
         hub = coll.visibility()
 
         if name in selected_set:
-            logger.info("Enabling Home visibility for collection: %s", name)
+            # Get visibility settings for this collection
+            visibility = collection_visibility.get(name, {
+                "home": True,
+                "shared": False,
+                "recommended": False
+            })
+
+            logger.info(
+                "Enabling visibility for collection '%s': home=%s, shared=%s, recommended=%s",
+                name,
+                visibility.get("home", True),
+                visibility.get("shared", False),
+                visibility.get("recommended", False)
+            )
             applied.append(name)
             if not dry_run:
-                hub.updateVisibility(home=True)
+                hub.updateVisibility(
+                    home=visibility.get("home", True),
+                    shared=visibility.get("shared", False),
+                    recommended=visibility.get("recommended", False)
+                )
         else:
-            logger.debug("Disabling Home visibility for collection: %s", name)
+            logger.debug("Disabling all visibility for collection: %s", name)
             if not dry_run:
-                hub.updateVisibility(home=False)
+                hub.updateVisibility(home=False, shared=False, recommended=False)
 
         logger.info(
             "Home screen selection applied; %d collections enabled, %d configured",

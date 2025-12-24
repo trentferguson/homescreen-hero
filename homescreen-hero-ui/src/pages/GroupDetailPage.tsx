@@ -18,6 +18,9 @@ type CollectionGroup = {
     max_picks: number;
     weight: number;
     min_gap_rotations: number;
+    visibility_home: boolean;
+    visibility_shared: boolean;
+    visibility_recommended: boolean;
     date_range?: DateRange | null;
     collections: string[];
 };
@@ -42,6 +45,9 @@ const emptyGroup: CollectionGroup = {
     max_picks: 1,
     weight: 1,
     min_gap_rotations: 0,
+    visibility_home: true,
+    visibility_shared: false,
+    visibility_recommended: false,
     date_range: null,
     collections: [],
 };
@@ -465,6 +471,47 @@ export default function GroupDetailPage() {
                                         onChange={(e) => handleDateChange("end", e.target.value)}
                                         placeholder="12-26"
                                         className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </FormSection>
+
+                    <FormSection
+                        title="Visibility settings"
+                        description="Control where collections from this group appear on Plex homescreens."
+                    >
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                            <p className="text-sm font-semibold text-slate-100 mb-3">Promote collections to</p>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-200">Your Home page</p>
+                                        <p className="text-xs text-slate-400">Show on server admin's Home screen</p>
+                                    </div>
+                                    <Toggle
+                                        checked={form.visibility_home}
+                                        onChange={() => setForm((p) => ({ ...p, visibility_home: !p.visibility_home }))}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-200">Shared users' Home pages</p>
+                                        <p className="text-xs text-slate-400">Show on friends'/shared users' Home screens</p>
+                                    </div>
+                                    <Toggle
+                                        checked={form.visibility_shared}
+                                        onChange={() => setForm((p) => ({ ...p, visibility_shared: !p.visibility_shared }))}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-slate-200">Library Recommended</p>
+                                        <p className="text-xs text-slate-400">Show in Library's Recommended section</p>
+                                    </div>
+                                    <Toggle
+                                        checked={form.visibility_recommended}
+                                        onChange={() => setForm((p) => ({ ...p, visibility_recommended: !p.visibility_recommended }))}
                                     />
                                 </div>
                             </div>

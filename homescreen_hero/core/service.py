@@ -13,7 +13,7 @@ from .integrations import (
 
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
-from .rotation import run_rotation_with_history
+from .rotation import run_rotation_with_history, build_collection_visibility_map
 from .db import (
     init_db,
     get_rotation_history_context,
@@ -59,11 +59,15 @@ def run_rotation_once(
         usage_map=usage_map,
     )
 
+    # Build visibility map from group settings
+    collection_visibility = build_collection_visibility_map(config)
+
     # Apply the selection (or simulate if dry_run=True)
     applied = apply_home_screen_selection(
         server,
         config,
         rotation_result.selected_collections,
+        collection_visibility,
         dry_run=dry_run,  # controls whether Plex is actually changed
     )
 
@@ -158,10 +162,12 @@ def apply_simulation(
 
     # Apply collections to Plex
     server = get_plex_server(config)
+    collection_visibility = build_collection_visibility_map(config)
     applied = apply_home_screen_selection(
         server,
         config,
         rotation_result.selected_collections,
+        collection_visibility,
         dry_run=False,
     )
 
