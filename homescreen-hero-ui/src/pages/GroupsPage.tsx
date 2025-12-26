@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import FormSection from "../components/FormSection";
+import GroupCoverMosaic from "../components/GroupCoverMosaic";
 
 type DateRange = {
     start: string;
@@ -167,8 +168,18 @@ export default function GroupsPage() {
         }
     };
 
-    const renderCover = (index: number) => {
+    const renderCover = (group: CollectionGroup, index: number) => {
         const gradient = coverGradients[index % coverGradients.length];
+
+        // If the group has collections, show the mosaic; otherwise show gradient
+        if (group.collections && group.collections.length > 0) {
+            return (
+                <div className={`relative h-28 w-full rounded-2xl bg-gradient-to-r ${gradient}`}>
+                    <GroupCoverMosaic collections={group.collections} />
+                </div>
+            );
+        }
+
         return <div className={`h-28 w-full rounded-2xl bg-gradient-to-r ${gradient}`} />;
     };
 
@@ -256,7 +267,7 @@ export default function GroupsPage() {
                                     className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
                                 >
                                     <div className="relative">
-                                        {renderCover(index)}
+                                        {renderCover(group, index)}
                                         <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${group.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20'}`}>
                                             {group.enabled ? "Active" : "Disabled"}
                                         </div>

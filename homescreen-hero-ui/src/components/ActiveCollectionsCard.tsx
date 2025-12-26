@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 export type ActiveCollection = {
     title: string;
     poster_url?: string | null;
@@ -11,11 +13,27 @@ export default function ActiveCollectionsCard({
     collections: ActiveCollection[];
     loading?: boolean;
 }) {
+    const navigate = useNavigate();
+
+    const handleCollectionClick = (collection: ActiveCollection) => {
+        if (collection.library) {
+            navigate(
+                `/collections/${encodeURIComponent(collection.library)}/${encodeURIComponent(collection.title)}`
+            );
+        }
+    };
     return (
         <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md p-5 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300">
             <div className="flex items-end justify-between mb-5">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Active Collections</h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Active Collections</h3>
+                        {!loading && collections.length > 0 && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold bg-primary/10 text-primary border border-primary/20">
+                                {collections.length}
+                            </span>
+                        )}
+                    </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
                         Currently featured on your Plex home screen
                     </p>
@@ -35,9 +53,17 @@ export default function ActiveCollectionsCard({
                 <div className="text-sm text-slate-600 dark:text-slate-400 py-4">No active collections yet.</div>
             ) : (
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hover-only">
-                    {collections.map((c) => (
-                        <div key={c.title} className="w-28 sm:w-32 shrink-0">
-                            <div className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 shadow-md hover:shadow-xl transition-all duration-300 ring-1 ring-slate-700/50 hover:ring-slate-600">
+                    {collections.map((c, index) => (
+                        <button
+                            key={c.title}
+                            onClick={() => handleCollectionClick(c)}
+                            disabled={!c.library}
+                            className="w-28 sm:w-32 shrink-0 animate-fade-in text-left disabled:cursor-default"
+                            style={{
+                                animationDelay: `${index * 0.1}s`,
+                            }}
+                        >
+                            <div className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 shadow-md hover:shadow-xl transition-all duration-300 ring-1 ring-slate-700/50 hover:ring-slate-600 cursor-pointer">
                                 <div
                                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
                                     style={{
@@ -55,7 +81,7 @@ export default function ActiveCollectionsCard({
                             </div>
 
                             <div className="mt-2.5">
-                                <div className="text-sm font-semibold truncate text-slate-900 dark:text-white transition-colors">
+                                <div className="text-sm font-semibold truncate text-slate-900 dark:text-white group-hover:text-primary dark:group-hover:text-primary transition-colors">
                                     {c.title}
                                 </div>
 
@@ -66,7 +92,7 @@ export default function ActiveCollectionsCard({
                                 )}
                             </div>
 
-                        </div>
+                        </button>
                     ))}
                 </div>
             )}

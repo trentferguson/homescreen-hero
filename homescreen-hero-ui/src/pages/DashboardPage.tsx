@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import HealthCard from "../components/HealthCard";
+import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
-import { timeAgo } from "../utils/dates";
+import Toast from "../components/Toast";
+import { timeAgo, timeUntil } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
 
 type RotationHistoryItem = {
@@ -65,19 +67,29 @@ export default function Dashboard() {
     const [busy, setBusy] = useState<null | "simulate" | "apply" | "sync">(null);
     const [simulation, setSimulation] = useState<RotationExecution | null>(null);
     const [showSimulationModal, setShowSimulationModal] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
     const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
+    const [schedulerStatus, setSchedulerStatus] = useState<{
+        enabled: boolean;
+        interval_hours: number;
+        next_run_time: string | null;
+        is_running: boolean;
+    } | null>(null);
+    const [currentTime, setCurrentTime] = useState(Date.now());
 
     const plex = health.plex;
-    const cfg = health.config;
     const db = health.database;
     const trakt = health.trakt;
 
     const plexServerName = plex?.details?.server_name ?? plex?.server_name ?? "Plex";
-    const plexLibraryName = plex?.details?.library_name ?? plex?.library_name;
-    const plexDetail = [plexServerName, plexLibraryName]
+    const plexLibraries = plex?.details?.libraries;
+    const plexLibraryInfo = plexLibraries
+        ? `${plex?.details?.enabled_count ?? plexLibraries.length} ${plexLibraries.length === 1 ? 'library' : 'libraries'}`
+        : null;
+    const plexDetail = [plexServerName, plexLibraryInfo]
         .filter((value): value is string => Boolean(value))
         .join(" • ");
 
@@ -176,8 +188,28 @@ export default function Dashboard() {
         }
     };
 
+    const loadSchedulerStatus = async () => {
+        try {
+            const response = await fetchWithAuth("/api/rotate/scheduler-status");
+            const payload = await response.json();
+            setSchedulerStatus(payload);
+        } catch (e) {
+            console.error("Failed to load scheduler status:", e);
+        }
+    };
+
     useEffect(() => {
         void loadActiveCollections();
+        void loadSchedulerStatus();
+    }, []);
+
+    // Update current time every second for live countdown
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
     }, []);
 
     const refreshHealth = async () => {
@@ -189,6 +221,7 @@ export default function Dashboard() {
         setHistoryLoading(true);
         void loadHealth();
         void loadActiveCollections();
+        void loadSchedulerStatus();
         fetchWithAuth("/api/history/all?limit=10")
             .then(async (r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
@@ -268,10 +301,23 @@ export default function Dashboard() {
             setError(null);
             const r = await fetchWithAuth("/api/rotate/rotate-now", { method: "POST" });
             if (!r.ok) throw new Error(`Force sync failed: HTTP ${r.status} ${await r.text()}`);
+
+            const result = await r.json();
+
+            // Show success toast
+            setToast({
+                message: result.message || "Rotation completed successfully!",
+                type: "success"
+            });
+
             refresh();
             void loadActiveCollections();
         } catch (e) {
             setError(String(e));
+            setToast({
+                message: "Failed to run rotation",
+                type: "error"
+            });
         } finally {
             setBusy(null);
         }
@@ -417,7 +463,11 @@ export default function Dashboard() {
                     <div className="flex flex-col gap-1.5">
                         <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Monitor rotation status, history, and collection usage.
+                            Monitor rotation status, history, and collection usage.{schedulerStatus?.enabled && schedulerStatus.is_running && schedulerStatus.next_run_time ? (
+                                <span className="text-slate-600 dark:text-slate-500"> Next rotation: <span className="font-semibold text-slate-700 dark:text-slate-400">{timeUntil(schedulerStatus.next_run_time, currentTime)}</span></span>
+                            ) : schedulerStatus?.enabled === false ? (
+                                <span className="text-amber-600 dark:text-amber-400"> (Auto-rotation disabled)</span>
+                            ) : null}
                         </p>
                     </div>
 
@@ -474,21 +524,6 @@ export default function Dashboard() {
                     />
 
                     <HealthCard
-                        title="Config"
-                        ok={cfg?.ok}
-                        loading={!cfg && healthLoading}
-                        subtitleOk="Loaded"
-                        subtitleBad="Error"
-                        detail={
-                            !cfg && healthLoading
-                                ? "Checking health…"
-                                : cfg?.ok
-                                    ? "Config Validated"
-                                    : cfg?.error ?? "Failed to load config"
-                        }
-                    />
-
-                    <HealthCard
                         title="SQL Database"
                         ok={db?.ok}
                         loading={!db && healthLoading}
@@ -520,6 +555,13 @@ export default function Dashboard() {
                         }
                     />
 
+                    <RotationStatusCard
+                        enabled={schedulerStatus?.enabled ?? false}
+                        nextRunTime={schedulerStatus?.next_run_time ?? null}
+                        loading={schedulerStatus === null}
+                        currentTime={currentTime}
+                    />
+
                     {/* Active Collections */}
                     <div className="col-span-full w-full">
                         <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
@@ -544,6 +586,15 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </>
     );
 }

@@ -115,7 +115,17 @@ async def get_login_posters() -> PosterResponse:
     try:
         config = load_config()
         server = get_plex_server(config)
-        library = server.library.section(config.plex.library_name)
+
+        # Get enabled libraries
+        enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+        if not enabled_libraries:
+            logger.warning("No enabled libraries for posters")
+            return PosterResponse(posters=[])
+
+        # Pick a random library to fetch posters from
+        library_name = random.choice(enabled_libraries)
+        library = server.library.section(library_name)
 
         # Get all items from the library
         all_items = library.all()

@@ -18,10 +18,15 @@ JOB_ID = "rotation-job"
 _scheduler: Optional[BackgroundScheduler] = None
 
 
+def get_scheduler() -> Optional[BackgroundScheduler]:
+    """Get the current scheduler instance."""
+    return _scheduler
+
+
 def _run_scheduled_rotation() -> None:
     try:
         logger.info("Running scheduled rotation")
-        run_rotation_once(dry_run=True)
+        run_rotation_once(dry_run=False)
     except Exception:  # pragma: no cover
         logger.exception("Scheduled rotation failed")
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { Bell, Shield, SlidersHorizontal } from "lucide-react";
+import { Bell, Shield, SlidersHorizontal, Check, ChevronDown } from "lucide-react";
+import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
@@ -13,7 +14,9 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
-type PlexSettings = { base_url: string; token: string; library_name: string };
+type PlexLibraryConfig = { name: string; enabled: boolean };
+type PlexSettings = { base_url: string; token: string; libraries: PlexLibraryConfig[] };
+type AvailableLibrary = { title: string; type: string };
 type TraktSettings = { enabled: boolean; client_id: string; base_url: string; sources?: TraktSource[] };
 type TraktSource = { name: string; url: string; plex_library: string };
 type RotationSettings = {
@@ -26,25 +29,13 @@ type RotationSettings = {
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
 
-const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button
-        type="button"
-        onClick={onChange}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${checked ? "bg-primary" : "bg-slate-600"
-            }`}
-    >
-        <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${checked ? "translate-x-5" : "translate-x-1"
-                }`}
-        />
-    </button>
-);
-
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
-    const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [traktTestStatus, setTraktTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
+    const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
     const [rotationSettings, setRotationSettings] = useState<RotationSettings>({
         enabled: true,
         interval_hours: 12,
@@ -59,8 +50,10 @@ export default function SettingsPage() {
     const [plexSettings, setPlexSettings] = useState<PlexSettings>({
         base_url: "",
         token: "",
-        library_name: "",
+        libraries: [],
     });
+    const [availableLibraries, setAvailableLibraries] = useState<AvailableLibrary[]>([]);
+    const [loadingLibraries, setLoadingLibraries] = useState(false);
     const [loadingPlex, setLoadingPlex] = useState(true);
     const [savingPlex, setSavingPlex] = useState(false);
     const [plexError, setPlexError] = useState<string | null>(null);
@@ -102,7 +95,7 @@ export default function SettingsPage() {
 
     const handleTestConnection = async () => {
         try {
-            setTestStatus("testing");
+            setPlexTestStatus("testing");
 
             const r = await fetchWithAuth("/api/health/plex");
             if (!r.ok) {
@@ -114,20 +107,20 @@ export default function SettingsPage() {
 
             if (ok) {
                 setPlexError(null);
-                setTestStatus("success");
+                setPlexTestStatus("success");
             } else {
-                setTestStatus("error");
+                setPlexTestStatus("error");
                 setPlexError(data?.error || "Plex health check failed.");
             }
         } catch (e) {
-            setTestStatus("error");
+            setPlexTestStatus("error");
             setPlexError(String(e));
         }
     };
 
     const handleTraktTestConnection = async () => {
         try {
-            setTestStatus("testing");
+            setTraktTestStatus("testing");
 
             const r = await fetchWithAuth("/api/health/trakt");
             if (!r.ok) {
@@ -139,13 +132,13 @@ export default function SettingsPage() {
 
             if (ok) {
                 setTraktError(null);
-                setTestStatus("success");
+                setTraktTestStatus("success");
             } else {
-                setTestStatus("error");
+                setTraktTestStatus("error");
                 setTraktError(data?.error || "Trakt API health check failed.");
             }
         } catch (e) {
-            setTestStatus("error");
+            setTraktTestStatus("error");
             setTraktError(String(e));
         }
     };
@@ -263,6 +256,50 @@ export default function SettingsPage() {
             isMounted = false;
         };
     }, []);
+
+    const fetchAvailableLibraries = async () => {
+        try {
+            setLoadingLibraries(true);
+            const r = await fetchWithAuth("/api/collections/libraries");
+            if (!r.ok) {
+                throw new Error(await r.text());
+            }
+            const data: { libraries: AvailableLibrary[] } = await r.json();
+            setAvailableLibraries(data.libraries || []);
+        } catch (e) {
+            setPlexError(`Failed to fetch libraries: ${String(e)}`);
+        } finally {
+            setLoadingLibraries(false);
+        }
+    };
+
+    const toggleLibrary = (libraryName: string) => {
+        setPlexSettings((prev) => {
+            const existingIndex = prev.libraries.findIndex((lib) => lib.name === libraryName);
+            if (existingIndex >= 0) {
+                // Toggle enabled status
+                const updated = [...prev.libraries];
+                updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    enabled: !updated[existingIndex].enabled,
+                };
+                return { ...prev, libraries: updated };
+            } else {
+                // Add new library
+                return {
+                    ...prev,
+                    libraries: [...prev.libraries, { name: libraryName, enabled: true }],
+                };
+            }
+        });
+    };
+
+    const removeLibrary = (libraryName: string) => {
+        setPlexSettings((prev) => ({
+            ...prev,
+            libraries: prev.libraries.filter((lib) => lib.name !== libraryName),
+        }));
+    };
 
     async function saveRotationSettings() {
         try {
@@ -463,11 +500,29 @@ export default function SettingsPage() {
                         </FieldRow>
 
                         <FieldRow label="Default theme" hint="Applied across dashboards and the homepage.">
-                            <select className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70">
-                                <option>Dark</option>
-                                <option>Light</option>
-                                <option>Auto</option>
-                            </select>
+                            <Listbox value={defaultTheme} onChange={setDefaultTheme}>
+                                <div className="relative">
+                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
+                                        <span>{defaultTheme}</span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
+                                        {["Dark", "Light", "Auto"].map((theme) => (
+                                            <Listbox.Option
+                                                key={theme}
+                                                value={theme}
+                                                className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                            >
+                                                <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
+                                                    <span className="data-[selected]:font-medium">{theme}</span>
+                                                    <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                                </div>
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
                         </FieldRow>
                     </FormSection>
 
@@ -494,13 +549,16 @@ export default function SettingsPage() {
                                     <p className="text-sm font-semibold text-slate-900 dark:text-white">Enable scheduler</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">When enabled, rotations run on the configured interval.</p>
                                 </div>
-                                <Toggle
+                                <Switch
                                     checked={rotationSettings.enabled}
                                     onChange={() => {
                                         if (loadingRotation) return;
                                         setRotationSettings((prev) => ({ ...prev, enabled: !prev.enabled }));
                                     }}
-                                />
+                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                >
+                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                </Switch>
                             </div>
                         </FieldRow>
 
@@ -527,23 +585,39 @@ export default function SettingsPage() {
                         </FieldRow>
 
                         <FieldRow label="Strategy" hint="Random is currently the only supported strategy.">
-                            <select
+                            <Listbox
                                 value={rotationSettings.strategy}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                     setRotationSettings((prev) => ({
                                         ...prev,
-                                        strategy: e.target.value,
+                                        strategy: val,
                                     }))
                                 }
                                 disabled={loadingRotation}
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
                             >
-                                <option value="random">Random</option>
-                            </select>
+                                <div className="relative">
+                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between data-[disabled]:opacity-50">
+                                        <span>Random</span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
+                                        <Listbox.Option
+                                            value="random"
+                                            className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                        >
+                                            <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
+                                                <span className="data-[selected]:font-medium">Random</span>
+                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                            </div>
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
                         </FieldRow>
 
                         <FieldRow label="Allow repeats" hint="Permit the same collection to appear in consecutive rotations.">
-                            <Toggle
+                            <Switch
                                 checked={rotationSettings.allow_repeats}
                                 onChange={() => {
                                     if (loadingRotation) return;
@@ -552,7 +626,10 @@ export default function SettingsPage() {
                                         allow_repeats: !prev.allow_repeats,
                                     }));
                                 }}
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         {rotationMessage ? (
@@ -628,20 +705,73 @@ export default function SettingsPage() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Library" hint="Restrict sync to a single library or leave blank for all.">
-                            <input
-                                type="text"
-                                placeholder="TV Shows"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={plexSettings.library_name}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        library_name: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
-                            />
+                        <FieldRow label="Libraries" hint="Select which Plex libraries to use for rotation.">
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={fetchAvailableLibraries}
+                                    disabled={loadingPlex || loadingLibraries}
+                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {loadingLibraries ? "Loading..." : "Fetch Available Libraries"}
+                                </button>
+
+                                {availableLibraries.length > 0 && (
+                                    <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 space-y-2">
+                                        <div className="text-xs text-slate-400 mb-2">Available Libraries:</div>
+                                        {availableLibraries.map((lib) => {
+                                            const isSelected = plexSettings.libraries.some((l) => l.name === lib.title);
+                                            const isEnabled = plexSettings.libraries.find((l) => l.name === lib.title)?.enabled ?? true;
+                                            return (
+                                                <div key={lib.title} className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected && isEnabled}
+                                                            onChange={() => toggleLibrary(lib.title)}
+                                                            className="h-4 w-4 rounded border-slate-600 text-primary focus:ring-2 focus:ring-primary/70"
+                                                            disabled={loadingPlex}
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm text-slate-100">{lib.title}</div>
+                                                            <div className="text-xs text-slate-500">{lib.type}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {plexSettings.libraries.length > 0 && (
+                                    <div className="rounded-lg border border-emerald-700 bg-emerald-900/30 p-3">
+                                        <div className="text-xs text-emerald-300 mb-2">Selected Libraries:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {plexSettings.libraries.map((lib) => (
+                                                <div
+                                                    key={lib.name}
+                                                    className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs ${
+                                                        lib.enabled
+                                                            ? "bg-emerald-800/50 text-emerald-100"
+                                                            : "bg-slate-700/50 text-slate-400"
+                                                    }`}
+                                                >
+                                                    <span>{lib.name}</span>
+                                                    {!lib.enabled && <span className="text-xs">(disabled)</span>}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLibrary(lib.name)}
+                                                        className="text-emerald-200 hover:text-emerald-50"
+                                                        disabled={loadingPlex}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </FieldRow>
 
                         {plexMessage ? (
@@ -658,7 +788,7 @@ export default function SettingsPage() {
 
                         <TestConnectionCta
                             service="Plex"
-                            status={testStatus}
+                            status={plexTestStatus}
                             onTest={handleTestConnection}
                             message="Run a dry connection test without restarting the service."
                         />
@@ -685,7 +815,7 @@ export default function SettingsPage() {
                             label="Enable Trakt"
                             description="Toggle syncing Trakt lists to your Plex collections."
                         >
-                            <Toggle
+                            <Switch
                                 checked={traktSettings.enabled}
                                 onChange={() =>
                                     setTraktSettings((prev) => ({
@@ -693,7 +823,10 @@ export default function SettingsPage() {
                                         enabled: !prev.enabled,
                                     }))
                                 }
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         <FieldRow
@@ -748,7 +881,7 @@ export default function SettingsPage() {
 
                         <TestConnectionCta
                             service="Trakt"
-                            status={testStatus}
+                            status={traktTestStatus}
                             onTest={handleTraktTestConnection}
                             message="Run a dry connection test without restarting the service."
                         />
@@ -786,14 +919,44 @@ export default function SettingsPage() {
                                     onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
                                     disabled={savingSource || loadingTraktSources}
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="Plex library name"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                <Listbox
                                     value={newSource.plex_library}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, plex_library: e.target.value }))}
+                                    onChange={(value) => setNewSource((prev) => ({ ...prev, plex_library: value }))}
                                     disabled={savingSource || loadingTraktSources}
-                                />
+                                >
+                                    <div className="relative">
+                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
+                                            <span className={newSource.plex_library ? "text-slate-100" : "text-slate-500"}>
+                                                {newSource.plex_library || "Select Plex library"}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
+                                                <div className="px-3 py-2 text-xs text-slate-500">
+                                                    No enabled Plex libraries configured.
+                                                </div>
+                                            ) : (
+                                                plexSettings.libraries
+                                                    .filter((lib) => lib.enabled)
+                                                    .map((lib) => (
+                                                        <Listbox.Option
+                                                            key={lib.name}
+                                                            value={lib.name}
+                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
+                                                        >
+                                                            {({ selected }) => (
+                                                                <>
+                                                                    <span>{lib.name}</span>
+                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
+                                                                </>
+                                                            )}
+                                                        </Listbox.Option>
+                                                    ))
+                                            )}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
                             </div>
 
                             {traktSourcesMessage ? (
@@ -870,18 +1033,24 @@ export default function SettingsPage() {
                                     <p className="text-sm font-semibold text-slate-900 dark:text-white">Enable alerts</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">Covers successes, failures, and dry runs.</p>
                                 </div>
-                                <Toggle
+                                <Switch
                                     checked={notificationsEnabled}
                                     onChange={() => setNotificationsEnabled((v) => !v)}
-                                />
+                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                >
+                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                </Switch>
                             </div>
                         </FieldRow>
 
                         <FieldRow label="Weekly digest" hint="Summary of successes and failures delivered every Monday.">
-                            <Toggle
+                            <Switch
                                 checked={weeklySummary}
                                 onChange={() => setWeeklySummary((v) => !v)}
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         <FieldRow label="Email recipients" description="Comma-separated list of addresses to notify.">

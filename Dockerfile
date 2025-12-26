@@ -43,5 +43,6 @@ COPY --from=ui-build /ui/dist/ /app/homescreen_hero/web/frontend/
 
 EXPOSE 8000
 
+
 # IMPORTANT: single worker recommended (APScheduler runs in-process)
-CMD ["uvicorn", "homescreen_hero.web.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "homescreen_hero.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

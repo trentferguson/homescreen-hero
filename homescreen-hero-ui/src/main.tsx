@@ -15,6 +15,9 @@ import { ThemeProvider } from "./utils/theme";
 import { AuthProvider } from "./utils/auth";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CollectionDetailPage from "./pages/CollectionDetailPage";
+import CollectionsPage from "./pages/CollectionsPage";
+
 
 const router = createBrowserRouter([
   {
@@ -33,6 +36,8 @@ const router = createBrowserRouter([
       { path: "/dashboard", element: <Navigate to="/" replace /> },
       { path: "/groups", element: <GroupsPage /> },
       { path: "/groups/:groupId", element: <GroupDetailPage /> },
+      { path: "/collections", element: <CollectionsPage /> },
+      { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },
       { path: "/config", element: <ConfigPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/logs", element: <LogsPage /> },

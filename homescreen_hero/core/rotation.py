@@ -334,3 +334,29 @@ def select_collections_for_rotation(
 ) -> List[str]:
     result = run_rotation_dry(config, today=today, rng=rng)
     return result.selected_collections
+
+
+def build_collection_visibility_map(config: AppConfig) -> Dict[str, Dict[str, bool]]:
+    """
+    Build a mapping from collection name to visibility settings based on the group it belongs to.
+
+    If a collection appears in multiple groups, the first group's visibility settings are used.
+
+    Returns:
+        Dict mapping collection name to visibility settings dict with keys: home, shared, recommended
+        e.g. {"Christmas Classics": {"home": True, "shared": True, "recommended": False}}
+    """
+    visibility_map: Dict[str, Dict[str, bool]] = {}
+
+    for group in config.groups:
+        for collection_name in group.collections:
+            # Only set visibility if this collection hasn't been seen yet
+            # (first group wins if a collection is in multiple groups)
+            if collection_name not in visibility_map:
+                visibility_map[collection_name] = {
+                    "home": group.visibility_home,
+                    "shared": group.visibility_shared,
+                    "recommended": group.visibility_recommended,
+                }
+
+    return visibility_map

@@ -9,6 +9,12 @@ class DateRange(BaseModel):
     end: str = Field(..., description="End date in MM-DD format, e.g. '12-26'")
 
 
+class PlexLibraryConfig(BaseModel):
+    # Configuration for a single Plex library.
+    name: str = Field(..., description="Library name")
+    enabled: bool = Field(default=True, description="Whether this library is enabled for rotation")
+
+
 class PlexSettings(BaseModel):
     # Plex connection details.
     base_url: str = Field(..., description="Base URL of your Plex server")
@@ -16,7 +22,10 @@ class PlexSettings(BaseModel):
         default=None,
         description="Plex API token (can be set via HSH_PLEX_TOKEN env var)",
     )
-    library_name: str = Field(..., description="Name of the Plex library to use")
+    libraries: List[PlexLibraryConfig] = Field(
+        default_factory=list,
+        description="List of Plex libraries to use for rotation"
+    )
 
 
 class RotationSettings(BaseModel):
@@ -64,6 +73,18 @@ class CollectionGroupConfig(BaseModel):
         default=0,
         ge=0,
         description="Minimum number of rotations that must pass before reusing a collection from this group",
+    )
+    visibility_home: bool = Field(
+        default=True,
+        description="Promote collections to server admin's Home page",
+    )
+    visibility_shared: bool = Field(
+        default=False,
+        description="Promote collections to shared users' Home pages",
+    )
+    visibility_recommended: bool = Field(
+        default=False,
+        description="Promote collections to Library Recommended section",
     )
     date_range: Optional[DateRange] = Field(
         default=None,

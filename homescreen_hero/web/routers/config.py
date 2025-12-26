@@ -19,6 +19,7 @@ from homescreen_hero.core.config.loader import (
 )
 from homescreen_hero.core.config.schema import (
     PlexSettings,
+    PlexLibraryConfig,
     RotationSettings,
     TraktSettings,
     TraktSource,
@@ -186,10 +187,20 @@ def save_plex_settings(
         plex_section = dict(plex_section)
 
         plex_section.pop("url", None)  # Remove deprecated key if present
+        plex_section.pop("library_name", None)  # Remove deprecated key if present
+
+        # Only save token to config if it's not coming from environment variable
+        token_from_env = os.getenv("HSH_PLEX_TOKEN")
+        if token_from_env:
+            # Don't write token to config if it's set in environment
+            plex_section.pop("token", None)
+        else:
+            # Write token to config only if not using env var
+            plex_section["token"] = payload.token
+
         plex_section.update(
             base_url=payload.base_url,
-            token=payload.token,
-            library_name=payload.library_name,
+            libraries=[lib.model_dump(exclude_none=True) for lib in payload.libraries],
         )
 
         data["plex"] = plex_section
@@ -236,9 +247,17 @@ def save_trakt_settings(
             trakt_section
         )
 
+        # Only save client_id to config if it's not coming from environment variable
+        client_id_from_env = os.getenv("HSH_TRAKT_CLIENT_ID")
+        if client_id_from_env:
+            # Don't write client_id to config if it's set in environment
+            trakt_section.pop("client_id", None)
+        else:
+            # Write client_id to config only if not using env var
+            trakt_section["client_id"] = payload.client_id
+
         trakt_section.update(
             enabled=payload.enabled,
-            client_id=payload.client_id,
             base_url=payload.base_url,
         )
 
