@@ -6,9 +6,10 @@ from typing import List, Literal, Optional
 
 import yaml
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
+from homescreen_hero.core.auth import get_current_user
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -18,6 +19,7 @@ from homescreen_hero.core.config.loader import (
 )
 from homescreen_hero.core.config.schema import (
     PlexSettings,
+    PlexLibraryConfig,
     RotationSettings,
     TraktSettings,
     TraktSource,
@@ -125,7 +127,9 @@ def _load_trakt_sources(data: dict) -> list[dict]:
 
 # Return the current configuration file contents
 @router.get("/file", response_model=ConfigFileResponse)
-def read_config_file() -> ConfigFileResponse:
+def read_config_file(
+    current_user: str = Depends(get_current_user),
+) -> ConfigFileResponse:
     try:
         content = load_config_text()
         return ConfigFileResponse(path=str(get_config_path()), content=content)
@@ -137,7 +141,10 @@ def read_config_file() -> ConfigFileResponse:
 
 # Validate and persist configuration updates provided as YAML text
 @router.post("/file", response_model=ConfigSaveResponse)
-def save_config(payload: ConfigUpdateRequest) -> ConfigSaveResponse:
+def save_config(
+    payload: ConfigUpdateRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         save_config_text(payload.content)
         config_path = get_config_path()
@@ -157,7 +164,7 @@ def save_config(payload: ConfigUpdateRequest) -> ConfigSaveResponse:
 
 # Return the currently configured Plex settings
 @router.get("/plex", response_model=PlexSettings)
-def get_plex_settings() -> PlexSettings:
+def get_plex_settings(current_user: str = Depends(get_current_user)) -> PlexSettings:
     try:
         config = load_config()
         return config.plex
@@ -169,7 +176,10 @@ def get_plex_settings() -> PlexSettings:
 
 # Update only Plex settings in config.yaml while preserving other keys
 @router.post("/plex", response_model=ConfigSaveResponse)
-def save_plex_settings(payload: PlexConfigSaveRequest) -> ConfigSaveResponse:
+def save_plex_settings(
+    payload: PlexConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
 
@@ -177,10 +187,20 @@ def save_plex_settings(payload: PlexConfigSaveRequest) -> ConfigSaveResponse:
         plex_section = dict(plex_section)
 
         plex_section.pop("url", None)  # Remove deprecated key if present
+        plex_section.pop("library_name", None)  # Remove deprecated key if present
+
+        # Only save token to config if it's not coming from environment variable
+        token_from_env = os.getenv("HSH_PLEX_TOKEN")
+        if token_from_env:
+            # Don't write token to config if it's set in environment
+            plex_section.pop("token", None)
+        else:
+            # Write token to config only if not using env var
+            plex_section["token"] = payload.token
+
         plex_section.update(
             base_url=payload.base_url,
-            token=payload.token,
-            library_name=payload.library_name,
+            libraries=[lib.model_dump(exclude_none=True) for lib in payload.libraries],
         )
 
         data["plex"] = plex_section
@@ -203,7 +223,7 @@ def save_plex_settings(payload: PlexConfigSaveRequest) -> ConfigSaveResponse:
 
 # Return the currently configured Trakt settings
 @router.get("/trakt", response_model=TraktSettings)
-def get_trakt_settings() -> TraktSettings:
+def get_trakt_settings(current_user: str = Depends(get_current_user)) -> TraktSettings:
     try:
         config = load_config()
         return config.trakt
@@ -215,7 +235,10 @@ def get_trakt_settings() -> TraktSettings:
 
 # Update only Trakt settings in config.yaml while preserving other keys
 @router.post("/trakt", response_model=ConfigSaveResponse)
-def save_trakt_settings(payload: TraktConfigSaveRequest) -> ConfigSaveResponse:
+def save_trakt_settings(
+    payload: TraktConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
 
@@ -224,9 +247,17 @@ def save_trakt_settings(payload: TraktConfigSaveRequest) -> ConfigSaveResponse:
             trakt_section
         )
 
+        # Only save client_id to config if it's not coming from environment variable
+        client_id_from_env = os.getenv("HSH_TRAKT_CLIENT_ID")
+        if client_id_from_env:
+            # Don't write client_id to config if it's set in environment
+            trakt_section.pop("client_id", None)
+        else:
+            # Write client_id to config only if not using env var
+            trakt_section["client_id"] = payload.client_id
+
         trakt_section.update(
             enabled=payload.enabled,
-            client_id=payload.client_id,
             base_url=payload.base_url,
         )
 
@@ -250,7 +281,7 @@ def save_trakt_settings(payload: TraktConfigSaveRequest) -> ConfigSaveResponse:
 
 # Return list of all configured Trakt sources
 @router.get("/trakt/sources", response_model=list[TraktSource])
-def list_trakt_sources() -> list[TraktSource]:
+def list_trakt_sources(current_user: str = Depends(get_current_user),) -> list[TraktSource]:
     try:
         config = load_config()
         return list(getattr(getattr(config, "trakt", None), "sources", []) or [])
@@ -262,7 +293,10 @@ def list_trakt_sources() -> list[TraktSource]:
 
 # Append new Trakt source to config.yaml
 @router.post("/trakt/sources", response_model=ConfigSaveResponse)
-def create_trakt_source(payload: TraktSourcePayload) -> ConfigSaveResponse:
+def create_trakt_source(
+    payload: TraktSourcePayload,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         trakt_section = data.get("trakt") if isinstance(data.get("trakt"), dict) else {}
@@ -293,7 +327,11 @@ def create_trakt_source(payload: TraktSourcePayload) -> ConfigSaveResponse:
 
 # Replace existing Trakt source at given index in config.yaml
 @router.put("/trakt/sources/{index}", response_model=ConfigSaveResponse)
-def update_trakt_source(index: int, payload: TraktSourcePayload) -> ConfigSaveResponse:
+def update_trakt_source(
+    index: int,
+    payload: TraktSourcePayload,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         trakt_section = data.get("trakt") if isinstance(data.get("trakt"), dict) else {}
@@ -328,7 +366,10 @@ def update_trakt_source(index: int, payload: TraktSourcePayload) -> ConfigSaveRe
 
 # Remove Trakt source at given index from config.yaml
 @router.delete("/trakt/sources/{index}", response_model=ConfigSaveResponse)
-def delete_trakt_source(index: int) -> ConfigSaveResponse:
+def delete_trakt_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         trakt_section = data.get("trakt") if isinstance(data.get("trakt"), dict) else {}
@@ -364,7 +405,7 @@ def delete_trakt_source(index: int) -> ConfigSaveResponse:
 
 # Validate configured collection groups against Plex collections
 @router.get("/validate", response_model=List[GroupValidationResult])
-def validate_config_groups() -> List[GroupValidationResult]:
+def validate_config_groups(current_user: str = Depends(get_current_user)) -> List[GroupValidationResult]:
     config = load_config()
     server = get_plex_server(config)
 
@@ -412,7 +453,7 @@ def validate_config_groups() -> List[GroupValidationResult]:
 
 # Return list of all configured collection groups
 @router.get("/groups", response_model=list[CollectionGroupConfig])
-def list_groups() -> list[CollectionGroupConfig]:
+def list_groups(current_user: str = Depends(get_current_user)) -> list[CollectionGroupConfig]:
     try:
         config = load_config()
         return config.groups
@@ -424,7 +465,10 @@ def list_groups() -> list[CollectionGroupConfig]:
 
 # Append new collection group to config.yaml
 @router.post("/groups", response_model=ConfigSaveResponse)
-def create_group(payload: CollectionGroupPayload) -> ConfigSaveResponse:
+def create_group(
+    payload: CollectionGroupPayload,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         groups = _load_group_list(data)
@@ -449,7 +493,11 @@ def create_group(payload: CollectionGroupPayload) -> ConfigSaveResponse:
 
 # Replace existing collection group at given index in config.yaml
 @router.put("/groups/{index}", response_model=ConfigSaveResponse)
-def update_group(index: int, payload: CollectionGroupPayload) -> ConfigSaveResponse:
+def update_group(
+    index: int,
+    payload: CollectionGroupPayload,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         groups = _load_group_list(data)
@@ -479,7 +527,10 @@ def update_group(index: int, payload: CollectionGroupPayload) -> ConfigSaveRespo
 
 # Remove collection group at given index from config.yaml
 @router.delete("/groups/{index}", response_model=ConfigSaveResponse)
-def delete_group(index: int) -> ConfigSaveResponse:
+def delete_group(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
         groups = _load_group_list(data)
@@ -510,7 +561,7 @@ def delete_group(index: int) -> ConfigSaveResponse:
 
 # Return list of all available Plex collections and configured Trakt sources
 @router.get("/group-sources", response_model=CollectionSourcesResponse)
-def list_group_sources() -> CollectionSourcesResponse:
+def list_group_sources(current_user: str = Depends(get_current_user)) -> CollectionSourcesResponse:
     try:
         config = load_config()
         server = get_plex_server(config)
@@ -548,7 +599,7 @@ def list_group_sources() -> CollectionSourcesResponse:
 
 # Return all rotation scheduler configuration settings
 @router.get("/rotation", response_model=RotationSettings)
-def get_rotation_settings() -> RotationSettings:
+def get_rotation_settings(current_user: str = Depends(get_current_user)) -> RotationSettings:
     try:
         config = load_config()
         return config.rotation
@@ -560,7 +611,10 @@ def get_rotation_settings() -> RotationSettings:
 
 # Update only global rotation settings while preserving other config keys
 @router.post("/rotation", response_model=ConfigSaveResponse)
-def save_rotation_settings(payload: RotationConfigSaveRequest) -> ConfigSaveResponse:
+def save_rotation_settings(
+    payload: RotationConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
     try:
         data = _load_config_mapping()
 

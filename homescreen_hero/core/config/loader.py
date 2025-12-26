@@ -6,11 +6,19 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+from dotenv import load_dotenv
 
 from .schema import AppConfig
 
 
 logger = logging.getLogger(__name__)
+
+# Load .env file if it exists (for local development)
+# Docker Compose will handle env vars automatically
+env_file = Path(".env")
+if env_file.exists():
+    load_dotenv(env_file)
+    logger.debug(f"Loaded environment variables from {env_file}")
 
 
 # Default path to the config file.
@@ -76,12 +84,62 @@ def _read_raw_config(path: Path) -> dict:
     return data
 
 
+# Apply environment variable overrides for sensitive fields
+def _apply_env_overrides(config: AppConfig) -> AppConfig:
+    # Plex token override
+    plex_token = os.getenv("HSH_PLEX_TOKEN")
+    if plex_token:
+        logger.info("Using Plex token from HSH_PLEX_TOKEN environment variable")
+        config.plex.token = plex_token
+    elif not config.plex.token:
+        raise ValueError(
+            "Plex token is required. Set it in config.yaml or via HSH_PLEX_TOKEN environment variable"
+        )
+
+    # Auth password override
+    if config.auth and config.auth.enabled:
+        auth_password = os.getenv("HSH_AUTH_PASSWORD")
+        if auth_password:
+            logger.info("Using auth password from HSH_AUTH_PASSWORD environment variable")
+            config.auth.password = auth_password
+        elif not config.auth.password:
+            raise ValueError(
+                "Auth password is required when auth is enabled. Set it in config.yaml or via HSH_AUTH_PASSWORD environment variable"
+            )
+
+        # Auth secret key override
+        auth_secret = os.getenv("HSH_AUTH_SECRET_KEY")
+        if auth_secret:
+            logger.info("Using auth secret key from HSH_AUTH_SECRET_KEY environment variable")
+            config.auth.secret_key = auth_secret
+        elif not config.auth.secret_key:
+            raise ValueError(
+                "Auth secret key is required when auth is enabled. Set it in config.yaml or via HSH_AUTH_SECRET_KEY environment variable"
+            )
+
+    # Trakt client ID override (if Trakt is enabled)
+    if config.trakt and config.trakt.enabled:
+        trakt_client_id = os.getenv("HSH_TRAKT_CLIENT_ID")
+        if trakt_client_id:
+            logger.info("Using Trakt client ID from HSH_TRAKT_CLIENT_ID environment variable")
+            config.trakt.client_id = trakt_client_id
+        elif not config.trakt.client_id:
+            raise ValueError(
+                "Trakt client ID is required when Trakt is enabled. Set it in config.yaml or via HSH_TRAKT_CLIENT_ID environment variable"
+            )
+
+    return config
+
+
 def _validate_config_dict(raw_data: dict) -> AppConfig:
     try:
         config = AppConfig.model_validate(raw_data)  # pydantic v2
     except AttributeError:
         config = AppConfig.parse_obj(raw_data)  # pydantic v1
-    
+
+    # Apply environment variable overrides
+    config = _apply_env_overrides(config)
+
     logger.info("Config validation successful")
     return config
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
+from homescreen_hero.core.auth import get_current_user
 from homescreen_hero.core.config.schema import (
     ClearHistoryResponse,
     CollectionUsageOut,
@@ -56,7 +57,7 @@ def get_usage() -> List[CollectionUsageOut]:
 
 # Clear all rotation history and usage statistics from database
 @router.post("/clear", response_model=ClearHistoryResponse)
-def clear_history_endpoint() -> ClearHistoryResponse:
+def clear_history_endpoint(current_user: str = Depends(get_current_user)) -> ClearHistoryResponse:
     try:
         logger.warning("Clearing rotation history on request")
         clear_history()

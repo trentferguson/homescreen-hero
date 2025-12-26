@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { CalendarRange, Check, Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { CalendarRange, Check, Loader2, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
 
@@ -17,6 +18,9 @@ type CollectionGroup = {
     max_picks: number;
     weight: number;
     min_gap_rotations: number;
+    visibility_home: boolean;
+    visibility_shared: boolean;
+    visibility_recommended: boolean;
     date_range?: DateRange | null;
     collections: string[];
 };
@@ -41,6 +45,9 @@ const emptyGroup: CollectionGroup = {
     max_picks: 1,
     weight: 1,
     min_gap_rotations: 0,
+    visibility_home: true,
+    visibility_shared: false,
+    visibility_recommended: false,
     date_range: null,
     collections: [],
 };
@@ -69,11 +76,14 @@ export default function GroupDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [sources, setSources] = useState<CollectionSource[]>([]);
-    const [manualCollection, setManualCollection] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt">("all");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 24; // 4 columns × 6 rows
 
     useEffect(() => {
         setLoading(true);
-        fetch("/api/admin/config/groups")
+        fetchWithAuth("/api/admin/config/groups")
             .then((r) => r.json())
             .then((data: CollectionGroup[]) => {
                 setGroups(data);
@@ -104,7 +114,7 @@ export default function GroupDetailPage() {
     }, [groupId, groups]);
 
     useEffect(() => {
-        fetch("/api/admin/config/group-sources")
+        fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
                 const combined = [...(data.plex || []), ...(data.trakt || [])];
@@ -156,7 +166,6 @@ export default function GroupDetailPage() {
             if (prev.collections.includes(name)) return prev;
             return { ...prev, collections: [...prev.collections, name] };
         });
-        setManualCollection("");
     };
 
     const removeCollection = (name: string) => {
@@ -166,7 +175,38 @@ export default function GroupDetailPage() {
         }));
     };
 
-    const availableSources = useMemo(() => sources.filter((s) => !form.collections.includes(s.name)), [sources, form.collections]);
+    const availableSources = useMemo(() => {
+        let filtered = sources.filter((s) => !form.collections.includes(s.name));
+
+        // Apply source filter
+        if (sourceFilter !== "all") {
+            filtered = filtered.filter((s) => s.source === sourceFilter);
+        }
+
+        // Apply search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((s) =>
+                s.name.toLowerCase().includes(query) ||
+                s.detail?.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [sources, form.collections, sourceFilter, searchQuery]);
+
+    const paginatedSources = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return availableSources.slice(startIndex, endIndex);
+    }, [availableSources, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(availableSources.length / itemsPerPage);
+
+    // Reset to page 1 when filter or search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [sourceFilter, searchQuery]);
 
     const saveGroup = async () => {
         try {
@@ -186,7 +226,7 @@ export default function GroupDetailPage() {
             const endpoint = isNew ? "/api/admin/config/groups" : `/api/admin/config/groups/${selectedIndex}`;
             const method = isNew ? "POST" : "PUT";
 
-            const r = await fetch(endpoint, {
+            const r = await fetchWithAuth(endpoint, {
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -199,7 +239,7 @@ export default function GroupDetailPage() {
             setMessage(resp.message);
 
             // Refresh groups list after save
-            const nextGroups = await fetch("/api/admin/config/groups").then((res) => res.json());
+            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
             setGroups(nextGroups);
             const targetIndex = isNew ? nextGroups.length - 1 : Number(selectedIndex);
             if (!Number.isNaN(targetIndex) && targetIndex >= 0) {
@@ -219,14 +259,14 @@ export default function GroupDetailPage() {
             setError(null);
             setMessage(null);
 
-            const r = await fetch(`/api/admin/config/groups/${selectedIndex}`, { method: "DELETE" });
+            const r = await fetchWithAuth(`/api/admin/config/groups/${selectedIndex}`, { method: "DELETE" });
             const text = await r.text();
             if (!r.ok) throw new Error(text || "Failed to delete group");
 
             const resp = JSON.parse(text) as ConfigSaveResponse;
             setMessage(resp.message);
 
-            const nextGroups = await fetch("/api/admin/config/groups").then((res) => res.json());
+            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
             setGroups(nextGroups);
             if (nextGroups.length) {
                 navigate(`/groups/0`, { replace: true });
@@ -293,12 +333,19 @@ export default function GroupDetailPage() {
                 </div>
             ) : null}
 
-            <div className="grid gap-6 lg:grid-cols-[360px,1fr]">
-                <FormSection
-                    title="Group overview"
-                    description="Switch between groups or create a new one to manage its rotation behavior."
-                    actions={
-                        selectedIndex !== "new" ? (
+            <FormSection
+                title="Group overview"
+                description="Switch between groups or create a new one to manage its rotation behavior."
+                actions={
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={resetToNew}
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 hover:border-slate-600"
+                        >
+                            <Plus className="h-4 w-4 inline mr-1" /> New group
+                        </button>
+                        {selectedIndex !== "new" && (
                             <button
                                 type="button"
                                 onClick={deleteGroup}
@@ -306,85 +353,89 @@ export default function GroupDetailPage() {
                                 className="flex items-center gap-2 rounded-lg bg-red-900/60 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-900/80 disabled:opacity-60"
                             >
                                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                Delete group
+                                Delete
                             </button>
-                        ) : null
-                    }
-                >
-                    <div className="space-y-3">
-                        {groups.length ? (
-                            <div className="grid grid-cols-1 gap-3">
-                                {groups.map((group, idx) => {
-                                    const isActive = idx === selectedIndex;
-                                    return (
-                                        <button
-                                            key={group.name + idx}
-                                            type="button"
-                                            onClick={() => onSelectGroup(idx)}
-                                            className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${isActive
-                                                ? "border-primary/80 bg-primary/10 text-white shadow-sm"
-                                                : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-700"
-                                                }`}
-                                        >
-                                            <div>
-                                                <p className="text-sm font-semibold">{group.name || `Group ${idx + 1}`}</p>
-                                                <p className="text-xs text-slate-400">{group.collections.length} collections</p>
-                                            </div>
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-[11px] font-semibold ${group.enabled
-                                                    ? "bg-emerald-500/20 text-emerald-200"
-                                                    : "bg-slate-800 text-slate-300"
-                                                    }`}
-                                            >
-                                                {group.enabled ? "Enabled" : "Disabled"}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-slate-400">No groups yet. Start by creating one.</p>
                         )}
-
+                    </div>
+                }
+            >
+                {groups.length ? (
+                    <div className="flex gap-2 flex-wrap">
+                        {groups.map((group, idx) => {
+                            const isActive = idx === selectedIndex;
+                            return (
+                                <button
+                                    key={group.name + idx}
+                                    type="button"
+                                    onClick={() => onSelectGroup(idx)}
+                                    className={`flex items-center gap-3 rounded-lg border px-4 py-2 text-left transition ${isActive
+                                        ? "border-primary/80 bg-primary/10 text-white shadow-sm"
+                                        : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-700"
+                                        }`}
+                                >
+                                    <div>
+                                        <p className="text-sm font-semibold">{group.name || `Group ${idx + 1}`}</p>
+                                        <p className="text-xs text-slate-400">{group.collections.length} collections</p>
+                                    </div>
+                                    <span
+                                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${group.enabled
+                                            ? "bg-emerald-500/20 text-emerald-200"
+                                            : "bg-slate-800 text-slate-300"
+                                            }`}
+                                    >
+                                        {group.enabled ? "Enabled" : "Disabled"}
+                                    </span>
+                                </button>
+                            );
+                        })}
                         <button
                             type="button"
                             onClick={resetToNew}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
+                            className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
                         >
                             <Plus className="h-4 w-4" /> New group
                         </button>
                     </div>
-                </FormSection>
-
-                <div className="space-y-6">
-                    <FormSection
-                        title="Identity"
-                        description="Name the group and toggle whether it's active for rotations."
-                        actions={
-                            <div className="flex items-center gap-2 text-sm text-slate-300">
-                                <span className="text-xs uppercase tracking-wide text-slate-500">Active status</span>
-                                <Toggle checked={form.enabled} onChange={() => setForm((p) => ({ ...p, enabled: !p.enabled }))} />
-                            </div>
-                        }
-                    >
-                        <FieldRow
-                            label="Group name"
-                            hint="Required. The label shown across dashboards and logs."
+                ) : (
+                    <div className="flex flex-col items-center gap-3">
+                        <p className="text-sm text-slate-400">No groups yet. Start by creating one.</p>
+                        <button
+                            type="button"
+                            onClick={resetToNew}
+                            className="flex items-center gap-2 rounded-lg border border-dashed border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
                         >
-                            <input
-                                type="text"
-                                value={form.name}
-                                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                placeholder="Holiday Movies"
-                            />
-                        </FieldRow>
-                    </FormSection>
+                            <Plus className="h-4 w-4" /> New group
+                        </button>
+                    </div>
+                )}
+            </FormSection>
 
-                    <FormSection
-                        title="Rotation rules"
-                        description="Control how many collections are pulled in and how often they repeat."
+            <div className="grid gap-6 lg:grid-cols-2">
+                <FormSection
+                    title="Group configuration"
+                    description="Name the group, toggle its status, and control rotation behavior."
+                    actions={
+                        <div className="flex items-center gap-2 text-sm text-slate-300">
+                            <span className="text-xs uppercase tracking-wide text-slate-500">Active status</span>
+                            <Toggle checked={form.enabled} onChange={() => setForm((p) => ({ ...p, enabled: !p.enabled }))} />
+                        </div>
+                    }
+                >
+                    <FieldRow
+                        label="Group name"
+                        hint="Required. The label shown across dashboards and logs."
                     >
+                        <input
+                            type="text"
+                            value={form.name}
+                            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                            placeholder="Holiday Movies"
+                        />
+                    </FieldRow>
+
+                    <div className="pt-4 border-t border-slate-800">
+                        <p className="text-sm font-semibold text-slate-100 mb-4">Rotation rules</p>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
                                 <p className="text-sm font-semibold text-slate-100">Pick limits</p>
@@ -439,7 +490,7 @@ export default function GroupDetailPage() {
                             </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 mt-4">
                             <div className="flex items-center gap-2 text-slate-100">
                                 <CalendarRange className="h-4 w-4" />
                                 <p className="text-sm font-semibold">Date range</p>
@@ -468,12 +519,55 @@ export default function GroupDetailPage() {
                                 </div>
                             </div>
                         </div>
-                    </FormSection>
+                    </div>
+                </FormSection>
 
-                    <FormSection
-                        title="Content sources"
-                        description="Pull collections from Plex and Trakt. Use the quick-add buttons or type names manually."
-                        actions={
+                <FormSection
+                    title="Visibility settings"
+                    description="Control where collections from this group appear on Plex homescreens."
+                >
+                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                        <p className="text-sm font-semibold text-slate-100 mb-3">Promote collections to</p>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-slate-200">Your Home page</p>
+                                    <p className="text-xs text-slate-400">Show on server admin's Home screen</p>
+                                </div>
+                                <Toggle
+                                    checked={form.visibility_home}
+                                    onChange={() => setForm((p) => ({ ...p, visibility_home: !p.visibility_home }))}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-slate-200">Shared users' Home pages</p>
+                                    <p className="text-xs text-slate-400">Show on friends'/shared users' Home screens</p>
+                                </div>
+                                <Toggle
+                                    checked={form.visibility_shared}
+                                    onChange={() => setForm((p) => ({ ...p, visibility_shared: !p.visibility_shared }))}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm text-slate-200">Library Recommended</p>
+                                    <p className="text-xs text-slate-400">Show in Library's Recommended section</p>
+                                </div>
+                                <Toggle
+                                    checked={form.visibility_recommended}
+                                    onChange={() => setForm((p) => ({ ...p, visibility_recommended: !p.visibility_recommended }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </FormSection>
+            </div>
+
+            <FormSection
+                title="Content sources"
+                description="Pull collections from Plex and Trakt. Use the quick-add buttons or type names manually."
+                actions={
                             <button
                                 type="button"
                                 onClick={() => {
@@ -509,57 +603,122 @@ export default function GroupDetailPage() {
                             label="Add from available sources"
                             description="Choose from discovered Plex collections or configured Trakt lists."
                         >
-                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                {availableSources.map((source) => (
+                            <div className="flex flex-col gap-3 mb-3">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search collections..."
+                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("all")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                        sourceFilter === "all"
+                                            ? "bg-primary text-white"
+                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                    }`}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("plex")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                        sourceFilter === "plex"
+                                            ? "bg-blue-500 text-white"
+                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                    }`}
+                                >
+                                    Plex
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("trakt")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                        sourceFilter === "trakt"
+                                            ? "bg-rose-500 text-white"
+                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                    }`}
+                                >
+                                    Trakt
+                                </button>
+                                </div>
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                {paginatedSources.map((source) => (
                                     <button
                                         key={`${source.source}-${source.name}`}
                                         type="button"
                                         onClick={() => addCollection(source.name)}
-                                        className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-left text-sm text-slate-100 transition hover:border-primary/70 hover:text-white"
+                                        className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-left text-sm text-slate-100 transition hover:border-primary/70 hover:text-white"
                                     >
-                                        <div className="space-y-1">
-                                            <p className="font-semibold">{source.name}</p>
-                                            {source.detail ? (
-                                                <p className="text-xs text-slate-400">{source.detail}</p>
-                                            ) : null}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="font-semibold text-sm leading-tight flex-1">{source.name}</p>
+                                            <span
+                                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 ${source.source === "plex"
+                                                    ? "bg-blue-500/20 text-blue-100"
+                                                    : "bg-rose-500/20 text-rose-100"
+                                                    }`}
+                                            >
+                                                {source.source === "plex" ? "Plex" : "Trakt"}
+                                            </span>
                                         </div>
-                                        <span
-                                            className={`rounded-full px-2 py-1 text-[11px] font-semibold ${source.source === "plex"
-                                                ? "bg-blue-500/20 text-blue-100"
-                                                : "bg-rose-500/20 text-rose-100"
-                                                }`}
-                                        >
-                                            {source.source === "plex" ? "Plex" : "Trakt"}
-                                        </span>
+                                        {source.detail ? (
+                                            <p className="text-xs text-slate-400 line-clamp-2">{source.detail}</p>
+                                        ) : null}
                                     </button>
                                 ))}
                             </div>
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
+                                    <p className="text-xs text-slate-400">
+                                        Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, availableSources.length)} of {availableSources.length}
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            Previous
+                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                                <button
+                                                    key={page}
+                                                    type="button"
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                                        currentPage === page
+                                                            ? "bg-primary text-white"
+                                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </FieldRow>
 
-                        <FieldRow
-                            label="Add manually"
-                            hint="If you don't see a collection listed above, type its name and click Add."
-                        >
-                            <div className="flex flex-col gap-2 sm:flex-row">
-                                <input
-                                    type="text"
-                                    value={manualCollection}
-                                    onChange={(e) => setManualCollection(e.target.value)}
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    placeholder="Christmas Classics"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => addCollection(manualCollection)}
-                                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-blue-600"
-                                >
-                                    <Plus className="h-4 w-4" /> Add
-                                </button>
-                            </div>
-                        </FieldRow>
-                    </FormSection>
-                </div>
-            </div>
+            </FormSection>
         </div>
     );
 }

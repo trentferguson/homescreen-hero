@@ -9,11 +9,23 @@ class DateRange(BaseModel):
     end: str = Field(..., description="End date in MM-DD format, e.g. '12-26'")
 
 
+class PlexLibraryConfig(BaseModel):
+    # Configuration for a single Plex library.
+    name: str = Field(..., description="Library name")
+    enabled: bool = Field(default=True, description="Whether this library is enabled for rotation")
+
+
 class PlexSettings(BaseModel):
     # Plex connection details.
     base_url: str = Field(..., description="Base URL of your Plex server")
-    token: str = Field(..., description="Plex API token")
-    library_name: str = Field(..., description="Name of the Plex library to use")
+    token: Optional[str] = Field(
+        default=None,
+        description="Plex API token (can be set via HSH_PLEX_TOKEN env var)",
+    )
+    libraries: List[PlexLibraryConfig] = Field(
+        default_factory=list,
+        description="List of Plex libraries to use for rotation"
+    )
 
 
 class RotationSettings(BaseModel):
@@ -62,6 +74,18 @@ class CollectionGroupConfig(BaseModel):
         ge=0,
         description="Minimum number of rotations that must pass before reusing a collection from this group",
     )
+    visibility_home: bool = Field(
+        default=True,
+        description="Promote collections to server admin's Home page",
+    )
+    visibility_shared: bool = Field(
+        default=False,
+        description="Promote collections to shared users' Home pages",
+    )
+    visibility_recommended: bool = Field(
+        default=False,
+        description="Promote collections to Library Recommended section",
+    )
     date_range: Optional[DateRange] = Field(
         default=None,
         description="Optional yearly date window when this group is active",
@@ -80,6 +104,31 @@ class LoggingSettings(BaseModel):
     )
 
 
+class AuthSettings(BaseModel):
+    # Authentication settings
+    enabled: bool = Field(
+        default=False,
+        description="Whether authentication is required",
+    )
+    username: str = Field(
+        default="admin",
+        description="Username for authentication",
+    )
+    password: Optional[str] = Field(
+        default=None,
+        description="Password (can be set via HSH_AUTH_PASSWORD env var)",
+    )
+    secret_key: Optional[str] = Field(
+        default=None,
+        description="Secret key for JWT token signing (can be set via HSH_AUTH_SECRET_KEY env var)",
+    )
+    token_expire_days: int = Field(
+        default=30,
+        ge=1,
+        description="Number of days before JWT tokens expire",
+    )
+
+
 class TraktSource(BaseModel):
     name: str
     url: str
@@ -92,7 +141,10 @@ class TraktSettings(BaseModel):
         default=False,
         description="Whether Trakt integration is enabled",
     )
-    client_id: str = Field(..., description="Trakt application client id")
+    client_id: Optional[str] = Field(
+        default=None,
+        description="Trakt application client id (can be set via HSH_TRAKT_CLIENT_ID env var)",
+    )
     base_url: str = Field(
         "https://api.trakt.tv",
         description="Base URL for Trakt API",
@@ -107,6 +159,7 @@ class AppConfig(BaseModel):
     groups: List[CollectionGroupConfig]
     trakt: Optional[TraktSettings] = None
     logging: LoggingSettings = LoggingSettings()
+    auth: Optional[AuthSettings] = None
 
 
 class GroupSelectionResult(BaseModel):

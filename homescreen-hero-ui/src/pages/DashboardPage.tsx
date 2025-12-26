@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import HealthCard from "../components/HealthCard";
+import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
-import { timeAgo } from "../utils/dates";
+import Toast from "../components/Toast";
+import { timeAgo, timeUntil } from "../utils/dates";
+import { fetchWithAuth } from "../utils/api";
 
 type RotationHistoryItem = {
     id: number;
@@ -45,6 +48,16 @@ const healthEndpoints = {
 } as const;
 
 type HealthMap = Partial<Record<keyof typeof healthEndpoints, HealthComponent>>;
+
+// Cache configuration
+const HEALTH_CACHE_KEY = "healthscreen-hero-health-cache";
+const HEALTH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+type HealthCache = {
+    data: HealthMap;
+    timestamp: number;
+};
+
 export default function Dashboard() {
     const [health, setHealth] = useState<HealthMap>({});
     const [healthLoading, setHealthLoading] = useState(true);
@@ -54,29 +67,83 @@ export default function Dashboard() {
     const [busy, setBusy] = useState<null | "simulate" | "apply" | "sync">(null);
     const [simulation, setSimulation] = useState<RotationExecution | null>(null);
     const [showSimulationModal, setShowSimulationModal] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
+    const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
+    const [schedulerStatus, setSchedulerStatus] = useState<{
+        enabled: boolean;
+        interval_hours: number;
+        next_run_time: string | null;
+        is_running: boolean;
+    } | null>(null);
+    const [currentTime, setCurrentTime] = useState(Date.now());
 
     const plex = health.plex;
-    const cfg = health.config;
     const db = health.database;
     const trakt = health.trakt;
 
     const plexServerName = plex?.details?.server_name ?? plex?.server_name ?? "Plex";
-    const plexLibraryName = plex?.details?.library_name ?? plex?.library_name;
-    const plexDetail = [plexServerName, plexLibraryName]
+    const plexLibraries = plex?.details?.libraries;
+    const plexLibraryInfo = plexLibraries
+        ? `${plex?.details?.enabled_count ?? plexLibraries.length} ${plexLibraries.length === 1 ? 'library' : 'libraries'}`
+        : null;
+    const plexDetail = [plexServerName, plexLibraryInfo]
         .filter((value): value is string => Boolean(value))
         .join(" • ");
 
-    const loadHealth = async () => {
+    const loadHealthFromCache = (): HealthCache | null => {
+        try {
+            const cached = localStorage.getItem(HEALTH_CACHE_KEY);
+            if (!cached) return null;
+
+            const parsedCache: HealthCache = JSON.parse(cached);
+            const age = Date.now() - parsedCache.timestamp;
+
+            if (age > HEALTH_CACHE_TTL_MS) {
+                localStorage.removeItem(HEALTH_CACHE_KEY);
+                return null;
+            }
+
+            return parsedCache;
+        } catch {
+            return null;
+        }
+    };
+
+    const saveHealthToCache = (data: HealthMap) => {
+        try {
+            const cache: HealthCache = {
+                data,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(HEALTH_CACHE_KEY, JSON.stringify(cache));
+            setLastHealthCheck(Date.now());
+        } catch {
+            // Ignore cache save errors
+        }
+    };
+
+    const loadHealth = async (forceRefresh = false) => {
+        // Try to load from cache first
+        if (!forceRefresh) {
+            const cached = loadHealthFromCache();
+            if (cached) {
+                setHealth(cached.data);
+                setLastHealthCheck(cached.timestamp);
+                setHealthLoading(false);
+                return;
+            }
+        }
+
         setHealthLoading(true);
 
         const entries = await Promise.all(
             (Object.entries(healthEndpoints) as [keyof typeof healthEndpoints, string][]).map(
                 async ([key, url]) => {
                     try {
-                        const response = await fetch(url);
+                        const response = await fetchWithAuth(url);
                         const payload = await response.json();
 
                         if (!response.ok) {
@@ -92,7 +159,9 @@ export default function Dashboard() {
             ),
         );
 
-        setHealth(Object.fromEntries(entries) as HealthMap);
+        const healthData = Object.fromEntries(entries) as HealthMap;
+        setHealth(healthData);
+        saveHealthToCache(healthData);
         setHealthLoading(false);
     };
 
@@ -109,7 +178,7 @@ export default function Dashboard() {
         setActiveLoading(true);
 
         try {
-            const response = await fetch("/api/collections/active");
+            const response = await fetchWithAuth("/api/collections/active");
             const payload = await response.json();
             setActiveCollections(payload.collections ?? []);
         } catch (e) {
@@ -119,16 +188,41 @@ export default function Dashboard() {
         }
     };
 
+    const loadSchedulerStatus = async () => {
+        try {
+            const response = await fetchWithAuth("/api/rotate/scheduler-status");
+            const payload = await response.json();
+            setSchedulerStatus(payload);
+        } catch (e) {
+            console.error("Failed to load scheduler status:", e);
+        }
+    };
+
     useEffect(() => {
         void loadActiveCollections();
+        void loadSchedulerStatus();
     }, []);
+
+    // Update current time every second for live countdown
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const refreshHealth = async () => {
+        await loadHealth(true);
+    };
 
     const refresh = () => {
         setError(null);
         setHistoryLoading(true);
-        loadHealth();
+        void loadHealth();
         void loadActiveCollections();
-        fetch("/api/history/all?limit=10")
+        void loadSchedulerStatus();
+        fetchWithAuth("/api/history/all?limit=10")
             .then(async (r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
                 return r.json();
@@ -166,7 +260,7 @@ export default function Dashboard() {
         try {
             setBusy("simulate");
             setError(null);
-            const r = await fetch("/api/rotate/simulate-next", { method: "POST" });
+            const r = await fetchWithAuth("/api/rotate/simulate-next", { method: "POST" });
             if (!r.ok) throw new Error(`Simulation failed: HTTP ${r.status} ${await r.text()}`);
             const payload: RotationExecution = await r.json();
             setSimulation(payload);
@@ -188,7 +282,7 @@ export default function Dashboard() {
         try {
             setBusy("apply");
             setError(null);
-            const r = await fetch(`/api/rotate/use-simulation/${simulation.simulation_id}`, { method: "POST" });
+            const r = await fetchWithAuth(`/api/rotate/use-simulation/${simulation.simulation_id}`, { method: "POST" });
             if (!r.ok) throw new Error(`Apply simulation failed: HTTP ${r.status} ${await r.text()}`);
             await r.json();
             setShowSimulationModal(false);
@@ -205,12 +299,25 @@ export default function Dashboard() {
         try {
             setBusy("sync");
             setError(null);
-            const r = await fetch("/api/rotate/rotate-now", { method: "POST" });
+            const r = await fetchWithAuth("/api/rotate/rotate-now", { method: "POST" });
             if (!r.ok) throw new Error(`Force sync failed: HTTP ${r.status} ${await r.text()}`);
+
+            const result = await r.json();
+
+            // Show success toast
+            setToast({
+                message: result.message || "Rotation completed successfully!",
+                type: "success"
+            });
+
             refresh();
             void loadActiveCollections();
         } catch (e) {
             setError(String(e));
+            setToast({
+                message: "Failed to run rotation",
+                type: "error"
+            });
         } finally {
             setBusy(null);
         }
@@ -220,17 +327,17 @@ export default function Dashboard() {
     return (
         <>
             {showSimulationModal && simulation ? (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800">
-                        <div className="flex items-start justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 dark:border-slate-800/80 animate-in zoom-in-95 duration-300">
+                        <div className="flex items-start justify-between p-5 border-b border-slate-200 dark:border-slate-800/80">
                             <div className="flex flex-col gap-1">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Simulation Results</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Simulation Results</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     Simulation ID: {simulation.simulation_id ?? "N/A"}
                                 </p>
                             </div>
                             <button
-                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200"
+                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-200 text-2xl leading-none px-2"
                                 onClick={() => setShowSimulationModal(false)}
                                 aria-label="Close simulation results"
                             >
@@ -238,7 +345,7 @@ export default function Dashboard() {
                             </button>
                         </div>
 
-                        <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
+                        <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hover-only">
                             <div>
                                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Selected Collections</h4>
                                 {simulation.rotation.selected_collections.length ? (
@@ -330,16 +437,16 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 p-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="flex justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50">
                             <button
-                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 active:scale-95"
                                 onClick={() => setShowSimulationModal(false)}
                                 disabled={busy !== null}
                             >
                                 Close
                             </button>
                             <button
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/25 transition-colors disabled:opacity-60"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                 onClick={applySimulation}
                                 disabled={busy !== null}
                             >
@@ -353,18 +460,31 @@ export default function Dashboard() {
             <div className="max-w-8xl mx-auto flex flex-col gap-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                         <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Monitor rotation status, history, and collection usage.
+                            Monitor rotation status, history, and collection usage.{schedulerStatus?.enabled && schedulerStatus.is_running && schedulerStatus.next_run_time ? (
+                                <span className="text-slate-600 dark:text-slate-500"> Next rotation: <span className="font-semibold text-slate-700 dark:text-slate-400">{timeUntil(schedulerStatus.next_run_time, currentTime)}</span></span>
+                            ) : schedulerStatus?.enabled === false ? (
+                                <span className="text-amber-600 dark:text-amber-400"> (Auto-rotation disabled)</span>
+                            ) : null}
                         </p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
+                        <button
+                            onClick={refreshHealth}
+                            disabled={healthLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
+                            title={lastHealthCheck ? `Last checked: ${new Date(lastHealthCheck).toLocaleTimeString()}` : undefined}
+                        >
+                            {healthLoading ? "Checking…" : "Refresh Health"}
+                        </button>
+
                         <button
                             onClick={simulateRotation}
                             disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors disabled:opacity-60"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
                         >
                             {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
                         </button>
@@ -372,7 +492,7 @@ export default function Dashboard() {
                         <button
                             onClick={forceRunRotation}
                             disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/25 text-sm font-bold transition-all active:scale-95 disabled:opacity-60"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
                         >
                             {busy === "sync" ? "Syncing…" : "Run Rotation Now"}
                         </button>
@@ -381,7 +501,7 @@ export default function Dashboard() {
 
                 {/* Errors */}
                 {error ? (
-                    <pre className="p-4 rounded-xl bg-red-900/30 border border-red-900/40 text-red-200 whitespace-pre-wrap">
+                    <pre className="p-4 rounded-xl bg-red-900/30 border border-red-900/50 text-red-200 whitespace-pre-wrap shadow-lg">
                         {error}
                     </pre>
                 ) : null}
@@ -400,21 +520,6 @@ export default function Dashboard() {
                                 : plex?.ok
                                     ? plexDetail
                                     : plex?.error ?? "Connection failed"
-                        }
-                    />
-
-                    <HealthCard
-                        title="Config"
-                        ok={cfg?.ok}
-                        loading={!cfg && healthLoading}
-                        subtitleOk="Loaded"
-                        subtitleBad="Error"
-                        detail={
-                            !cfg && healthLoading
-                                ? "Checking health…"
-                                : cfg?.ok
-                                    ? "Config Validated"
-                                    : cfg?.error ?? "Failed to load config"
                         }
                     />
 
@@ -450,6 +555,13 @@ export default function Dashboard() {
                         }
                     />
 
+                    <RotationStatusCard
+                        enabled={schedulerStatus?.enabled ?? false}
+                        nextRunTime={schedulerStatus?.next_run_time ?? null}
+                        loading={schedulerStatus === null}
+                        currentTime={currentTime}
+                    />
+
                     {/* Active Collections */}
                     <div className="col-span-full w-full">
                         <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
@@ -461,7 +573,6 @@ export default function Dashboard() {
                     lastRun={lastRun}
                     loading={historyLoading}
                     formatTimeAgo={timeAgo}
-                    limit={5}
                 />
 
 
@@ -475,6 +586,15 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </>
     );
 }

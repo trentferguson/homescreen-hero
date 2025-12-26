@@ -16,6 +16,7 @@ env/
 .idea/
 *.swp
 *.swo
+.claude/
 
 # --- OS files ---
 .DS_Store
@@ -23,6 +24,7 @@ Thumbs.db
 
 # --- Local config (DO NOT COMMIT THIS) ---
 config.yaml
+.env
 
 # --- SQLite database & logs ---
 *.sqlite
