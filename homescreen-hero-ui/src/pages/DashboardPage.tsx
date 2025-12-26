@@ -4,6 +4,7 @@ import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
+import Toast from "../components/Toast";
 import { timeAgo, timeUntil } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
 
@@ -66,6 +67,7 @@ export default function Dashboard() {
     const [busy, setBusy] = useState<null | "simulate" | "apply" | "sync">(null);
     const [simulation, setSimulation] = useState<RotationExecution | null>(null);
     const [showSimulationModal, setShowSimulationModal] = useState(false);
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
@@ -296,10 +298,23 @@ export default function Dashboard() {
             setError(null);
             const r = await fetchWithAuth("/api/rotate/rotate-now", { method: "POST" });
             if (!r.ok) throw new Error(`Force sync failed: HTTP ${r.status} ${await r.text()}`);
+
+            const result = await r.json();
+
+            // Show success toast
+            setToast({
+                message: result.message || "Rotation completed successfully!",
+                type: "success"
+            });
+
             refresh();
             void loadActiveCollections();
         } catch (e) {
             setError(String(e));
+            setToast({
+                message: "Failed to run rotation",
+                type: "error"
+            });
         } finally {
             setBusy(null);
         }
@@ -568,6 +583,15 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </>
     );
 }

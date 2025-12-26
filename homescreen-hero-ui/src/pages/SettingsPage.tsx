@@ -29,7 +29,8 @@ type HealthComponent = { ok: boolean; error?: string | null };
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
-    const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [traktTestStatus, setTraktTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
     const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
@@ -90,7 +91,7 @@ export default function SettingsPage() {
 
     const handleTestConnection = async () => {
         try {
-            setTestStatus("testing");
+            setPlexTestStatus("testing");
 
             const r = await fetchWithAuth("/api/health/plex");
             if (!r.ok) {
@@ -102,20 +103,20 @@ export default function SettingsPage() {
 
             if (ok) {
                 setPlexError(null);
-                setTestStatus("success");
+                setPlexTestStatus("success");
             } else {
-                setTestStatus("error");
+                setPlexTestStatus("error");
                 setPlexError(data?.error || "Plex health check failed.");
             }
         } catch (e) {
-            setTestStatus("error");
+            setPlexTestStatus("error");
             setPlexError(String(e));
         }
     };
 
     const handleTraktTestConnection = async () => {
         try {
-            setTestStatus("testing");
+            setTraktTestStatus("testing");
 
             const r = await fetchWithAuth("/api/health/trakt");
             if (!r.ok) {
@@ -127,13 +128,13 @@ export default function SettingsPage() {
 
             if (ok) {
                 setTraktError(null);
-                setTestStatus("success");
+                setTraktTestStatus("success");
             } else {
-                setTestStatus("error");
+                setTraktTestStatus("error");
                 setTraktError(data?.error || "Trakt API health check failed.");
             }
         } catch (e) {
-            setTestStatus("error");
+            setTraktTestStatus("error");
             setTraktError(String(e));
         }
     };
@@ -686,7 +687,7 @@ export default function SettingsPage() {
 
                         <TestConnectionCta
                             service="Plex"
-                            status={testStatus}
+                            status={plexTestStatus}
                             onTest={handleTestConnection}
                             message="Run a dry connection test without restarting the service."
                         />
@@ -779,7 +780,7 @@ export default function SettingsPage() {
 
                         <TestConnectionCta
                             service="Trakt"
-                            status={testStatus}
+                            status={traktTestStatus}
                             onTest={handleTraktTestConnection}
                             message="Run a dry connection test without restarting the service."
                         />
