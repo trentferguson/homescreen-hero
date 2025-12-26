@@ -103,11 +103,12 @@ This project is designed for easy deployment using Docker and Docker Compose.
     c. **Edit config.yaml:**
     Open `data/config.yaml` and configure non-sensitive settings:
     - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
+    - `plex.libraries`: List of libraries to manage with `name` and `enabled` status
     - `rotation` settings: interval, max collections, strategy
-    - `groups`: Define your collection groups
+    - `groups`: Define your collection groups with visibility options
+    - `auth`: Optional authentication settings (username, enabled flag)
 
-    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
+    **Note:** Sensitive values (tokens, passwords, API keys) should be in `.env`, not in `config.yaml`
 
 3.  **Start the application with Docker Compose**
     ```bash
@@ -183,9 +184,11 @@ Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/co
 ```yaml
 plex:
   base_url: "YOUR_PLEX_SERVER_URL"
-  token: "YOUR_PLEX_TOKEN"
-  libraries: # List of Plex libraries to use
+  token: ""  # Leave empty, use HSH_PLEX_TOKEN env var instead
+  libraries:  # List of Plex libraries to use
     - name: Movies
+      enabled: true
+    - name: TV Shows
       enabled: true
 rotation:
   enabled: true
@@ -193,14 +196,20 @@ rotation:
   max_collections: 5
   strategy: random
   allow_repeats: false
+auth:
+  enabled: false  # Set to true to require login
+  username: admin
+  password: ""  # Leave empty, use HSH_AUTH_PASSWORD env var instead
+  secret_key: ""  # Leave empty, use HSH_AUTH_SECRET_KEY env var instead
+  token_expire_days: 30
 trakt:
   enabled: false
-  client_id: "YOUR_TRAKT_CLIENT_ID"
+  client_id: ""  # Leave empty, use HSH_TRAKT_CLIENT_ID env var instead
   base_url: https://api.trakt.tv
   sources:
-  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
-    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
-    plex_library: "YOUR_PLEX_LIBRARY_NAME"
+  - name: "TRAKT_COLLECTION_NAME"  # This is the name that will show up in Plex
+    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST"  # e.g., https://trakt.tv/users/username/collections/movies
+    plex_library: "Movies"
 logging:
   level: INFO
 groups:
@@ -210,6 +219,9 @@ groups:
   max_picks: 1
   weight: 1
   min_gap_rotations: 0
+  visibility_home: true        # Show on admin's Home page
+  visibility_shared: false     # Show on shared users' Home pages
+  visibility_recommended: false  # Show in Library Recommended section
   collections:
   - Example Collection 1
   - Example Collection 2
@@ -217,10 +229,11 @@ groups:
 ```
 
 Key sections:
-- **plex** – Server URL, token, and library name to target.
+- **plex** – Server URL, token (use env var), and list of libraries to manage with individual enable/disable flags.
 - **rotation** – Enable/disable scheduling, interval hours, max collections, strategy, and repeat rules.
-- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
-- **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
+- **auth** – Optional authentication with username, password (use env var), secret key (use env var), and token expiration.
+- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, visibility toggles (home/shared/recommended), and optional date windows.
+- **trakt** – Enable Trakt, set the client ID (use env var), base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
 
 ## Docker
