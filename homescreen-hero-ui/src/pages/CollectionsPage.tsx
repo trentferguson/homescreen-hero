@@ -423,11 +423,12 @@ export default function CollectionsPage() {
 
             {/* Collections Grid */}
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {filteredCollections.map((collection) => (
+                {filteredCollections.map((collection, index) => (
                     <button
                         key={`${collection.library}-${collection.title}`}
                         onClick={() => handleCollectionClick(collection)}
-                        className="group relative bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                        className="group relative bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all animate-slide-up"
+                        style={{ animationDelay: `${index * 0.03}s` }}
                     >
                         {/* Poster Image */}
                         <div className="aspect-[2/3] bg-gray-900">

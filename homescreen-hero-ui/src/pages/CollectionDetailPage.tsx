@@ -244,10 +244,11 @@ export default function CollectionDetailPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                    {collection.items.map((item) => (
+                    {collection.items.map((item, index) => (
                         <div
                             key={item.rating_key}
-                            className="group relative bg-gray-800 rounded-lg overflow-hidden"
+                            className="group relative bg-gray-800 rounded-lg overflow-hidden animate-slide-up"
+                            style={{ animationDelay: `${index * 0.03}s` }}
                         >
                             {/* Poster */}
                             <div className="aspect-[2/3] bg-gray-900">
@@ -319,18 +320,19 @@ export default function CollectionDetailPage() {
                                         {selectedItems.size} item(s) selected
                                     </p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                        {searchResults.map((item) => (
+                                        {searchResults.map((item, index) => (
                                             <button
                                                 key={item.rating_key}
                                                 onClick={() => !item.in_collection && toggleItemSelection(item.rating_key)}
                                                 disabled={item.in_collection}
-                                                className={`bg-gray-800 rounded-lg overflow-hidden transition-all ${
+                                                className={`bg-gray-800 rounded-lg overflow-hidden transition-all animate-slide-up ${
                                                     item.in_collection
                                                         ? "opacity-50 cursor-not-allowed"
                                                         : selectedItems.has(item.rating_key)
                                                         ? "ring-2 ring-blue-500"
                                                         : "hover:ring-2 hover:ring-gray-600"
                                                 }`}
+                                                style={{ animationDelay: `${index * 0.02}s` }}
                                             >
                                                 {/* Poster */}
                                                 <div className="aspect-[2/3] bg-gray-900 relative">

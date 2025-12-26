@@ -139,6 +139,18 @@ select option {
     }
 }
 
+/* Staggered slide-up animation for grid items */
+@keyframes slide-up-fade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .animate-fade-in {
     animation: fade-in 0.8s ease-out forwards;
     opacity: 0;
@@ -146,4 +158,9 @@ select option {
 
 .animate-slow-pan {
     animation: slow-pan 60s ease-in-out infinite;
+}
+
+.animate-slide-up {
+    animation: slide-up-fade 0.5s ease-out forwards;
+    opacity: 0;
 }
