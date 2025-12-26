@@ -14,7 +14,9 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
-type PlexSettings = { base_url: string; token: string; library_name: string };
+type PlexLibraryConfig = { name: string; enabled: boolean };
+type PlexSettings = { base_url: string; token: string; libraries: PlexLibraryConfig[] };
+type AvailableLibrary = { title: string; type: string };
 type TraktSettings = { enabled: boolean; client_id: string; base_url: string; sources?: TraktSource[] };
 type TraktSource = { name: string; url: string; plex_library: string };
 type RotationSettings = {
@@ -48,8 +50,10 @@ export default function SettingsPage() {
     const [plexSettings, setPlexSettings] = useState<PlexSettings>({
         base_url: "",
         token: "",
-        library_name: "",
+        libraries: [],
     });
+    const [availableLibraries, setAvailableLibraries] = useState<AvailableLibrary[]>([]);
+    const [loadingLibraries, setLoadingLibraries] = useState(false);
     const [loadingPlex, setLoadingPlex] = useState(true);
     const [savingPlex, setSavingPlex] = useState(false);
     const [plexError, setPlexError] = useState<string | null>(null);
@@ -252,6 +256,50 @@ export default function SettingsPage() {
             isMounted = false;
         };
     }, []);
+
+    const fetchAvailableLibraries = async () => {
+        try {
+            setLoadingLibraries(true);
+            const r = await fetchWithAuth("/api/collections/libraries");
+            if (!r.ok) {
+                throw new Error(await r.text());
+            }
+            const data: { libraries: AvailableLibrary[] } = await r.json();
+            setAvailableLibraries(data.libraries || []);
+        } catch (e) {
+            setPlexError(`Failed to fetch libraries: ${String(e)}`);
+        } finally {
+            setLoadingLibraries(false);
+        }
+    };
+
+    const toggleLibrary = (libraryName: string) => {
+        setPlexSettings((prev) => {
+            const existingIndex = prev.libraries.findIndex((lib) => lib.name === libraryName);
+            if (existingIndex >= 0) {
+                // Toggle enabled status
+                const updated = [...prev.libraries];
+                updated[existingIndex] = {
+                    ...updated[existingIndex],
+                    enabled: !updated[existingIndex].enabled,
+                };
+                return { ...prev, libraries: updated };
+            } else {
+                // Add new library
+                return {
+                    ...prev,
+                    libraries: [...prev.libraries, { name: libraryName, enabled: true }],
+                };
+            }
+        });
+    };
+
+    const removeLibrary = (libraryName: string) => {
+        setPlexSettings((prev) => ({
+            ...prev,
+            libraries: prev.libraries.filter((lib) => lib.name !== libraryName),
+        }));
+    };
 
     async function saveRotationSettings() {
         try {
@@ -657,20 +705,73 @@ export default function SettingsPage() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Library" hint="Restrict sync to a single library or leave blank for all.">
-                            <input
-                                type="text"
-                                placeholder="TV Shows"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={plexSettings.library_name}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        library_name: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
-                            />
+                        <FieldRow label="Libraries" hint="Select which Plex libraries to use for rotation.">
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={fetchAvailableLibraries}
+                                    disabled={loadingPlex || loadingLibraries}
+                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {loadingLibraries ? "Loading..." : "Fetch Available Libraries"}
+                                </button>
+
+                                {availableLibraries.length > 0 && (
+                                    <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 space-y-2">
+                                        <div className="text-xs text-slate-400 mb-2">Available Libraries:</div>
+                                        {availableLibraries.map((lib) => {
+                                            const isSelected = plexSettings.libraries.some((l) => l.name === lib.title);
+                                            const isEnabled = plexSettings.libraries.find((l) => l.name === lib.title)?.enabled ?? true;
+                                            return (
+                                                <div key={lib.title} className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected && isEnabled}
+                                                            onChange={() => toggleLibrary(lib.title)}
+                                                            className="h-4 w-4 rounded border-slate-600 text-primary focus:ring-2 focus:ring-primary/70"
+                                                            disabled={loadingPlex}
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm text-slate-100">{lib.title}</div>
+                                                            <div className="text-xs text-slate-500">{lib.type}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {plexSettings.libraries.length > 0 && (
+                                    <div className="rounded-lg border border-emerald-700 bg-emerald-900/30 p-3">
+                                        <div className="text-xs text-emerald-300 mb-2">Selected Libraries:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {plexSettings.libraries.map((lib) => (
+                                                <div
+                                                    key={lib.name}
+                                                    className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs ${
+                                                        lib.enabled
+                                                            ? "bg-emerald-800/50 text-emerald-100"
+                                                            : "bg-slate-700/50 text-slate-400"
+                                                    }`}
+                                                >
+                                                    <span>{lib.name}</span>
+                                                    {!lib.enabled && <span className="text-xs">(disabled)</span>}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLibrary(lib.name)}
+                                                        className="text-emerald-200 hover:text-emerald-50"
+                                                        disabled={loadingPlex}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </FieldRow>
 
                         {plexMessage ? (
@@ -818,14 +919,44 @@ export default function SettingsPage() {
                                     onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
                                     disabled={savingSource || loadingTraktSources}
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="Plex library name"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                <Listbox
                                     value={newSource.plex_library}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, plex_library: e.target.value }))}
+                                    onChange={(value) => setNewSource((prev) => ({ ...prev, plex_library: value }))}
                                     disabled={savingSource || loadingTraktSources}
-                                />
+                                >
+                                    <div className="relative">
+                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
+                                            <span className={newSource.plex_library ? "text-slate-100" : "text-slate-500"}>
+                                                {newSource.plex_library || "Select Plex library"}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
+                                                <div className="px-3 py-2 text-xs text-slate-500">
+                                                    No enabled Plex libraries configured.
+                                                </div>
+                                            ) : (
+                                                plexSettings.libraries
+                                                    .filter((lib) => lib.enabled)
+                                                    .map((lib) => (
+                                                        <Listbox.Option
+                                                            key={lib.name}
+                                                            value={lib.name}
+                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
+                                                        >
+                                                            {({ selected }) => (
+                                                                <>
+                                                                    <span>{lib.name}</span>
+                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
+                                                                </>
+                                                            )}
+                                                        </Listbox.Option>
+                                                    ))
+                                            )}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
                             </div>
 
                             {traktSourcesMessage ? (

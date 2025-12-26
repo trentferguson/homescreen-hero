@@ -58,7 +58,7 @@ def apply_home_screen_selection(
     #
     # Strategy:
     #   - Build the union of all config-defined collection names
-    #   - Fetch those collections from Plex
+    #   - Fetch those collections from all enabled Plex libraries
     #   - For each:
     #       - If in selected_collection_names -> apply visibility settings from collection_visibility
     #       - Else -> disable all visibility (home=False, shared=False, recommended=False)
@@ -69,19 +69,33 @@ def apply_home_screen_selection(
     #
     # Returns a list of collection titles that were (or would be) set to show on Home
 
-    library_name = config.plex.library_name
-    selected_set = set(selected_collection_names)
+    # Get enabled libraries
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
 
+    if not enabled_libraries:
+        logger.warning("No enabled libraries configured for rotation")
+        return []
+
+    selected_set = set(selected_collection_names)
     configured_names = get_configured_collection_names(config)
 
-    # Map of all collections in the library, keyed by title
-    all_collections = get_library_collections(server, library_name)
+    # Fetch collections from all enabled libraries
+    all_collections: Dict[str, object] = {}
+    for library_name in enabled_libraries:
+        logger.info("Fetching collections from library: %s", library_name)
+        try:
+            library_collections = get_library_collections(server, library_name)
+            all_collections.update(library_collections)
+        except Exception as e:
+            logger.error("Failed to fetch collections from library '%s': %s", library_name, e)
+            continue
 
     applied: List[str] = []
 
     logger.info(
-        "Applying home screen selection to %d configured collections (dry_run=%s)",
+        "Applying home screen selection to %d configured collections across %d libraries (dry_run=%s)",
         len(configured_names),
+        len(enabled_libraries),
         dry_run,
     )
 
@@ -89,8 +103,7 @@ def apply_home_screen_selection(
         coll = all_collections.get(name)
         if coll is None:
             logger.warning(
-                "Configured collection not found in Plex library '%s': %s",
-                library_name,
+                "Configured collection not found in any enabled Plex library: %s",
                 name,
             )
             continue
@@ -124,13 +137,13 @@ def apply_home_screen_selection(
             if not dry_run:
                 hub.updateVisibility(home=False, shared=False, recommended=False)
 
-        logger.info(
-            "Home screen selection applied; %d collections enabled, %d configured",
-            len(applied),
-            len(configured_names),
-        )
+    logger.info(
+        "Home screen selection applied; %d collections enabled, %d configured",
+        len(applied),
+        len(configured_names),
+    )
 
-        if dry_run:
-            logger.info("Dry run — no changes were sent to Plex")
+    if dry_run:
+        logger.info("Dry run — no changes were sent to Plex")
 
     return applied

@@ -5,7 +5,11 @@
 plex:
   base_url: "YOUR_PLEX_SERVER_URL"  # e.g., "http://192.168.1.100:32400"
   # token: "YOUR_PLEX_TOKEN"  # RECOMMENDED: Use HSH_PLEX_TOKEN environment variable instead
-  library_name: "YOUR_PLEX_LIBRARY_NAME"  # e.g., "Movies" or "TV Shows"
+  libraries: # List of Plex libraries to use
+    - name: Movies
+      enabled: true
+    - name: TV Shows
+      enabled: false
 
 rotation:
   enabled: true
@@ -30,7 +34,7 @@ trakt:
   sources:
   - name: "TRAKT_COLLECTION_NAME"  # This is the name that will show up in Plex
     url: "LINK_TO_TRAKT_COLLECTION_OR_LIST"  # e.g., https://trakt.tv/users/username/collections/movies
-    plex_library: "YOUR_PLEX_LIBRARY_NAME"
+    plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
 
 logging:
   level: INFO

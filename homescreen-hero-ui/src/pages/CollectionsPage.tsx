@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { RefreshCw, Plus, X, Search, Trash2, Check, ChevronDown } from "lucide-react";
+import { RefreshCw, Plus, X, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
 
@@ -41,6 +41,8 @@ export default function CollectionsPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+    const [selectedLibraryFilter, setSelectedLibraryFilter] = useState<string>("all");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [lastCacheCheck, setLastCacheCheck] = useState<number | null>(null);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -338,9 +340,19 @@ export default function CollectionsPage() {
         }
     };
 
-    const filteredCollections = collections.filter((col) =>
-        col.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-    );
+    // Get unique libraries from collections
+    const uniqueLibraries = Array.from(new Set(collections.map((col) => col.library))).sort();
+
+    const filteredCollections = collections
+        .filter((col) => {
+            const matchesSearch = col.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+            const matchesLibrary = selectedLibraryFilter === "all" || col.library === selectedLibraryFilter;
+            return matchesSearch && matchesLibrary;
+        })
+        .sort((a, b) => {
+            const comparison = a.title.localeCompare(b.title);
+            return sortOrder === "asc" ? comparison : -comparison;
+        });
 
     const handleCollectionClick = (collection: Collection) => {
         navigate(
@@ -432,32 +444,89 @@ export default function CollectionsPage() {
                     </div>
                 </div>
 
-                {/* Search Bar */}
-                <input
-                    type="text"
-                    placeholder="Search collections..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full max-w-md px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {/* Search and Filter Bar */}
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search collections..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    {/* Library Filter Dropdown */}
+                    <Listbox value={selectedLibraryFilter} onChange={setSelectedLibraryFilter}>
+                        <div className="relative">
+                            <Listbox.Button className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors min-w-[140px]">
+                                <span className="flex-1 text-left text-sm">
+                                    {selectedLibraryFilter === "all" ? "All Libraries" : selectedLibraryFilter}
+                                </span>
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                            </Listbox.Button>
+                            <Listbox.Options className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                                <Listbox.Option
+                                    value="all"
+                                    className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-gray-700 data-[selected]:bg-blue-600 data-[selected]:font-semibold flex items-center justify-between"
+                                >
+                                    {({ selected }) => (
+                                        <>
+                                            <span>All Libraries</span>
+                                            {selected && <Check className="h-4 w-4 text-white" />}
+                                        </>
+                                    )}
+                                </Listbox.Option>
+                                {uniqueLibraries.map((library) => (
+                                    <Listbox.Option
+                                        key={library}
+                                        value={library}
+                                        className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-gray-700 data-[selected]:bg-blue-600 data-[selected]:font-semibold flex items-center justify-between"
+                                    >
+                                        {({ selected }) => (
+                                            <>
+                                                <span>{library}</span>
+                                                {selected && <Check className="h-4 w-4 text-white" />}
+                                            </>
+                                        )}
+                                    </Listbox.Option>
+                                ))}
+                            </Listbox.Options>
+                        </div>
+                    </Listbox>
+
+                    {/* Sort Order Toggle */}
+                    <button
+                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                        title={sortOrder === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                    >
+                        {sortOrder === "asc" ? (
+                            <ArrowUpAZ className="h-5 w-5" />
+                        ) : (
+                            <ArrowDownAZ className="h-5 w-5" />
+                        )}
+                    </button>
+                </div>
             </div>
 
             {/* Collections Grid */}
-            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-2">
                 {filteredCollections.map((collection, index) => (
                     <button
                         key={`${collection.library}-${collection.title}`}
                         onClick={() => handleCollectionClick(collection)}
-                        className="group relative bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all animate-slide-up"
+                        className="group relative bg-gray-800 rounded-lg overflow-visible hover:ring-2 hover:ring-blue-500 hover:-translate-y-1 hover:scale-105 hover:shadow-xl transition-all duration-200 animate-slide-up"
                         style={{ animationDelay: `${index * 0.03}s` }}
                     >
                         {/* Poster Image */}
-                        <div className="aspect-[2/3] bg-gray-900">
+                        <div className="aspect-[2/3] bg-gray-900 relative overflow-hidden rounded-t-lg">
                             {collection.poster_url ? (
                                 <img
                                     src={collection.poster_url}
                                     alt={collection.title}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                                     loading="lazy"
                                 />
                             ) : (
@@ -465,26 +534,45 @@ export default function CollectionsPage() {
                                     No Poster
                                 </div>
                             )}
+
+                            {/* Library Badge Overlay */}
+                            <div className="absolute top-2 left-2">
+                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-900/60 text-gray-300 border border-gray-700/50 backdrop-blur-sm">
+                                    {collection.library}
+                                </span>
+                            </div>
+
+                            {/* Item Count Badge Overlay */}
+                            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-900/60 text-gray-300 border border-gray-700/50 backdrop-blur-sm">
+                                    {collection.item_count} items
+                                </span>
+                            </div>
+
+                            {/* Active Badge Overlay */}
+                            {collection.is_active && (
+                                <div className="absolute bottom-2 left-2">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-900/70 text-green-400 border border-green-800/50 backdrop-blur-sm">
+                                        Active
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Delete Button (shown on hover) */}
                         <button
                             onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
-                            className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                             title="Delete collection"
                         >
                             <Trash2 size={16} />
                         </button>
 
                         {/* Collection Info */}
-                        <div className="p-3">
-                            <h3 className="text-white font-medium text-sm truncate group-hover:text-blue-400 transition-colors">
+                        <div className="p-2">
+                            <h3 className="text-white font-medium text-sm truncate text-center">
                                 {collection.title}
                             </h3>
-                            <div className="flex items-center justify-between mt-1">
-                                {collection.is_active && <span className="text-green-400 text-xs">Active</span>}
-                            </div>
-                            <span className="text-gray-500 text-xs">{collection.library}</span>
                         </div>
                     </button>
                 ))}

@@ -100,13 +100,34 @@ def _check_trakt(config: Any) -> HealthComponent:
 def _check_plex(config: Any) -> HealthComponent:
     try:
         server = get_plex_server(config)
-        library = server.library.section(config.plex.library_name)
-        _ = library
+
+        # Check all enabled libraries
+        enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+        if not enabled_libraries:
+            return HealthComponent(
+                ok=False,
+                error="No enabled libraries configured"
+            )
+
+        # Verify each enabled library is accessible
+        library_details = []
+        for library_name in enabled_libraries:
+            try:
+                library = server.library.section(library_name)
+                library_details.append(f"{library_name} ({library.type})")
+            except NotFound:
+                return HealthComponent(
+                    ok=False,
+                    error=f"Library '{library_name}' not found on Plex server"
+                )
+
         return HealthComponent(
             ok=True,
             details={
                 "server_name": server.friendlyName,
-                "library_name": config.plex.library_name,
+                "libraries": library_details,
+                "enabled_count": len(enabled_libraries),
             },
         )
     except Exception as exc:  # pragma: no cover - defensive

@@ -85,8 +85,11 @@ export default function Dashboard() {
     const trakt = health.trakt;
 
     const plexServerName = plex?.details?.server_name ?? plex?.server_name ?? "Plex";
-    const plexLibraryName = plex?.details?.library_name ?? plex?.library_name;
-    const plexDetail = [plexServerName, plexLibraryName]
+    const plexLibraries = plex?.details?.libraries;
+    const plexLibraryInfo = plexLibraries
+        ? `${plex?.details?.enabled_count ?? plexLibraries.length} ${plexLibraries.length === 1 ? 'library' : 'libraries'}`
+        : null;
+    const plexDetail = [plexServerName, plexLibraryInfo]
         .filter((value): value is string => Boolean(value))
         .join(" • ");
 

@@ -105,7 +105,7 @@ This project is designed for easy deployment using Docker and Docker Compose.
     c. **Edit config.yaml:**
     Open `data/config.yaml` and configure non-sensitive settings:
     - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    - `plex.library_name`: The library to manage (e.g., "Movies")
+    - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
     - `rotation` settings: interval, max collections, strategy
     - `groups`: Define your collection groups
 
@@ -186,7 +186,9 @@ Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/co
 plex:
   base_url: "YOUR_PLEX_SERVER_URL"
   token: "YOUR_PLEX_TOKEN"
-  library_name: "YOUR_PLEX_LIBRARY_NAME"
+  libraries: # List of Plex libraries to use
+    - name: Movies
+      enabled: true
 rotation:
   enabled: true
   interval_hours: 12
