@@ -40,6 +40,7 @@ export default function CollectionsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [lastCacheCheck, setLastCacheCheck] = useState<number | null>(null);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -65,6 +66,26 @@ export default function CollectionsPage() {
     useEffect(() => {
         loadCollections();
     }, []);
+
+    // Debounce collections search
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
+    // Debounce movie search
+    useEffect(() => {
+        if (!newCollectionLibrary) return;
+
+        const timeoutId = setTimeout(() => {
+            searchMovies(movieSearchQuery);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(timeoutId);
+    }, [movieSearchQuery, newCollectionLibrary]);
 
     // Load available libraries when modal opens
     useEffect(() => {
@@ -318,7 +339,7 @@ export default function CollectionsPage() {
     };
 
     const filteredCollections = collections.filter((col) =>
-        col.title.toLowerCase().includes(searchQuery.toLowerCase())
+        col.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     const handleCollectionClick = (collection: Collection) => {
@@ -578,10 +599,7 @@ export default function CollectionsPage() {
                                         type="text"
                                         placeholder={newCollectionLibrary ? "Search your library..." : "Enter a library name first..."}
                                         value={movieSearchQuery}
-                                        onChange={(e) => {
-                                            setMovieSearchQuery(e.target.value);
-                                            searchMovies(e.target.value);
-                                        }}
+                                        onChange={(e) => setMovieSearchQuery(e.target.value)}
                                         disabled={!newCollectionLibrary}
                                         className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                     />

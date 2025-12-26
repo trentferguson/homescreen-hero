@@ -53,6 +53,17 @@ export default function CollectionDetailPage() {
         }
     }, [library, collectionTitle]);
 
+    // Debounce search for add items modal
+    useEffect(() => {
+        if (!showAddModal) return;
+
+        const timeoutId = setTimeout(() => {
+            searchLibrary(searchQuery);
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, showAddModal]);
+
     const loadCollectionDetails = async () => {
         try {
             setLoading(true);
@@ -166,7 +177,8 @@ export default function CollectionDetailPage() {
     const openAddModal = () => {
         setShowAddModal(true);
         setSelectedItems(new Set()); // Clear any previous selections
-        searchLibrary(""); // Load initial results
+        setSearchQuery(""); // Reset search query - the debounce effect will handle the initial load
+        setSearchLoading(true); // Show loading immediately when modal opens
     };
 
     const closeAddModal = () => {
@@ -243,7 +255,7 @@ export default function CollectionDetailPage() {
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {collection.items.map((item, index) => (
                         <div
                             key={item.rating_key}
@@ -300,10 +312,7 @@ export default function CollectionDetailPage() {
                                     type="text"
                                     placeholder="Search your library..."
                                     value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value);
-                                        searchLibrary(e.target.value);
-                                    }}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     autoFocus
                                 />
@@ -313,7 +322,19 @@ export default function CollectionDetailPage() {
                         {/* Search Results */}
                         <div className="flex-1 overflow-y-auto p-6 scrollbar-hover-only">
                             {searchLoading ? (
-                                <div className="text-gray-400">Searching...</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                    {Array.from({ length: 10 }).map((_, i) => (
+                                        <div key={i} className="bg-gray-800 rounded-lg overflow-hidden animate-pulse">
+                                            {/* Poster skeleton */}
+                                            <div className="aspect-[2/3] bg-gray-700"></div>
+                                            {/* Info skeleton */}
+                                            <div className="p-3 space-y-2">
+                                                <div className="h-3 bg-gray-700 rounded w-3/4"></div>
+                                                <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             ) : searchResults.length > 0 ? (
                                 <div>
                                     <p className="text-sm text-gray-400 mb-3">
