@@ -39,10 +39,8 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 <img width="1803" height="1281" alt="image" src="https://github.com/user-attachments/assets/f588cdf5-01a7-48ba-a68d-b4716d5b77c0" />
 
 ### Collection Groups (View all groups/edit group names)
-<img width="1815" height="1070" alt="image" src="https://github.com/user-attachments/assets/561f5c0c-17bd-47af-bfed-34f87f348c01" />
 
 ### Edit Collection Groups (Edit rules, add collections, etc.)
-<img width="1683" height="1986" alt="edit_collections" src="https://github.com/user-attachments/assets/e2d64a4c-1e23-493e-b328-2b4eef4be2d4" />
 
 ### Settings Page (Edit Plex/Trakt Connections and add Trakt Lists)
 <img width="1691" height="1760" alt="settings" src="https://github.com/user-attachments/assets/afe26b0d-1e39-48c9-86f0-056704ffac53" />
