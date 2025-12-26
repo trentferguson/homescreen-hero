@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { Bell, Shield, SlidersHorizontal } from "lucide-react";
+import { Bell, Shield, SlidersHorizontal, Check, ChevronDown } from "lucide-react";
+import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
@@ -26,25 +27,12 @@ type RotationSettings = {
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
 
-const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button
-        type="button"
-        onClick={onChange}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${checked ? "bg-primary" : "bg-slate-600"
-            }`}
-    >
-        <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${checked ? "translate-x-5" : "translate-x-1"
-                }`}
-        />
-    </button>
-);
-
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
+    const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
     const [rotationSettings, setRotationSettings] = useState<RotationSettings>({
         enabled: true,
         interval_hours: 12,
@@ -463,11 +451,29 @@ export default function SettingsPage() {
                         </FieldRow>
 
                         <FieldRow label="Default theme" hint="Applied across dashboards and the homepage.">
-                            <select className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70">
-                                <option>Dark</option>
-                                <option>Light</option>
-                                <option>Auto</option>
-                            </select>
+                            <Listbox value={defaultTheme} onChange={setDefaultTheme}>
+                                <div className="relative">
+                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
+                                        <span>{defaultTheme}</span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
+                                        {["Dark", "Light", "Auto"].map((theme) => (
+                                            <Listbox.Option
+                                                key={theme}
+                                                value={theme}
+                                                className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                            >
+                                                <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
+                                                    <span className="data-[selected]:font-medium">{theme}</span>
+                                                    <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                                </div>
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
                         </FieldRow>
                     </FormSection>
 
@@ -494,13 +500,16 @@ export default function SettingsPage() {
                                     <p className="text-sm font-semibold text-slate-900 dark:text-white">Enable scheduler</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">When enabled, rotations run on the configured interval.</p>
                                 </div>
-                                <Toggle
+                                <Switch
                                     checked={rotationSettings.enabled}
                                     onChange={() => {
                                         if (loadingRotation) return;
                                         setRotationSettings((prev) => ({ ...prev, enabled: !prev.enabled }));
                                     }}
-                                />
+                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                >
+                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                </Switch>
                             </div>
                         </FieldRow>
 
@@ -527,23 +536,39 @@ export default function SettingsPage() {
                         </FieldRow>
 
                         <FieldRow label="Strategy" hint="Random is currently the only supported strategy.">
-                            <select
+                            <Listbox
                                 value={rotationSettings.strategy}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                     setRotationSettings((prev) => ({
                                         ...prev,
-                                        strategy: e.target.value,
+                                        strategy: val,
                                     }))
                                 }
                                 disabled={loadingRotation}
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
                             >
-                                <option value="random">Random</option>
-                            </select>
+                                <div className="relative">
+                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between data-[disabled]:opacity-50">
+                                        <span>Random</span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
+                                        <Listbox.Option
+                                            value="random"
+                                            className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                        >
+                                            <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
+                                                <span className="data-[selected]:font-medium">Random</span>
+                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                            </div>
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
                         </FieldRow>
 
                         <FieldRow label="Allow repeats" hint="Permit the same collection to appear in consecutive rotations.">
-                            <Toggle
+                            <Switch
                                 checked={rotationSettings.allow_repeats}
                                 onChange={() => {
                                     if (loadingRotation) return;
@@ -552,7 +577,10 @@ export default function SettingsPage() {
                                         allow_repeats: !prev.allow_repeats,
                                     }));
                                 }}
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         {rotationMessage ? (
@@ -685,7 +713,7 @@ export default function SettingsPage() {
                             label="Enable Trakt"
                             description="Toggle syncing Trakt lists to your Plex collections."
                         >
-                            <Toggle
+                            <Switch
                                 checked={traktSettings.enabled}
                                 onChange={() =>
                                     setTraktSettings((prev) => ({
@@ -693,7 +721,10 @@ export default function SettingsPage() {
                                         enabled: !prev.enabled,
                                     }))
                                 }
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         <FieldRow
@@ -870,18 +901,24 @@ export default function SettingsPage() {
                                     <p className="text-sm font-semibold text-slate-900 dark:text-white">Enable alerts</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">Covers successes, failures, and dry runs.</p>
                                 </div>
-                                <Toggle
+                                <Switch
                                     checked={notificationsEnabled}
                                     onChange={() => setNotificationsEnabled((v) => !v)}
-                                />
+                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                >
+                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                </Switch>
                             </div>
                         </FieldRow>
 
                         <FieldRow label="Weekly digest" hint="Summary of successes and failures delivered every Monday.">
-                            <Toggle
+                            <Switch
                                 checked={weeklySummary}
                                 onChange={() => setWeeklySummary((v) => !v)}
-                            />
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                            </Switch>
                         </FieldRow>
 
                         <FieldRow label="Email recipients" description="Comma-separated list of addresses to notify.">

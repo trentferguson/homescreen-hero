@@ -14,7 +14,6 @@ from homescreen_hero.core.db.tools import list_rotations
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 
 
-# NEW: response models
 class ActiveCollectionOut(BaseModel):
     title: str
     library: Optional[str] = None
@@ -62,6 +61,57 @@ class DashboardResponse(BaseModel):
     recent_activity: list[DashboardActivityItem]
     usage_top: list[DashboardUsageItem]
 
+
+# Collection Management Models
+class CollectionItemOut(BaseModel):
+    rating_key: str
+    title: str
+    year: Optional[int] = None
+    thumb: Optional[str] = None
+    type: str  # "movie" or "show"
+
+
+class CollectionDetailResponse(BaseModel):
+    title: str
+    library: str
+    summary: Optional[str] = None
+    item_count: int
+    items: List[CollectionItemOut]
+
+
+class LibraryItemOut(BaseModel):
+    rating_key: str
+    title: str
+    year: Optional[int] = None
+    thumb: Optional[str] = None
+    type: str
+    in_collection: bool = False
+
+
+class LibrarySearchResponse(BaseModel):
+    items: List[LibraryItemOut]
+    total: int
+
+
+class AddItemRequest(BaseModel):
+    rating_key: str
+
+
+class RemoveItemRequest(BaseModel):
+    rating_key: str
+
+
+class CreateCollectionRequest(BaseModel):
+    title: str
+    library: str
+    summary: Optional[str] = None
+
+
+class UpdateCollectionRequest(BaseModel):
+    title: Optional[str] = None
+    summary: Optional[str] = None
+
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/collections")
@@ -91,7 +141,6 @@ def get_active_collections() -> ActiveCollectionsResponse:
                     hub = col.visibility()
 
                     # Check if this collection is visible on the home screen
-                    # The attribute is 'promotedToOwnHome', not 'home'
                     if getattr(hub, "promotedToOwnHome", False):
                         poster_url = None
                         if getattr(col, "thumb", None):
@@ -170,11 +219,6 @@ class GroupPostersResponse(BaseModel):
 
 @router.get("/group-posters", response_model=GroupPostersResponse)
 async def get_group_posters(collection_names: str) -> GroupPostersResponse:
-    """
-    Fetch random poster URLs from items within specified Plex collections.
-    Collection names should be comma-separated.
-    Returns proxied URLs that go through our backend.
-    """
     try:
         config = load_config()
         server = get_plex_server(config)
@@ -236,13 +280,8 @@ async def get_group_posters(collection_names: str) -> GroupPostersResponse:
 
 @router.get("/group-poster-proxy/{cache_key}")
 def proxy_group_poster(cache_key: str):
-    """
-    Proxy endpoint to serve poster images from Plex for group collections.
-    Uses two-level TTL cache: first checks for cached image content, then fetches from Plex if needed.
-    Also sets browser cache headers to avoid repeated requests.
-    """
+    # Proxy endpoint to serve poster images from Plex for group collections.
     try:
-        # Check if we have the image content cached
         cached_image = poster_image_cache.get(cache_key)
         if cached_image:
             logger.debug(f"Serving cached image for key: {cache_key}")
@@ -288,3 +327,409 @@ def proxy_group_poster(cache_key: str):
     except Exception as e:
         logger.error(f"Unexpected error proxying poster {cache_key}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+    
+
+class LibraryOut(BaseModel):
+    title: str
+    type: str  # "movie" or "show"
+
+
+class LibrariesResponse(BaseModel):
+    libraries: List[LibraryOut]
+
+
+# ============================================================================
+# Collection Management Endpoints
+# ============================================================================
+
+@router.get("/libraries", response_model=LibrariesResponse)
+def get_available_libraries() -> LibrariesResponse:
+    """Get all available Plex library sections."""
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        libraries = []
+        for section in server.library.sections():
+            # Exclude music libraries (artist type)
+            if section.type == "artist":
+                logger.debug(f"Skipping music library: {section.title}")
+                continue
+
+            libraries.append(
+                LibraryOut(
+                    title=section.title,
+                    type=section.type
+                )
+            )
+            logger.debug(f"Added library: {section.title} (type: {section.type})")
+
+        # Sort by title for consistent ordering
+        libraries.sort(key=lambda lib: lib.title)
+
+        return LibrariesResponse(libraries=libraries)
+
+    except Exception as e:
+        logger.error(f"Error getting libraries: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get libraries: {str(e)}"
+        )
+
+@router.get(
+    "/{library}/{collection_title}/details", response_model=CollectionDetailResponse
+)
+def get_collection_details(
+    library: str, collection_title: str
+) -> CollectionDetailResponse:
+    """Get detailed information about a specific collection, including all items."""
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the collection
+        collection = None
+        for col in section.collections():
+            if col.title == collection_title:
+                collection = col
+                break
+
+        if not collection:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collection '{collection_title}' not found in library '{library}'",
+            )
+
+        # Get all items in the collection
+        items = collection.items()
+
+        # Build response
+        collection_items = []
+        for item in items:
+            thumb_url = None
+            if hasattr(item, "thumb") and item.thumb:
+                thumb_url = server.url(item.thumb, includeToken=True)
+
+            collection_items.append(
+                CollectionItemOut(
+                    rating_key=str(item.ratingKey),
+                    title=item.title,
+                    year=getattr(item, "year", None),
+                    thumb=thumb_url,
+                    type=item.type,  # "movie" or "show"
+                )
+            )
+
+        summary = getattr(collection, "summary", None)
+
+        return CollectionDetailResponse(
+            title=collection.title,
+            library=library,
+            summary=summary,
+            item_count=len(collection_items),
+            items=collection_items,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting collection details: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get collection details: {str(e)}"
+        )
+    
+# Search for items in a library, optionally filtering by collection membership
+@router.get("/{library}/search", response_model=LibrarySearchResponse)
+def search_library_items(
+    library: str,
+    query: Optional[str] = None,
+    collection_title: Optional[str] = None,
+    limit: int = 50,
+) -> LibrarySearchResponse:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        logger.info(f"Searching library: {library}, query: {query}")
+        section = server.library.section(library)
+        logger.info(f"Found section: {section.title} (type: {section.type})")
+
+        # Get items in the collection (if specified) to mark them
+        collection_item_keys = set()
+        if collection_title:
+            for col in section.collections():
+                if col.title == collection_title:
+                    collection_item_keys = {str(item.ratingKey) for item in col.items()}
+                    break
+
+        # Search or get all items
+        if query:
+            items = section.search(title=query, limit=limit)
+        else:
+            items = section.all(limit=limit)
+
+        logger.info(f"Found {len(items)} items in library {library}")
+
+        # Build response
+        library_items = []
+        for idx, item in enumerate(items):
+            thumb_url = None
+            if hasattr(item, "thumb") and item.thumb:
+                thumb_url = server.url(item.thumb, includeToken=True)
+
+            # Log first few items to help debug
+            if idx < 3:
+                logger.info(f"Item {idx}: {item.title} (type: {item.type})")
+
+            library_items.append(
+                LibraryItemOut(
+                    rating_key=str(item.ratingKey),
+                    title=item.title,
+                    year=getattr(item, "year", None),
+                    thumb=thumb_url,
+                    type=item.type,
+                    in_collection=(str(item.ratingKey) in collection_item_keys),
+                )
+            )
+
+        return LibrarySearchResponse(items=library_items, total=len(library_items))
+
+    except Exception as e:
+        logger.error(f"Error searching library: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to search library: {str(e)}"
+        )
+    
+
+# Add an item to a collection
+@router.post("/{library}/{collection_title}/add-item")
+def add_item_to_collection(
+    library: str, collection_title: str, request: AddItemRequest
+) -> dict:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the item by rating key
+        item = section.fetchItem(int(request.rating_key))
+
+        if not item:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item with rating key '{request.rating_key}' not found",
+            )
+
+        # Add the item to the collection (creates collection if it doesn't exist)
+        item.addCollection(collection_title)
+
+        logger.info(f"Added '{item.title}' to collection '{collection_title}'")
+
+        return {
+            "success": True,
+            "message": f"Added '{item.title}' to collection '{collection_title}'",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding item to collection: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add item to collection: {str(e)}"
+        )
+    
+# Remove an item from a collection
+@router.post("/{library}/{collection_title}/remove-item")
+def remove_item_from_collection(
+    library: str, collection_title: str, request: RemoveItemRequest
+) -> dict:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the item by rating key
+        item = section.fetchItem(int(request.rating_key))
+
+        if not item:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item with rating key '{request.rating_key}' not found",
+            )
+
+        # Remove the item from the collection
+        item.removeCollection(collection_title)
+
+        logger.info(f"Removed '{item.title}' from collection '{collection_title}'")
+
+        return {
+            "success": True,
+            "message": f"Removed '{item.title}' from collection '{collection_title}'",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing item from collection: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to remove item from collection: {str(e)}"
+        )
+
+
+# Create a new collection
+@router.post("/create")
+def create_collection(request: CreateCollectionRequest) -> dict:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(request.library)
+
+        # Check if collection already exists
+        for col in section.collections():
+            if col.title == request.title:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Collection '{request.title}' already exists in library '{request.library}'",
+                )
+
+        # Create the collection by adding it to the first item in the library
+        # Note: Plex collections require at least one item, so we keep the first item in the collection
+        # Users can remove it later if they want an empty collection
+        items = section.all(limit=1)
+        if not items:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot create collection: library '{request.library}' is empty",
+            )
+
+        # Add collection to first item (this creates the collection)
+        items[0].addCollection(request.title)
+
+        # Find the newly created collection
+        new_collection = None
+        for col in section.collections():
+            if col.title == request.title:
+                new_collection = col
+                break
+
+        if not new_collection:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create collection"
+            )
+
+        # Set summary if provided
+        if request.summary:
+            new_collection.editSummary(request.summary)
+
+        logger.info(
+            f"Created collection '{request.title}' in library '{request.library}'"
+        )
+
+        return {"success": True, "message": f"Created collection '{request.title}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating collection: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create collection: {str(e)}"
+        )
+
+
+# Update collection metadata
+@router.put("/{library}/{collection_title}")
+def update_collection(
+    library: str, collection_title: str, request: UpdateCollectionRequest
+) -> dict:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the collection
+        collection = None
+        for col in section.collections():
+            if col.title == collection_title:
+                collection = col
+                break
+
+        if not collection:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collection '{collection_title}' not found in library '{library}'",
+            )
+
+        # Apply edits using the new non-deprecated methods
+        updated = False
+        if request.title:
+            collection.editTitle(request.title)
+            updated = True
+        if request.summary:
+            collection.editSummary(request.summary)
+            updated = True
+
+        if not updated:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        logger.info(f"Updated collection '{collection_title}' in library '{library}'")
+
+        return {"success": True, "message": f"Updated collection '{collection_title}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating collection: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update collection: {str(e)}"
+        )
+
+
+# Delete a collection
+@router.delete("/{library}/{collection_title}")
+def delete_collection(library: str, collection_title: str) -> dict:
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the collection
+        collection = None
+        for col in section.collections():
+            if col.title == collection_title:
+                collection = col
+                break
+
+        if not collection:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collection '{collection_title}' not found in library '{library}'",
+            )
+
+        # Delete the collection
+        collection.delete()
+
+        logger.info(f"Deleted collection '{collection_title}' from library '{library}'")
+
+        return {"success": True, "message": f"Deleted collection '{collection_title}'"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting collection: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete collection: {str(e)}"
+        )

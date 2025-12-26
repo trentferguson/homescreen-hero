@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { Copy, Pause, Play, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Copy, Pause, Play, RefreshCw, Search, Trash2, Check, ChevronDown } from "lucide-react";
+import { Listbox, Switch } from "@headlessui/react";
 
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "ALL";
 
@@ -224,25 +225,49 @@ export default function LogsPage() {
                 </div>
 
                 <div className="flex gap-3 items-center">
-                    <select
-                        value={level}
-                        onChange={(e) => setLevel(e.target.value as LogLevel)}
-                        className="px-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                        <option value="ALL">All levels</option>
-                        <option value="ERROR">Error</option>
-                        <option value="WARN">Warn</option>
-                        <option value="INFO">Info</option>
-                        <option value="DEBUG">Debug</option>
-                    </select>
+                    <Listbox value={level} onChange={(val) => setLevel(val)}>
+                        <div className="relative">
+                            <Listbox.Button className="px-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center gap-2 min-w-[140px] justify-between">
+                                <span>
+                                    {level === "ALL" ? "All levels" :
+                                     level === "ERROR" ? "Error" :
+                                     level === "WARN" ? "Warn" :
+                                     level === "INFO" ? "Info" : "Debug"}
+                                </span>
+                                <ChevronDown size={16} className="text-slate-400" />
+                            </Listbox.Button>
+
+                            <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden focus:outline-none">
+                                {[
+                                    { value: "ALL", label: "All levels" },
+                                    { value: "ERROR", label: "Error" },
+                                    { value: "WARN", label: "Warn" },
+                                    { value: "INFO", label: "Info" },
+                                    { value: "DEBUG", label: "Debug" },
+                                ].map((option) => (
+                                    <Listbox.Option
+                                        key={option.value}
+                                        value={option.value}
+                                        className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-800"
+                                    >
+                                        <div className="flex items-center justify-between text-slate-100">
+                                            <span className="data-[selected]:font-medium">{option.label}</span>
+                                            <Check size={16} className="text-emerald-500 invisible data-[selected]:visible" />
+                                        </div>
+                                    </Listbox.Option>
+                                ))}
+                            </Listbox.Options>
+                        </div>
+                    </Listbox>
 
                     <label className="flex items-center gap-2 text-sm text-slate-300 select-none">
-                        <input
-                            type="checkbox"
+                        <Switch
                             checked={follow}
-                            onChange={(e) => setFollow(e.target.checked)}
-                            className="accent-emerald-500"
-                        />
+                            onChange={setFollow}
+                            className="relative inline-flex h-5 w-9 items-center rounded-full transition data-[checked]:bg-emerald-500 bg-slate-600"
+                        >
+                            <span className="inline-block h-4 w-4 transform rounded-full bg-white transition data-[checked]:translate-x-4 translate-x-0.5" />
+                        </Switch>
                         Follow
                     </label>
                 </div>
