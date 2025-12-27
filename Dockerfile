@@ -47,5 +47,5 @@ EXPOSE 8000
 ENV PORT=8000
 
 # IMPORTANT: single worker recommended (APScheduler runs in-process)
-# Use shell form to allow environment variable expansion
-CMD uvicorn homescreen_hero.web.app:app --host 0.0.0.0 --port ${PORT} --workers 1
+# Use sh -c to properly expand environment variables
+CMD ["sh", "-c", "uvicorn homescreen_hero.web.app:app --host 0.0.0.0 --port ${PORT} --workers 1"]
