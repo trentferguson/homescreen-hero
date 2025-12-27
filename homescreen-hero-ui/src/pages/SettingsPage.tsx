@@ -568,41 +568,6 @@ export default function SettingsPage() {
                             </div>
                         ) : null}
                     </FormSection>
-
-                    <FormSection
-                        title="Demo Controls"
-                        description="Reset the demo back to its initial state."
-                    >
-                        <FieldRow
-                            label="Reset Demo Data"
-                            description="Clear all rotation history and restore demo to initial state."
-                        >
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!confirm("Are you sure you want to reset the demo? This will clear all rotation history.")) {
-                                        return;
-                                    }
-                                    try {
-                                        const response = await fetchWithAuth("/api/auth/reset-demo", {
-                                            method: "POST",
-                                        });
-                                        if (response.ok) {
-                                            alert("Demo has been reset successfully!");
-                                            window.location.reload();
-                                        } else {
-                                            alert("Failed to reset demo");
-                                        }
-                                    } catch (error) {
-                                        alert("Failed to reset demo: " + error);
-                                    }
-                                }}
-                                className="rounded-lg border border-rose-700 bg-rose-900/30 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-900/50"
-                            >
-                                Reset Demo
-                            </button>
-                        </FieldRow>
-                    </FormSection>
                 </>
             ) : null}
 
