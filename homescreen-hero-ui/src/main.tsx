@@ -11,6 +11,7 @@ import SettingsPage from "./pages/SettingsPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import LoginPage from "./pages/LoginPage";
+import QuickStartPage from "./pages/QuickStartPage";
 import { ThemeProvider } from "./utils/theme";
 import { AuthProvider } from "./utils/auth";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    path: "/quick-start",
+    element: <QuickStartPage />,
   },
   {
     element: (

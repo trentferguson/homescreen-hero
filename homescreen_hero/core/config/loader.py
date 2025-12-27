@@ -86,6 +86,16 @@ def _read_raw_config(path: Path) -> dict:
 
 # Apply environment variable overrides for sensitive fields
 def _apply_env_overrides(config: AppConfig) -> AppConfig:
+    # Plex URL override
+    plex_url = os.getenv("HSH_PLEX_URL")
+    if plex_url:
+        logger.info("Using Plex URL from HSH_PLEX_URL environment variable")
+        config.plex.base_url = plex_url
+    elif not config.plex.base_url:
+        raise ValueError(
+            "Plex URL is required. Set it in config.yaml or via HSH_PLEX_URL environment variable"
+        )
+
     # Plex token override
     plex_token = os.getenv("HSH_PLEX_TOKEN")
     if plex_token:
@@ -167,7 +177,10 @@ def save_config_text(content: str, path: Path | None = None) -> AppConfig:
     try:
         config = AppConfig.model_validate(data)
     except AttributeError:
-        config = AppConfig.parse_obj(data) 
+        config = AppConfig.parse_obj(data)
+
+    # Apply environment variable overrides for validation
+    config = _apply_env_overrides(config) 
 
     tmp_path = cfg_path.with_suffix(cfg_path.suffix + ".tmp")
     tmp_path.write_text(content, encoding="utf-8")
