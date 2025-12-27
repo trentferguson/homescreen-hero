@@ -52,15 +52,33 @@ export default function LoginPage() {
     return (
         <PosterBackground>
             <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 w-full max-w-md p-8 space-y-6">
-                    {/* Logo */}
-                    <div className="flex flex-col items-center gap-4">
-                        <img
-                            src="/logo_text.png"
-                            alt="HomeScreen Hero"
-                            className="h-auto w-auto select-none"
-                        />
+                <div className="w-full max-w-md space-y-4">
+                    {/* Demo Mode Banner */}
+                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-4 shadow-lg border border-purple-400/50">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-sm">Demo Login Credentials</h3>
+                                <p className="text-purple-100 text-xs">
+                                    <span className="font-semibold">Username:</span> admin • <span className="font-semibold">Password:</span> demo
+                                </p>
+                            </div>
+                        </div>
                     </div>
+
+                    <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-8 space-y-6">
+                        {/* Logo */}
+                        <div className="flex flex-col items-center gap-4">
+                            <img
+                                src="/logo_text.png"
+                                alt="HomeScreen Hero"
+                                className="h-auto w-auto select-none"
+                            />
+                        </div>
 
                     {/* Login Form */}
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -123,6 +141,7 @@ export default function LoginPage() {
                             ) : "Sign In"}
                         </button>
                     </form>
+                    </div>
                 </div>
             </div>
         </PosterBackground>
