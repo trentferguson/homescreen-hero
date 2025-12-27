@@ -72,6 +72,22 @@ class MockMediaItem:
         "Back to the Future": "/fNOH9f1aA7XRTzl1sAOx9iF553Q.jpg",
         "Oppenheimer": "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
         "Everything Everywhere All at Once": "/w3LxiVYdWWRvEVdn5RYq6jIqkb1.jpg",
+        # Recently Added / Popular Movies
+        "The Batman": "/74xTEgt7R36Fpooo50r9T25onhq.jpg",
+        "Barbie": "/iuFNMS8U5cb6xfzi51Dbkovj7vM.jpg",
+        "Dune": "/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
+        "Dune: Part Two": "/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
+        "The Dark Knight Rises": "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+        "The Lord of the Rings: The Return of the King": "/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg",
+        "The Matrix Reloaded": "/p96dm7sCMn4VYAStA6siNz30G1r.jpg",
+        "The Lord of the Rings: The Fellowship of the Ring": "/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
+        "The Lord of the Rings: The Two Towers": "/5VTN0pR8gcqV3EPUHHfMGnJYN9L.jpg",
+        "Star Wars": "/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg",
+        "Iron Man": "/78lPtwv72eTNqFW9COBYI0dWDJa.jpg",
+        "Avengers: Infinity War": "/7WsyChQLEftFiDOVTGkv3hFpyyt.jpg",
+        "Avengers: Endgame": "/bR8ISy1O9XQxqiy0fQFw2BX72RQ.jpg",
+        "Schindler's List": "/sF1U4EUQS8YHUYjNl3pMGNIQyr0.jpg",
+        "Fight Club": "/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
         # TV Shows
         "Breaking Bad": "/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
         "The Sopranos": "/rTc7ZXdroqjkKivFPvCPX0Ru7uw.jpg",
@@ -210,6 +226,22 @@ class MockLibrary:
             MockMediaItem("Back to the Future", 1985),
             MockMediaItem("Oppenheimer", 2023),
             MockMediaItem("Everything Everywhere All at Once", 2022),
+            # New popular/recent movies
+            MockMediaItem("The Batman", 2022),
+            MockMediaItem("Barbie", 2023),
+            MockMediaItem("Dune", 2021),
+            MockMediaItem("Dune: Part Two", 2024),
+            MockMediaItem("The Dark Knight Rises", 2012),
+            MockMediaItem("The Lord of the Rings: The Return of the King", 2003),
+            MockMediaItem("The Matrix Reloaded", 2003),
+            MockMediaItem("The Lord of the Rings: The Fellowship of the Ring", 2001),
+            MockMediaItem("The Lord of the Rings: The Two Towers", 2002),
+            MockMediaItem("Star Wars", 1977),
+            MockMediaItem("Iron Man", 2008),
+            MockMediaItem("Avengers: Infinity War", 2018),
+            MockMediaItem("Avengers: Endgame", 2019),
+            MockMediaItem("Schindler's List", 1993),
+            MockMediaItem("Fight Club", 1999),
         ]
         self._all_items = sample_movies
 
@@ -220,10 +252,14 @@ class MockLibrary:
             "80s Action Classics": (sample_movies[21:25], True),  # Active
             "Criterion Collection": (sample_movies[0:8], False),
             "Studio Ghibli Films": (sample_movies[17:21], True),  # Active
+            "Recently Requested by You": ([sample_movies[30], sample_movies[33], sample_movies[38], sample_movies[41], sample_movies[42]], True),  # Active - Batman, Dune 2, LOTR:FOTR, Iron Man, Avengers: Infinity War
+            "Trending Movies": ([sample_movies[31], sample_movies[32], sample_movies[28], sample_movies[29]], True),  # Active - Barbie, Dune, Oppenheimer, EEAAO
             "Nolan Collection": ([sample_movies[2], sample_movies[5], sample_movies[11], sample_movies[14]], False),
             "90s Crime Dramas": (sample_movies[1:4] + sample_movies[7:9], False),
             "Best Picture Winners": ([sample_movies[0], sample_movies[1], sample_movies[4], sample_movies[12]], False),
             "Sci-Fi Essentials": ([sample_movies[5], sample_movies[6], sample_movies[11]], False),
+            "The Lord of the Rings Trilogy": ([sample_movies[38], sample_movies[39], sample_movies[35]], False),  # FOTR, Two Towers, ROTK
+            "MCU Favorites": ([sample_movies[41], sample_movies[42], sample_movies[43]], False),  # Iron Man, Infinity War, Endgame
         }
 
         for title, (items, is_active) in collections_data.items():
@@ -254,6 +290,7 @@ class MockLibrary:
         collections_data = {
             "HBO Prestige Dramas": (sample_shows[0:5], True),  # Active
             "90s Sitcoms": (sample_shows[5:8], True),  # Active
+            "Hot on TV": ([sample_shows[0], sample_shows[3], sample_shows[4], sample_shows[11]], True),  # Active - Breaking Bad, GoT, Better Call Saul, Fleabag
             "Modern Comedy Classics": (sample_shows[7:10], False),
             "British Comedy": (sample_shows[10:12], False),
             "Anime Classics": (sample_shows[12:16], False),

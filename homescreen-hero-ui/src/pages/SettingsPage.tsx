@@ -668,40 +668,30 @@ export default function SettingsPage() {
                     >
                         <FieldRow
                             label="Server URL"
-                            description="Internal address the backend should use to reach Plex."
-                            hint="Example: http://localhost:32400"
+                            description="Demo mode - Plex settings are read-only."
+                            hint="Using mock Plex server for demo"
                         >
                             <input
                                 type="text"
                                 placeholder="http://localhost:32400"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-sm text-slate-500 dark:text-slate-500 cursor-not-allowed"
                                 value={plexSettings.base_url}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        base_url: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
+                                readOnly
+                                disabled
                             />
                         </FieldRow>
 
                         <FieldRow
                             label="X-Plex-Token"
-                            description="Stored securely and not written to the config until you save."
+                            description="Demo mode - Plex token is managed by the system."
                         >
                             <input
                                 type="password"
                                 placeholder="••••••••"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-sm text-slate-500 dark:text-slate-500 cursor-not-allowed"
                                 value={plexSettings.token}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        token: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
+                                readOnly
+                                disabled
                             />
                         </FieldRow>
 
@@ -831,39 +821,29 @@ export default function SettingsPage() {
 
                         <FieldRow
                             label="Client ID"
-                            description="Found in your Trakt application settings."
+                            description="Demo mode - Trakt settings are read-only."
                         >
                             <input
                                 type="text"
                                 placeholder="Trakt client ID"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-sm text-slate-500 dark:text-slate-500 cursor-not-allowed"
                                 value={traktSettings.client_id}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        client_id: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
+                                readOnly
+                                disabled
                             />
                         </FieldRow>
 
                         <FieldRow
                             label="Base URL"
-                            description="Override only if you self-host the Trakt API."
+                            description="Demo mode - Using mock Trakt API."
                         >
                             <input
                                 type="url"
                                 placeholder="https://api.trakt.tv"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 px-3 py-2 text-sm text-slate-500 dark:text-slate-500 cursor-not-allowed"
                                 value={traktSettings.base_url}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        base_url: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
+                                readOnly
+                                disabled
                             />
                         </FieldRow>
 
