@@ -644,6 +644,41 @@ export default function SettingsPage() {
                             </div>
                         ) : null}
                     </FormSection>
+
+                    <FormSection
+                        title="Demo Controls"
+                        description="Reset the demo back to its initial state."
+                    >
+                        <FieldRow
+                            label="Reset Demo Data"
+                            description="Clear all rotation history and restore demo to initial state."
+                        >
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!confirm("Are you sure you want to reset the demo? This will clear all rotation history.")) {
+                                        return;
+                                    }
+                                    try {
+                                        const response = await fetchWithAuth("/api/auth/reset-demo", {
+                                            method: "POST",
+                                        });
+                                        if (response.ok) {
+                                            alert("Demo has been reset successfully!");
+                                            window.location.reload();
+                                        } else {
+                                            alert("Failed to reset demo");
+                                        }
+                                    } catch (error) {
+                                        alert("Failed to reset demo: " + error);
+                                    }
+                                }}
+                                className="rounded-lg border border-rose-700 bg-rose-900/30 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-900/50"
+                            >
+                                Reset Demo
+                            </button>
+                        </FieldRow>
+                    </FormSection>
                 </>
             ) : null}
 
@@ -654,15 +689,7 @@ export default function SettingsPage() {
                         description="Provide credentials for the media server this dashboard references."
                         actions={
                             <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={savePlexSettings}
-                                    disabled={savingPlex || loadingPlex}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingPlex ? "Saving…" : "Save Plex Settings"}
-                                </button>
+                                <span className="italic">Demo mode - settings cannot be saved</span>
                             </div>
                         }
                     >
@@ -789,15 +816,7 @@ export default function SettingsPage() {
                         description="Keep Trakt lists in sync without hand-editing the config file."
                         actions={
                             <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={saveTraktSettings}
-                                    disabled={savingTrakt || loadingTrakt}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingTrakt ? "Saving…" : "Save Trakt Settings"}
-                                </button>
+                                <span className="italic">Demo mode - settings cannot be saved</span>
                             </div>
                         }
                     >

@@ -203,3 +203,31 @@ def proxy_poster(poster_id: int):
     except Exception as exc:
         logger.error(f"Unexpected error fetching poster {poster_id} from URL {poster_url}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to fetch poster")
+
+
+@router.post("/reset-demo")
+async def reset_demo(current_user: str = Depends(get_current_user)):
+    """
+    Reset the demo database back to initial state.
+    Only available in demo mode.
+    """
+    try:
+        from homescreen_hero.core.db.base import get_session
+        from homescreen_hero.core.db.seed_demo_data import seed_demo_rotation_history
+        from homescreen_hero.core.db.models import RotationRecord
+
+        # Clear existing rotation history
+        session = get_session()
+        session.query(RotationRecord).delete()
+        session.commit()
+
+        # Re-seed demo data
+        seed_demo_rotation_history(session)
+        session.close()
+
+        logger.info(f"Demo reset by user: {current_user}")
+        return {"success": True, "message": "Demo has been reset to initial state"}
+
+    except Exception as exc:
+        logger.exception("Failed to reset demo")
+        raise HTTPException(status_code=500, detail=f"Failed to reset demo: {str(exc)}")
