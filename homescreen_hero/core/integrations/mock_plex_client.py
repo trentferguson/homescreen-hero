@@ -142,14 +142,38 @@ class MockMediaItem:
 class MockCollection:
     """Mock Plex collection."""
 
+    # Custom collection posters (hosted on ImgBB)
+    CUSTOM_POSTERS = {
+        "80s Action Classics": "https://i.ibb.co/PGGN8mDW/80s-Action-Classics.png",
+        "90s Crime Dramas": "https://i.ibb.co/cKnsshL2/90s-Crime-Dramas.jpg",
+        "90s Sitcoms": "https://i.ibb.co/bgCJFWrn/90s-Sitcoms.png",
+        "Anime Classics": "https://i.ibb.co/v6R9Gbgj/Anime-Classics.png",
+        "Best Picture Winners": "https://i.ibb.co/rffqcTcD/Best-Picture-Winners.jpg",
+        "Criterion Collection": "https://i.ibb.co/CS3mJ9k/Criterion-Collection.png",
+        "HBO Prestige Dramas": "https://i.ibb.co/Nn9MygPw/HBO-Prestige-Dramas.png",
+        "Hot on TV": "https://i.ibb.co/5gjpymg4/Hot-on-TV.jpg",
+        "MCU Favorites": "https://i.ibb.co/mVNRNfDX/Marvel-Cinematic-Universe.jpg",
+        "Modern Comedy Classics": "https://i.ibb.co/1f2Z4KMY/Modern-Comedy-Classics.png",
+        "Nolan Collection": "https://i.ibb.co/HfvsMSxq/Nolan-Collection.jpg",
+        "Oscar Winners 2024": "https://i.ibb.co/05402BS/Oscar-Winners-2024.png",
+        "Recently Requested by You": "https://i.ibb.co/HLZdCMsv/Recently-Requested-by-You.png",
+        "Sci-Fi Essentials": "https://i.ibb.co/tpQPvGn8/Science-Fiction-Collection.png",
+        "Studio Ghibli Films": "https://i.ibb.co/nML2xm36/Studio-Ghibli-Films.png",
+        "The Lord of the Rings Trilogy": "https://i.ibb.co/bjp02KyM/The-Lord-of-the-Rings-Collection.jpg",
+        "Trending Movies": "https://i.ibb.co/RTKN17G8/Trending-Movies.png",
+    }
+
     def __init__(self, title: str, library_name: str, items: List[MockMediaItem] = None, is_active: bool = False):
         self.title = title
         self.library_name = library_name
         self.ratingKey = f"coll_{hash(title)}"
         self._items = items or []
         self._visibility = MockVisibility(title, is_active=is_active)
-        # Use the first item's poster as the collection poster, or a placeholder
-        if self._items:
+
+        # Use custom poster if available, otherwise use first item's poster, or placeholder
+        if title in self.CUSTOM_POSTERS:
+            self.thumb = self.CUSTOM_POSTERS[title]
+        elif self._items:
             self.thumb = self._items[0].thumb
         else:
             self.thumb = "https://image.tmdb.org/t/p/w500/placeholder.jpg"
