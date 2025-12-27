@@ -143,14 +143,18 @@ async def get_login_posters() -> PosterResponse:
                 poster_url = f"/api/auth/poster-proxy/{idx}"
                 posters.append(poster_url)
 
-                # Build the full Plex URL manually
-                # item.thumb is just the path, we need to prepend the base URL
-                base_url = config.plex.base_url.rstrip('/')
-                thumb_path = item.thumb if item.thumb.startswith('/') else f"/{item.thumb}"
-                token = config.plex.token
-                actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
+                # Build the full URL for the poster
+                # If thumb is already a full URL (like TMDb CDN), use it as-is
+                if item.thumb.startswith('http://') or item.thumb.startswith('https://'):
+                    actual_url = item.thumb
+                else:
+                    # Otherwise, construct a Plex-style URL
+                    base_url = config.plex.base_url.rstrip('/')
+                    thumb_path = item.thumb if item.thumb.startswith('/') else f"/{item.thumb}"
+                    token = config.plex.token
+                    actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
 
-                logger.debug(f"Poster {idx}: base_url={base_url}, thumb_path={thumb_path}, final_url={actual_url}")
+                logger.debug(f"Poster {idx}: thumb={item.thumb}, final_url={actual_url}")
 
                 # Store in a simple dict cache (this should be Redis or similar in production)
                 if not hasattr(get_login_posters, '_poster_cache'):

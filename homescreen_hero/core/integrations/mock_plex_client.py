@@ -15,17 +15,20 @@ logger = logging.getLogger(__name__)
 class MockVisibility:
     """Mock visibility object for collections."""
 
-    def __init__(self, collection_title: str):
+    def __init__(self, collection_title: str, is_active: bool = False):
         self.collection_title = collection_title
-        self.home = False
+        self.home = is_active
         self.shared = False
         self.recommended = False
+        # This is the attribute checked by the active collections endpoint
+        self.promotedToOwnHome = is_active
 
     def updateVisibility(self, home: bool = False, shared: bool = False, recommended: bool = False):
         """Update visibility settings (mock - just logs)."""
         self.home = home
         self.shared = shared
         self.recommended = recommended
+        self.promotedToOwnHome = home  # Update this too
         logger.info(
             "[MOCK] Updated visibility for '%s': home=%s, shared=%s, recommended=%s",
             self.collection_title, home, shared, recommended
@@ -35,11 +38,69 @@ class MockVisibility:
 class MockMediaItem:
     """Mock media item (movie or show)."""
 
+    # TMDb poster paths for our sample content
+    # Using TMDb's image CDN: https://image.tmdb.org/t/p/w500/{poster_path}
+    TMDB_POSTERS = {
+        # Movies
+        "The Shawshank Redemption": "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
+        "The Godfather": "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+        "The Dark Knight": "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+        "Pulp Fiction": "/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
+        "Forrest Gump": "/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg",
+        "Inception": "/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg",
+        "The Matrix": "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+        "Goodfellas": "/aKuFiU82s5ISJpGZp7YkIr3kCUd.jpg",
+        "The Silence of the Lambs": "/uS9m8OBk1A8eM9I042bx8XXpqAq.jpg",
+        "Saving Private Ryan": "/uqx37cS8cpHg8U35f9U5IBlrCV3.jpg",
+        "The Green Mile": "/8VG8fDNiy50H4FedGwdSVUPoaJe.jpg",
+        "Interstellar": "/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
+        "Gladiator": "/ty8TGRuvJLPUmAR1H1nRIsgwvim.jpg",
+        "The Departed": "/nT97ifVT2J1yMQmeq20Qblg61T.jpg",
+        "The Prestige": "/tRNlZbgNCNOpLpbPEz5L8G8A0JN.jpg",
+        "Whiplash": "/7fn624j5lj3xTme2SgiLCeuedmO.jpg",
+        "The Lion King": "/sKCr78MXSLixwmZ8DyJLrpMsd15.jpg",
+        "Spirited Away": "/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
+        "Princess Mononoke": "/jHWmNr7m544fJ8eItsfNk8fs2Ed.jpg",
+        "My Neighbor Totoro": "/rtGDOeG9LzoerkDGZF9dnVeLppL.jpg",
+        "Howl's Moving Castle": "/13kOl2v0nD2OLbVSHnHk8GUFEhO.jpg",
+        "Die Hard": "/yFihWxQcmqcaBR31QM6Y8gT6aYV.jpg",
+        "Terminator 2: Judgment Day": "/5M0j0B18abtBI5gi2RhfjjurTqb.jpg",
+        "RoboCop": "/vceqJSZ5toSOmOpYrXJPq6kJxFh.jpg",
+        "Predator": "/e98dJUitAoKLwmzjQ0Yxp1VQrnD.jpg",
+        "The Breakfast Club": "/5AZMNmF40Am36MqN98yOXTUp5tc.jpg",
+        "Ferris Bueller's Day Off": "/9LRsbnvOsGrqkZ9BnAACO9sORci.jpg",
+        "Back to the Future": "/fNOH9f1aA7XRTzl1sAOx9iF553Q.jpg",
+        "Oppenheimer": "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
+        "Everything Everywhere All at Once": "/w3LxiVYdWWRvEVdn5RYq6jIqkb1.jpg",
+        # TV Shows
+        "Breaking Bad": "/ztkUQFLlC19CCMYHW9o1zWhJRNq.jpg",
+        "The Sopranos": "/rTc7ZXdroqjkKivFPvCPX0Ru7uw.jpg",
+        "The Wire": "/4lbclFySvugI51fwsyxBTOm4DqK.jpg",
+        "Game of Thrones": "/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg",
+        "Better Call Saul": "/fC2HDm5t0kHl7mTm7jxMR31b7by.jpg",
+        "Friends": "/f496cm9enuEsZkSPzCwnTESEK5s.jpg",
+        "Seinfeld": "/aCw8ONfyz3AhngVQa1E2Ss4KSUQ.jpg",
+        "The Office": "/7DJKHzAi83BmQrWLrYYOqcoKfhR.jpg",
+        "Parks and Recreation": "/dFs6yHxheEGoZSoA0Fdkgy6Jxh0.jpg",
+        "Arrested Development": "/qMzwO952hMWQSCfHkp7IL20s4K7.jpg",
+        "The IT Crowd": "/qZXkBoOUYzvKI4UCMzDQ5kqWHjh.jpg",
+        "Fleabag": "/27vEYsRKa3eAniwmoccOoluEXQ1.jpg",
+        "Cowboy Bebop": "/xDiXDfZwC6XYC6fxHI1jl3A3Ill.jpg",
+        "Death Note": "/tCZFfYTIwrR7n94J6G14Y4hAFU6.jpg",
+        "Attack on Titan": "/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg",
+        "Fullmetal Alchemist: Brotherhood": "/5ZFUEOULaVml7pQuXxhpR2SmVUw.jpg",
+    }
+
     def __init__(self, title: str, year: int, media_type: str = "movie"):
         self.title = title
         self.year = year
         self.type = media_type
-        self.ratingKey = f"mock_{hash(title + str(year))}"
+        # Use a positive integer rating key (hash can be negative)
+        self.ratingKey = abs(hash(title + str(year))) % 1000000
+
+        # Add poster/thumb using TMDb CDN
+        poster_path = self.TMDB_POSTERS.get(title, "/placeholder.jpg")
+        self.thumb = f"https://image.tmdb.org/t/p/w500{poster_path}"
 
         # Mock GUIDs for matching
         if media_type == "movie":
@@ -53,16 +114,29 @@ class MockMediaItem:
                 type('obj', (object,), {'id': f'tmdb://{abs(hash(title + str(year))) % 100000}'})(),
             ]
 
+    def addCollection(self, collection_name: str):
+        """Add this item to a collection (mock - just logs)."""
+        logger.info("[MOCK] Adding '%s' to collection '%s'", self.title, collection_name)
+
+    def removeCollection(self, collection_name: str):
+        """Remove this item from a collection (mock - just logs)."""
+        logger.info("[MOCK] Removing '%s' from collection '%s'", self.title, collection_name)
+
 
 class MockCollection:
     """Mock Plex collection."""
 
-    def __init__(self, title: str, library_name: str, items: List[MockMediaItem] = None):
+    def __init__(self, title: str, library_name: str, items: List[MockMediaItem] = None, is_active: bool = False):
         self.title = title
         self.library_name = library_name
         self.ratingKey = f"coll_{hash(title)}"
         self._items = items or []
-        self._visibility = MockVisibility(title)
+        self._visibility = MockVisibility(title, is_active=is_active)
+        # Use the first item's poster as the collection poster, or a placeholder
+        if self._items:
+            self.thumb = self._items[0].thumb
+        else:
+            self.thumb = "https://image.tmdb.org/t/p/w500/placeholder.jpg"
 
     def visibility(self) -> MockVisibility:
         """Get visibility settings."""
@@ -140,19 +214,20 @@ class MockLibrary:
         self._all_items = sample_movies
 
         # Create collections with subsets of movies
+        # Some collections are marked as active (visible on home screen) for demo purposes
         collections_data = {
-            "Oscar Winners 2024": sample_movies[28:30],
-            "80s Action Classics": sample_movies[21:25],
-            "Criterion Collection": sample_movies[0:8],
-            "Studio Ghibli Films": sample_movies[17:21],
-            "Nolan Collection": [sample_movies[2], sample_movies[5], sample_movies[11], sample_movies[14]],
-            "90s Crime Dramas": sample_movies[1:4] + sample_movies[7:9],
-            "Best Picture Winners": [sample_movies[0], sample_movies[1], sample_movies[4], sample_movies[12]],
-            "Sci-Fi Essentials": [sample_movies[5], sample_movies[6], sample_movies[11]],
+            "Oscar Winners 2024": (sample_movies[28:30], True),  # Active
+            "80s Action Classics": (sample_movies[21:25], True),  # Active
+            "Criterion Collection": (sample_movies[0:8], False),
+            "Studio Ghibli Films": (sample_movies[17:21], True),  # Active
+            "Nolan Collection": ([sample_movies[2], sample_movies[5], sample_movies[11], sample_movies[14]], False),
+            "90s Crime Dramas": (sample_movies[1:4] + sample_movies[7:9], False),
+            "Best Picture Winners": ([sample_movies[0], sample_movies[1], sample_movies[4], sample_movies[12]], False),
+            "Sci-Fi Essentials": ([sample_movies[5], sample_movies[6], sample_movies[11]], False),
         }
 
-        for title, items in collections_data.items():
-            self._collections[title] = MockCollection(title, self.title, items)
+        for title, (items, is_active) in collections_data.items():
+            self._collections[title] = MockCollection(title, self.title, items, is_active=is_active)
 
     def _initialize_tv_library(self):
         """Create sample TV show collections."""
@@ -177,15 +252,15 @@ class MockLibrary:
         self._all_items = sample_shows
 
         collections_data = {
-            "HBO Prestige Dramas": sample_shows[0:5],
-            "90s Sitcoms": sample_shows[5:8],
-            "Modern Comedy Classics": sample_shows[7:10],
-            "British Comedy": sample_shows[10:12],
-            "Anime Classics": sample_shows[12:16],
+            "HBO Prestige Dramas": (sample_shows[0:5], True),  # Active
+            "90s Sitcoms": (sample_shows[5:8], True),  # Active
+            "Modern Comedy Classics": (sample_shows[7:10], False),
+            "British Comedy": (sample_shows[10:12], False),
+            "Anime Classics": (sample_shows[12:16], False),
         }
 
-        for title, items in collections_data.items():
-            self._collections[title] = MockCollection(title, self.title, items)
+        for title, (items, is_active) in collections_data.items():
+            self._collections[title] = MockCollection(title, self.title, items, is_active=is_active)
 
     def collections(self) -> List[MockCollection]:
         """Get all collections in this library."""
@@ -211,6 +286,21 @@ class MockLibrary:
             self._collections[title] = MockCollection(title, self.title, items or [])
         return self._collections[title]
 
+    def all(self, limit: int = None) -> List[MockMediaItem]:
+        """Get all items in this library."""
+        if limit:
+            return self._all_items[:limit]
+        return self._all_items
+
+    def fetchItem(self, rating_key: int) -> MockMediaItem:
+        """Fetch a single item by rating key."""
+        for item in self._all_items:
+            if item.ratingKey == rating_key:
+                return item
+
+        # Return None instead of raising exception (matches PlexAPI behavior)
+        return None
+
 
 class MockLibrarySection:
     """Mock library section manager."""
@@ -219,7 +309,6 @@ class MockLibrarySection:
         self._libraries: Dict[str, MockLibrary] = {
             "Movies": MockLibrary("Movies", "movie"),
             "TV Shows": MockLibrary("TV Shows", "show"),
-            "Anime": MockLibrary("Anime", "show"),
         }
 
     def section(self, name: str) -> MockLibrary:
@@ -227,6 +316,10 @@ class MockLibrarySection:
         if name not in self._libraries:
             raise ValueError(f"Library section '{name}' not found")
         return self._libraries[name]
+
+    def sections(self) -> List[MockLibrary]:
+        """Get all library sections."""
+        return list(self._libraries.values())
 
 
 class MockPlexServer:
@@ -246,6 +339,18 @@ class MockPlexServer:
             "[MOCK] Connected to mock Plex server at %s (Demo Mode)",
             base_url
         )
+
+    def url(self, path: str, includeToken: bool = False) -> str:
+        """Generate a URL for a resource path (mock)."""
+        # If the path is already a full URL (like TMDb CDN), return it as-is
+        if path.startswith("http://") or path.startswith("https://"):
+            return path
+
+        # Otherwise, construct a Plex-style URL
+        url = f"{self.base_url}{path}"
+        if includeToken:
+            url += f"?X-Plex-Token={self.token}"
+        return url
 
     def __repr__(self):
         return f"<MockPlexServer:{self.friendlyName}>"

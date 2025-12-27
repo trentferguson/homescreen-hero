@@ -65,33 +65,30 @@ def seed_demo_rotation_history(session: Session) -> None:
         ["Nolan Collection", "HBO Prestige Dramas", "80s Action Classics"],
     ]
 
-    for rotation_id in range(1, num_rotations + 1):
+    for rotation_idx in range(num_rotations):
         # Calculate timestamp (every ~2 days)
-        rotation_date = base_date + timedelta(days=(rotation_id - 1) * 2, hours=(rotation_id * 3) % 24)
+        rotation_date = base_date + timedelta(days=rotation_idx * 2, hours=(rotation_idx * 3) % 24)
 
         # Get collections for this rotation
-        collections = rotation_patterns[rotation_id - 1]
+        collections = rotation_patterns[rotation_idx]
 
-        # Create rotation records
-        for collection_name in collections:
-            record = RotationRecord(
-                rotation_id=rotation_id,
-                collection_name=collection_name,
-                created_at=rotation_date,
-                success=True,
-                error_message=None,
-            )
-            session.add(record)
+        # Create a single rotation record with featured collections
+        record = RotationRecord(
+            created_at=rotation_date,
+            success=True,
+            error_message=None,
+            featured_collections=collections,
+        )
+        session.add(record)
 
         logger.debug(
-            "Created rotation %d at %s with collections: %s",
-            rotation_id,
+            "Created rotation at %s with collections: %s",
             rotation_date.isoformat(),
             ", ".join(collections)
         )
 
     session.commit()
-    logger.info("Created %d rotation records across %d rotations", len(rotation_patterns) * 3, num_rotations)
+    logger.info("Created %d rotation records", num_rotations)
 
     # Now create collection usage stats
     seed_demo_collection_usage(session, all_collections, num_rotations)
@@ -109,15 +106,18 @@ def seed_demo_collection_usage(
     # Count how many times each collection was used
     usage_counts = {}
     for record in session.query(RotationRecord).all():
-        collection = record.collection_name
-        if collection not in usage_counts:
-            usage_counts[collection] = {
-                "count": 0,
-                "last_rotation": record.rotation_id,
-            }
-        usage_counts[collection]["count"] += 1
-        if record.rotation_id > usage_counts[collection]["last_rotation"]:
-            usage_counts[collection]["last_rotation"] = record.rotation_id
+        # featured_collections is a JSON list
+        for collection in record.featured_collections:
+            if collection not in usage_counts:
+                usage_counts[collection] = {
+                    "count": 0,
+                    "last_rotation_id": record.id,
+                    "last_rotated_at": record.created_at,
+                }
+            usage_counts[collection]["count"] += 1
+            if record.id > usage_counts[collection]["last_rotation_id"]:
+                usage_counts[collection]["last_rotation_id"] = record.id
+                usage_counts[collection]["last_rotated_at"] = record.created_at
 
     # Create usage records
     for collection_name in all_collections:
@@ -125,21 +125,21 @@ def seed_demo_collection_usage(
             usage = CollectionUsage(
                 collection_name=collection_name,
                 times_used=usage_counts[collection_name]["count"],
-                last_rotation_id=usage_counts[collection_name]["last_rotation"],
-                updated_at=datetime.now(),
+                last_rotation_id=usage_counts[collection_name]["last_rotation_id"],
+                last_rotated_at=usage_counts[collection_name]["last_rotated_at"],
             )
         else:
             # Collection never used
             usage = CollectionUsage(
                 collection_name=collection_name,
                 times_used=0,
-                last_rotation_id=0,
-                updated_at=datetime.now(),
+                last_rotation_id=None,
+                last_rotated_at=None,
             )
 
         session.add(usage)
         logger.debug(
-            "Collection '%s': used %d times, last rotation %d",
+            "Collection '%s': used %d times, last rotation %s",
             collection_name,
             usage.times_used,
             usage.last_rotation_id

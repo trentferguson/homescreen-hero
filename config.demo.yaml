@@ -38,13 +38,11 @@ trakt:
   # Sample Trakt sources (won't actually sync, but shows in UI)
   sources:
     - name: "Oscar Winners 2024"
-      list_url: "https://trakt.tv/users/demo/lists/oscar-winners"
-      target_collection: "Oscar Winners 2024"
-      target_library: "Movies"
+      url: "https://trakt.tv/users/demo/lists/oscar-winners"
+      plex_library: "Movies"
     - name: "Studio Ghibli"
-      list_url: "https://trakt.tv/users/demo/lists/ghibli-films"
-      target_collection: "Studio Ghibli Films"
-      target_library: "Movies"
+      url: "https://trakt.tv/users/demo/lists/ghibli-films"
+      plex_library: "Movies"
 
 # Collection groups for rotation
 groups:

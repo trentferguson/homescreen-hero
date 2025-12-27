@@ -7,6 +7,23 @@ This guide will help you deploy the HomeScreen Hero demo on Railway with mocked 
 - A [Railway](https://railway.app) account (free tier works fine)
 - Git repository connected to Railway
 
+## Recommended: Test Locally First
+
+**Before deploying to Railway, we strongly recommend testing the demo locally:**
+
+See [LOCAL_TESTING.md](LOCAL_TESTING.md) for a complete local testing guide.
+
+Quick local test:
+```bash
+# Windows
+test-demo-locally.bat
+
+# Mac/Linux
+./test-demo-locally.sh
+```
+
+This ensures everything works before deploying to the cloud!
+
 ## Quick Deploy
 
 ### Option 1: Deploy via Railway Dashboard

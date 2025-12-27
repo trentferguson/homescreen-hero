@@ -261,11 +261,16 @@ async def get_group_posters(collection_names: str) -> GroupPostersResponse:
                 poster_url = f"/api/collections/group-poster-proxy/{cache_key}"
                 posters.append(poster_url)
 
-                # Build the full Plex URL
-                base_url = config.plex.base_url.rstrip('/')
-                thumb_path = item.thumb if item.thumb.startswith('/') else f"/{item.thumb}"
-                token = config.plex.token
-                actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
+                # Build the full URL for the poster
+                # If thumb is already a full URL (like TMDb CDN), use it as-is
+                if item.thumb.startswith('http://') or item.thumb.startswith('https://'):
+                    actual_url = item.thumb
+                else:
+                    # Otherwise, construct a Plex-style URL
+                    base_url = config.plex.base_url.rstrip('/')
+                    thumb_path = item.thumb if item.thumb.startswith('/') else f"/{item.thumb}"
+                    token = config.plex.token
+                    actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
 
                 # Store in TTL cache (expires after 1 hour)
                 poster_url_cache[cache_key] = actual_url
