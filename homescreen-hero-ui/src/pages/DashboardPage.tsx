@@ -475,7 +475,7 @@ export default function Dashboard() {
                             </div>
                         </div>
                         <a
-                            href="https://github.com/yourusername/homescreen-hero"
+                            href="https://github.com/trentferguson/homescreen-hero"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm font-medium transition-all duration-200 border border-white/20 hover:border-white/30"
