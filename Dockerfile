@@ -40,6 +40,9 @@ COPY homescreen_hero/ /app/homescreen_hero/
 RUN mkdir -p /app/homescreen_hero/web/frontend
 COPY --from=ui-build /ui/dist/ /app/homescreen_hero/web/frontend/
 
+# Copy startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 EXPOSE 8000
 
@@ -47,5 +50,4 @@ EXPOSE 8000
 ENV PORT=8000
 
 # IMPORTANT: single worker recommended (APScheduler runs in-process)
-# Use sh -c to properly expand environment variables
-CMD ["sh", "-c", "uvicorn homescreen_hero.web.app:app --host 0.0.0.0 --port ${PORT} --workers 1"]
+CMD ["/app/start.sh"]
