@@ -43,6 +43,9 @@ COPY --from=ui-build /ui/dist/ /app/homescreen_hero/web/frontend/
 # Copy demo configuration file
 COPY config.demo.yaml /app/config.demo.yaml
 
+# Copy demo reset script
+COPY reset_demo.py /app/reset_demo.py
+
 # Copy startup script
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
@@ -59,7 +62,8 @@ ENV HOMESCREEN_HERO_CONFIG=/app/config.demo.yaml \
     HSH_AUTH_SECRET_KEY=railway-demo-secret-key-change-me-in-production \
     HSH_TRAKT_CLIENT_ID=demo-mock-trakt-client-id \
     HOMESCREEN_HERO_DB=sqlite:////data/homescreen_hero.sqlite \
-    HOMESCREEN_HERO_LOG_DIR=/data/logs
+    HOMESCREEN_HERO_LOG_DIR=/data/logs \
+    DEMO_RESTART_HOURS=6
 
 # IMPORTANT: single worker recommended (APScheduler runs in-process)
 CMD ["/app/start.sh"]
