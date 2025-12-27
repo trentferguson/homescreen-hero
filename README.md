@@ -8,12 +8,15 @@
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/trentferguson/homescreen-hero)
-![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero) 
+![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero)
 
+## Try the Demo
+
+**[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
 
 </div>
 
-## 🚫A Quick Heads Up
+## A Quick Heads Up
 
 This app is very much a **WIP**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
 
@@ -26,8 +29,8 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 ## Features
 
 -   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
--   **Manual Collection Rotation:** If you want more control over what shows up on your homescreen, you can trigger an instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and only apply them if you like it!
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
+-   -   **Manage all your Collections in One Place:** Whether it be you're already existing Plex collection's, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
 -   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
 -   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
 -   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
