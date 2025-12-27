@@ -1,388 +1,316 @@
+# HomeScreen Hero - Demo Branch
 
+> **Note**: You are on the `homescreen-hero-demo-setup` branch - a fully functional demo with mocked APIs.
 
-<div align="center">
-<img width="35%" height="35%" alt="homescreen-hero_logo_cropped_wide_again" src="https://github.com/user-attachments/assets/892ea966-cf31-4a2e-8494-c92afe08ad49" />
+## 🎯 What is This?
 
-[![Typing SVG](https://readme-typing-svg.herokuapp.com?font=Oxanium&size=36&pause=1000&color=F3B358&background=FFFFFF00&center=true&repeat=false&width=435&lines=homescreen-hero)](https://git.io/typing-svg)
+This is a **demo version** of HomeScreen Hero designed for:
+- 🌐 **Public demos** on Railway or other hosting platforms
+- 🧪 **Testing the UI** without a real Plex server
+- 👀 **Previewing features** before setting up production
+- 📚 **Learning** how the application works
 
-**A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
-
-![GitHub last commit](https://img.shields.io/github/last-commit/trentferguson/homescreen-hero)
-![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero) 
-
-
-</div>
-
-## 🚫A Quick Heads Up
-
-This app is very much a **WIP**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
-
-**Please note**- a good portion of this app is vibe-coded
-(especially the frontend). As a Data Engineer who originally went to school to become a full-stack developer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
-## Overview
-
-**HomeScreen Hero** aims to be your one-stop-shop for managing your Plex homescreen. Right now, HomeScreen Hero is a self-hosted Plex companion app that I built to solve a simple problem: keeping my Plex home screen from getting stale. It automatically rotates collections on a schedule, so featured content stays fresh without constantly tweaking things by hand. There’s a clean React-based web UI (Thanks Chat GPT!) for configuring and monitoring everything, with a FastAPI backend doing the heavy lifting behind the scenes.
-
-## Features
-
--   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
--   **Manual Collection Rotation:** If you want more control over what shows up on your homescreen, you can trigger an instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and only apply them if you like it!
--   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
--   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
--   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
--   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
--   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
-
-## Screenshots
-
-### Dashboard View (Run rotations, see current pinned Collections and history)
-<img width="1803" height="1281" alt="image" src="https://github.com/user-attachments/assets/f588cdf5-01a7-48ba-a68d-b4716d5b77c0" />
-
-### Collection Groups (View all groups/edit group names)
-
-### Edit Collection Groups (Edit rules, add collections, etc.)
-
-### Settings Page (Edit Plex/Trakt Connections and add Trakt Lists)
-<img width="1691" height="1760" alt="settings" src="https://github.com/user-attachments/assets/afe26b0d-1e39-48c9-86f0-056704ffac53" />
-
-
-
-
-
-## 🛠️ Tech Stack
-
-**Frontend:**
-
-![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-
-**Backend:**
-
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
-
-**DevOps:**
-
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
-## Quick Start
-
-This project is designed for easy deployment using Docker and Docker Compose.
-
-### Prerequisites
-
--   [Docker Engine](https://docs.docker.com/engine/install/) (latest stable version)
--   [Docker Compose](https://docs.docker.com/compose/install/) (v2.x recommended)
--   A running [Plex Media Server](https://www.plex.tv/media-server-downloads/)
--   A Trakt API Key (Not required, more info [here](https://trakt.tv/oauth/applications))
-
-### Installation
-
-1.  **Clone the repository**
-    ```bash
-    git clone https://github.com/trentferguson/homescreen-hero.git
-    cd homescreen-hero
-    ```
-
-2.  **Configure HomeScreen Hero**
-
-    a. **Create configuration file:**
-    ```bash
-    mkdir -p data
-    cp example.config.yaml data/config.yaml
-    ```
-
-    b. **Set up environment variables (recommended for security):**
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` and fill in your sensitive values:
-    - `HSH_PLEX_TOKEN`: Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
-    - `HSH_AUTH_PASSWORD`: Your desired admin password (if enabling auth)
-    - `HSH_AUTH_SECRET_KEY`: Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
-    - `HSH_TRAKT_CLIENT_ID`: Your Trakt API key (if using Trakt) ([how to get it](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
-
-    c. **Edit config.yaml:**
-    Open `data/config.yaml` and configure non-sensitive settings:
-    - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
-    - `rotation` settings: interval, max collections, strategy
-    - `groups`: Define your collection groups
-
-    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
-
-3.  **Start the application with Docker Compose**
-    ```bash
-    docker-compose up -d
-    ```
-    This command will build the frontend, create the backend service, and any other necessary services (like a database, if configured) and run them in detached mode.
-
-4.  **Open your browser**
-    The web dashboard will be accessible at `http://localhost:[DETECTED_UI_PORT]` or `http://localhost:[DETECTED_FASTAPI_PORT]` depending on your `docker-compose.yml` configuration.
-    <!-- TODO: Specify the exact default port from docker-compose.yml, typically 8000 for FastAPI. -->
-    Visit `http://localhost:8000` (common FastAPI default)
-
-## Project Structure
-
-```
-homescreen-hero/
-├── .dockerignore           # Files to ignore when building Docker images
-├── .gitignore              # Files to ignore in Git
-├── Dockerfile              # Dockerfile for building the application image
-├── LICENSE                 # Project license (MIT)
-├── docker-compose.yml      # Docker Compose configuration for multi-service setup
-├── example.config.yaml     # Example configuration file for HomeScreen Hero
-├── homescreen-hero-ui/     # Frontend React application source code
-│   ├── public/             # Static assets for the frontend
-│   ├── src/                # Frontend source code (React components, hooks, etc.)
-│   ├── package.json        # Frontend dependencies and scripts
-│   ├── tsconfig.json       # TypeScript configuration for frontend
-│   └── vite.config.ts      # Vite configuration for frontend build
-└── homescreen_hero/        # Backend FastAPI application source code
-    ├── app/                # Main application logic, routers, models
-    ├── core/               # Core utilities, configuration, dependencies
-    ├── api/                # API route definitions
-    ├── schemas/            # Pydantic models for request/response validation
-    ├── crud/               # Database interaction logic (if ORM used)
-    ├── main.py             # FastAPI application entry point
-    ├── requirements.txt    # Python dependencies for the backend
-    └── tests/              # Backend test files
-```
-
-## Configuration
-
-### Security Best Practices
-
-For enhanced security, sensitive values (tokens, passwords, API keys) can be stored in environment variables instead of directly in `config.yaml`. This is especially important when:
-- Committing your config to version control
-- Running in production environments
-- Sharing your config with others
-
-**Supported Environment Variables:**
-- `HSH_PLEX_TOKEN` - Your Plex authentication token
-- `HSH_AUTH_PASSWORD` - Authentication password (when auth is enabled)
-- `HSH_AUTH_SECRET_KEY` - JWT secret key (when auth is enabled)
-- `HSH_TRAKT_CLIENT_ID` - Trakt API client ID (when Trakt is enabled)
-
-**Setup:**
-1. Copy [.env.example](.env.example) to `.env`
-2. Fill in your sensitive values in the `.env` file
-3. Remove or leave empty the corresponding fields in `config.yaml`
-4. The application will automatically use environment variables as fallback
-
-**Example `.env` file:**
-```bash
-HSH_PLEX_TOKEN=your-plex-token-here
-HSH_AUTH_PASSWORD=your-secure-password
-HSH_AUTH_SECRET_KEY=your-secret-key-here
-```
-
-Environment variables take precedence over values in `config.yaml`.
-
-### Configuration File
-
-Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/config/schema.py`. Here is the provided starter layout:
-```yaml
-plex:
-  base_url: "YOUR_PLEX_SERVER_URL"
-  token: "YOUR_PLEX_TOKEN"
-  libraries: # List of Plex libraries to use
-    - name: Movies
-      enabled: true
-rotation:
-  enabled: true
-  interval_hours: 12
-  max_collections: 5
-  strategy: random
-  allow_repeats: false
-trakt:
-  enabled: false
-  client_id: "YOUR_TRAKT_CLIENT_ID"
-  base_url: https://api.trakt.tv
-  sources:
-  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
-    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
-    plex_library: "YOUR_PLEX_LIBRARY_NAME"
-logging:
-  level: INFO
-groups:
-- name: ExampleGroup
-  enabled: true
-  min_picks: 1
-  max_picks: 1
-  weight: 1
-  min_gap_rotations: 0
-  collections:
-  - Example Collection 1
-  - Example Collection 2
-  - Testing Testing
-```
-
-Key sections:
-- **plex** – Server URL, token, and library name to target.
-- **rotation** – Enable/disable scheduling, interval hours, max collections, strategy, and repeat rules.
-- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
-- **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
-- **logging** – Log level for both CLI and API processes.
-
-## Docker
-
-A ready-to-use Compose file builds the service, exposes the API on **port 8000**, and mounts `./data` for config, database, and logs:
-
-```bash
-docker-compose up -d
-```
-
-### Environment Variables in Docker
-
-The `docker-compose.yml` is configured to read sensitive values from a `.env` file:
-
-1. **Copy the example:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Edit `.env` with your values:**
-   ```bash
-   HSH_PLEX_TOKEN=your-actual-plex-token
-   HSH_AUTH_PASSWORD=your-secure-password
-   HSH_AUTH_SECRET_KEY=your-generated-secret-key
-   ```
-
-3. **Start the container:**
-   ```bash
-   docker-compose up -d
-   ```
-
-Docker Compose automatically loads variables from `.env` and passes them to the container. The syntax `${HSH_PLEX_TOKEN}` references the variable from your `.env` file, and `${HSH_AUTH_PASSWORD:-}` uses the value if set or an empty string if not.
-
-**Additional environment variables:**
-- `HOMESCREEN_HERO_CONFIG` - Path to config file (default: `/data/config.yaml`)
-- `HOMESCREEN_HERO_DB` - Database path (default: `sqlite:////data/homescreen_hero.sqlite`)
-- `HOMESCREEN_HERO_LOG_DIR` - Log directory (default: `/data/logs`)
-
-Health checks ping `/api/health` to confirm the API is ready.
-
-## Development
-
-For local development, you will typically run the frontend and backend services separately.
-
-### Prerequisites for Development
-
--   **Frontend:** Node.js (v18+) and npm/yarn/pnpm
--   **Backend:** Python (v3.9+) and pip
--   Docker and Docker Compose (optional, but useful for database or other services)
--   Use provided example.config.yaml or example from above and **create config.yaml in your root folder** (homescreen-hero)
-
-### Frontend Development (`homescreen-hero-ui`)
-
-1.  Navigate to the frontend directory:
-    ```bash
-    cd homescreen-hero-ui
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install # or yarn install / pnpm install
-    ```
-3.  Start the development server:
-    ```bash
-    npm run dev # or yarn dev / pnpm dev
-    ```
-    The frontend will typically run on `http://localhost:5173` (Vite default).
-
-### Backend Development (`homescreen_hero`)
-
-1.  Navigate to the backend directory:
-    ```bash
-    cd homescreen_hero
-    ```
-2.  Create and activate a Python virtual environment:
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate # On Windows: .venv\Scripts\activate
-    ```
-3.  Install Python dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  Start the FastAPI development server:
-    ```bash
-    uvicorn homescreen_hero.web.app:app --reload --port 8000
-    ```
-    The backend API will be available at `http://localhost:8000`. Access the auto-generated API documentation at `http://localhost:8000/docs` or `http://localhost:8000/redoc`.
-
-
-##  Deployment
-
-The recommended deployment method for HomeScreen Hero is using Docker and Docker Compose.
-
-### Production Build
-
-The `docker-compose.yml` file is configured to build the frontend and backend images, integrating them into a single deployable unit. The frontend is typically built into static assets which are then served by the backend or a dedicated web server within the container.
-
-### Deployment Options
-
--   **Docker Compose:**
-    The provided `docker-compose.yml` is the primary method for deploying the application.
-    ```bash
-    docker-compose up -d
-    ```
-    To update the application to a new version:
-    ```bash
-    docker-compose pull
-    docker-compose up -d --build --force-recreate
-    ```
--   **Kubernetes/Other Orchestrators:**
-    While not directly provided, the Docker images can be adapted for deployment on Kubernetes or other container orchestration platforms.
-
-## API Reference
-
-The FastAPI backend automatically generates interactive API documentation.
-Once the backend is running (either via `docker-compose` or locally), you can access:
-
--   **Swagger UI:** `http://localhost:[BACKEND_PORT]/docs`
--   **ReDoc:** `http://localhost:[BACKEND_PORT]/redoc`
-
-These interfaces provide detailed information about all available endpoints, their expected request bodies, and response schemas.
-
-### Key Endpoints (Expected)
-
--   `/api/plex/status`: Check Plex connection status.
--   `/api/plex/collections`: List/manage Plex collections.
--   `/api/rotation/schedule`: Configure collection rotation schedules.
--   `/api/rotation/trigger`: Manually trigger a collection rotation.
--   `/api/config`: Manage application configuration.
-
-## Contributing
-
-Any and all contributions to HomeScreen Hero are welcome! If you're interested in improving the project, please refer to our contribution guidelines (once available).
-
-### Development Setup for Contributors
-
-Follow the **Development** section above to set up your local environment for both frontend and backend development.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
--   **Agregarr:** For being an amazing self-hosted app and inspiring me to try building something myself. Seriously, this app is awesome.
--   **ColleXions:** For initially doing exactly what I needed this app today. Another great inspiration for me to try my own hand at an creating something like this.
--   **Chat GPT & Github Copilot:** For building ~90% of my frontend. As a Data Engineer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
-
-## 🐶 Puppy Tax 
-I'm not ashamed to use my cutie for free internet points! (*she was also great moral support on the "I've been banging my head against a wall for days trying to figure out why the rotation runs every thirty seconds lol*)
-
-<img width="25%" height="25%" alt="IMG_3015" src="https://github.com/user-attachments/assets/e24b34da-b541-4ead-b822-98ec31b5154e" />
-<img width="25%" height="25%" alt="IMG_1225" src="https://github.com/user-attachments/assets/a4b6ad17-063b-4068-ac2d-91ec60f117f2" />
-<img width="25%" height="25%" alt="IMG_3017" src="https://github.com/user-attachments/assets/300e1e92-ea19-4dc0-8dfc-8a17413725c6" />
+**No Plex server or Trakt account required!** Everything is mocked.
 
 ---
 
-<div align="center">
+## ⚡ Quick Start
 
-**⭐ Star this repo if you find it helpful!**
+### Test Locally (Recommended)
 
-Made with ❤️ by [trentferguson](https://github.com/trentferguson)
-
-</div>
+**Windows:**
+```bash
+test-demo-locally.bat
 ```
+
+**Mac/Linux:**
+```bash
+chmod +x test-demo-locally.sh
+./test-demo-locally.sh
+```
+
+Open **http://localhost:8000** and login with:
+- Username: `admin`
+- Password: `demo`
+
+See: **[QUICK_START.md](QUICK_START.md)** for more options.
+
+---
+
+## 📋 Complete Documentation
+
+| File | Description |
+|------|-------------|
+| **[QUICK_START.md](QUICK_START.md)** | ⚡ Start here - Quick overview and commands |
+| **[LOCAL_TESTING.md](LOCAL_TESTING.md)** | 🧪 Test locally with Docker before deployment |
+| **[RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md)** | ☁️ Deploy to Railway hosting platform |
+| **[DEMO_SETUP_SUMMARY.md](DEMO_SETUP_SUMMARY.md)** | 🔧 Technical implementation details |
+
+---
+
+## 🎬 Demo Features
+
+### What's Included
+- ✅ **13+ Sample Collections** (Movies & TV Shows)
+- ✅ **30+ Movies & Shows** with realistic metadata
+- ✅ **15 Pre-seeded Rotations** spanning 30 days
+- ✅ **7 Collection Groups** with various configurations
+- ✅ **Full Authentication** system (login/logout)
+- ✅ **Demo Mode Banner** so users know it's a demo
+
+### What Works
+- ✅ Manual rotation triggering
+- ✅ Rotation simulation (dry-run)
+- ✅ Viewing rotation history
+- ✅ Browsing collections and items
+- ✅ Health status monitoring
+- ✅ Configuration viewing
+- ✅ Scheduler status display
+
+### What's Mocked
+- 🎭 Plex Media Server API
+- 🎭 Trakt.tv API
+- 🎭 Collection visibility updates
+- 🎭 Media library searches
+
+---
+
+## 🆚 Demo vs Production
+
+| Feature | Demo Branch | Production Branch |
+|---------|-------------|-------------------|
+| Plex Connection | Mock (no server needed) | Real Plex server required |
+| Trakt Integration | Mock lists | Real Trakt API |
+| Database | Pre-seeded with sample data | Empty initially |
+| Authentication | Simple (demo/demo) | User-configured password |
+| Collections | 13 sample collections | Your real Plex collections |
+| Rotations | Mock updates (logged only) | Real visibility changes |
+| Demo Banner | ✅ Visible | ❌ Not present |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  Frontend (React + Vite)                │
+│  - Demo banner displayed                │
+│  - Full UI functionality                │
+└─────────────────────────────────────────┘
+              ↓ API Calls
+┌─────────────────────────────────────────┐
+│  Backend (FastAPI)                      │
+│  ├─ Mock Plex Client                    │
+│  │  └─ 13+ collections, 30+ items      │
+│  ├─ Mock Trakt Client                   │
+│  │  └─ Sample lists and trending       │
+│  ├─ SQLite Database                     │
+│  │  └─ Pre-seeded with 15 rotations    │
+│  └─ Rotation Scheduler                  │
+│     └─ Runs every 6 hours               │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 📦 Sample Data
+
+### Collections (Movies)
+- Oscar Winners 2024
+- 80s Action Classics
+- Criterion Collection
+- Studio Ghibli Films
+- Nolan Collection
+- 90s Crime Dramas
+- Best Picture Winners
+- Sci-Fi Essentials
+
+### Collections (TV Shows)
+- HBO Prestige Dramas
+- 90s Sitcoms
+- Modern Comedy Classics
+- British Comedy
+- Anime Classics
+
+### Collection Groups
+- Award Winners (min: 1, max: 2)
+- Action & Adventure (min: 0, max: 1)
+- Animation (min: 0, max: 1)
+- Prestige TV (min: 1, max: 1)
+- Comedy (min: 0, max: 1)
+- Anime (min: 0, max: 1)
+- Genre Picks (min: 0, max: 1)
+
+---
+
+## 🚀 Deployment Options
+
+### 1. Railway (Recommended)
+Railway provides:
+- ✅ Free tier available
+- ✅ Automatic HTTPS
+- ✅ Easy GitHub integration
+- ✅ Persistent volumes
+- ✅ Simple environment variable management
+
+See: **[RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md)**
+
+### 2. Docker Locally
+Perfect for testing before deployment:
+- ✅ Runs on any OS with Docker
+- ✅ Identical to production environment
+- ✅ Fast iteration during development
+
+See: **[LOCAL_TESTING.md](LOCAL_TESTING.md)**
+
+### 3. Other Platforms
+The Docker setup works on:
+- Render.com
+- Fly.io
+- DigitalOcean App Platform
+- Any Docker-compatible host
+
+Use `Dockerfile` and environment variables from `.env.railway`
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+**Required:**
+```bash
+HSH_AUTH_PASSWORD=demo
+HSH_AUTH_SECRET_KEY=your-secret-key-here
+HSH_PLEX_TOKEN=mock-token
+HSH_TRAKT_CLIENT_ID=mock-client-id
+```
+
+**Database & Logging:**
+```bash
+HOMESCREEN_HERO_DB=sqlite:////data/homescreen_hero.sqlite
+HOMESCREEN_HERO_LOG_DIR=/data/logs
+HOMESCREEN_HERO_CONFIG=/data/config.yaml
+```
+
+### Configuration File
+
+The demo uses **`config.demo.yaml`** which includes:
+- 7 collection groups with various settings
+- Sample Trakt sources (mocked)
+- 6-hour rotation interval
+- 5 collection maximum on home screen
+
+---
+
+## 🛠️ Development
+
+### Making Changes
+
+1. **Edit mock data**: `homescreen_hero/core/integrations/mock_plex_client.py`
+2. **Edit Trakt lists**: `homescreen_hero/core/integrations/mock_trakt_client.py`
+3. **Edit rotation history**: `homescreen_hero/core/db/seed_demo_data.py`
+4. **Edit groups**: `config.demo.yaml`
+5. **Edit demo banner**: `homescreen-hero-ui/src/pages/DashboardPage.tsx`
+
+### Testing Changes Locally
+
+```bash
+# Rebuild and test
+docker build -t homescreen-hero-demo:local .
+./test-demo-locally.sh
+```
+
+### Syncing with Main Branch
+
+```bash
+# Get latest changes from main
+git checkout homescreen-hero-demo-setup
+git merge main
+# Resolve conflicts if any
+git commit -m "Merge latest changes from main"
+```
+
+---
+
+## 📊 Performance
+
+- **Memory**: ~512MB RAM
+- **Storage**: ~100MB (app + demo data)
+- **Build Time**: 10-15 minutes (first time)
+- **Startup Time**: 5-10 seconds
+- **Database Size**: ~100KB with demo data
+
+---
+
+## 🐛 Troubleshooting
+
+See the troubleshooting sections in:
+- [LOCAL_TESTING.md](LOCAL_TESTING.md#troubleshooting)
+- [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md#troubleshooting)
+
+Common issues:
+- **Can't login**: Default password is `demo`
+- **Port in use**: Change `-p 8000:8000` to `-p 8001:8000`
+- **Build fails**: Clean Docker cache with `docker system prune -a`
+- **No data**: Check logs for "Seeding demo rotation history"
+
+---
+
+## 🔄 Converting to Production
+
+To convert this demo to a production deployment:
+
+1. **Switch to main branch**:
+   ```bash
+   git checkout main
+   ```
+
+2. **Set real credentials**:
+   - Get Plex token: https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/
+   - Get Trakt client ID: https://trakt.tv/oauth/applications
+
+3. **Update configuration**:
+   - Add your real Plex libraries
+   - Add your real collections
+   - Configure Trakt sources (if using)
+
+4. **Remove demo-specific code**:
+   - Demo banner in `DashboardPage.tsx`
+   - Mock client imports in `plex_client.py` and `trakt_client.py`
+   - Demo seeding in `app.py`
+
+See the main branch README for production setup instructions.
+
+---
+
+## 📄 License
+
+Same as main HomeScreen Hero project.
+
+---
+
+## 🙏 Contributing
+
+Found a bug in the demo? Have suggestions?
+
+1. Open an issue on GitHub
+2. Describe what you were testing
+3. Include browser console logs if relevant
+4. Mention you're on the demo branch
+
+---
+
+## ⭐ About HomeScreen Hero
+
+HomeScreen Hero is a self-hosted Plex companion that automatically rotates featured collections on your Plex home screen.
+
+- **Main Repository**: [Link to main branch]
+- **Documentation**: See main branch README
+- **Demo Branch**: You are here!
+
+---
+
+**Ready to get started?**
+
+👉 See **[QUICK_START.md](QUICK_START.md)** to begin!
