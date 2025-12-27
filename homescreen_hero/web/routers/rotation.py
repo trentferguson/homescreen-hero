@@ -15,6 +15,7 @@ from homescreen_hero.core.service import (
 from homescreen_hero.core.config.schema import RotationExecution
 from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.scheduler import get_scheduler, JOB_ID
+from homescreen_hero.web.routers.collections import invalidate_collections_cache
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ def rotate_now(current_user: str = Depends(get_current_user)) -> RotationExecuti
     try:
         logger.info("Handling /rotate-now request")
         execution = run_rotation_once(dry_run=False)
+        # Invalidate collections cache so new Trakt collections are visible
+        invalidate_collections_cache()
         return execution
     except Exception as exc:  # pragma: no cover - defensive
         logger.exception("Rotation request failed")
@@ -66,6 +69,8 @@ def use_simulation(
     try:
         logger.info("Applying simulation %s", simulation_id)
         execution = apply_simulation(simulation_id)
+        # Invalidate collections cache so new Trakt collections are visible
+        invalidate_collections_cache()
         return execution
     except ValueError as exc:
         logger.warning("Simulation %s could not be applied: %s", simulation_id, exc)
@@ -83,6 +88,8 @@ def use_simulation_form(
 ) -> RotationExecution:
     try:
         execution = apply_simulation(simulation_id)
+        # Invalidate collections cache so new Trakt collections are visible
+        invalidate_collections_cache()
         return execution
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

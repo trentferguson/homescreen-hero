@@ -26,6 +26,7 @@ from .db import (
 
 logger = logging.getLogger(__name__)
 
+
 def run_rotation_once(
     config: Optional[AppConfig] = None,
     *,

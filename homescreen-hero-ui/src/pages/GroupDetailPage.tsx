@@ -337,26 +337,17 @@ export default function GroupDetailPage() {
                 title="Group overview"
                 description="Switch between groups or create a new one to manage its rotation behavior."
                 actions={
-                    <div className="flex items-center gap-2">
+                    selectedIndex !== "new" ? (
                         <button
                             type="button"
-                            onClick={resetToNew}
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-100 hover:border-slate-600"
+                            onClick={deleteGroup}
+                            disabled={deleting}
+                            className="flex items-center gap-2 rounded-lg bg-red-900/60 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-900/80 disabled:opacity-60"
                         >
-                            <Plus className="h-4 w-4 inline mr-1" /> New group
+                            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            Delete
                         </button>
-                        {selectedIndex !== "new" && (
-                            <button
-                                type="button"
-                                onClick={deleteGroup}
-                                disabled={deleting}
-                                className="flex items-center gap-2 rounded-lg bg-red-900/60 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-900/80 disabled:opacity-60"
-                            >
-                                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                Delete
-                            </button>
-                        )}
-                    </div>
+                    ) : undefined
                 }
             >
                 {groups.length ? (
