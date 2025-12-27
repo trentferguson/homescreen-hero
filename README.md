@@ -39,19 +39,7 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 
 ## Screenshots
 
-### Dashboard View (Run rotations, see current pinned Collections and history)
-<img width="1803" height="1281" alt="image" src="https://github.com/user-attachments/assets/f588cdf5-01a7-48ba-a68d-b4716d5b77c0" />
-
-### Collection Groups (View all groups/edit group names)
-
-### Edit Collection Groups (Edit rules, add collections, etc.)
-
-### Settings Page (Edit Plex/Trakt Connections and add Trakt Lists)
-<img width="1691" height="1760" alt="settings" src="https://github.com/user-attachments/assets/afe26b0d-1e39-48c9-86f0-056704ffac53" />
-
-
-
-
+- This is a placeholder for future screenshots/demo videos
 
 ## 🛠️ Tech Stack
 
