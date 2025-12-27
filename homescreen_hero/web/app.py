@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse, Response
 
 from homescreen_hero.core.config.loader import load_config
-from homescreen_hero.core.db.history import init_db
+from homescreen_hero.core.db.history import init_db, get_db
+from homescreen_hero.core.db.seed_demo_data import seed_demo_rotation_history
 from homescreen_hero.core.logging_config import level_from_name, setup_logging
 from homescreen_hero.core.scheduler import (
     start_rotation_scheduler,
@@ -92,6 +93,16 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _start_scheduler() -> None:  # pragma: no cover
         init_db()
+
+        # Seed demo data on startup (demo branch only)
+        logger.info("DEMO MODE: Seeding demo rotation history")
+        try:
+            db = next(get_db())
+            seed_demo_rotation_history(db)
+            db.close()
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Failed to seed demo data: %s", exc)
+
         try:
             start_rotation_scheduler()
         except Exception as exc:  # pragma: no cover

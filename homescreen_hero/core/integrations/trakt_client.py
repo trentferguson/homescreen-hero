@@ -8,6 +8,7 @@ import requests
 import re
 
 from ..config.schema import AppConfig, TraktSettings
+from .mock_trakt_client import MockTraktClient
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +147,6 @@ def get_trakt_client(config: AppConfig) -> Optional[TraktClient]:
         logger.warning("Trakt enabled but client_id is missing")
         return None
 
-    cfg = TraktConfig(
-        client_id=trakt_cfg.client_id,
-        base_url=trakt_cfg.base_url,
-    )
-    return TraktClient(cfg)
+    # For demo branch, always use mock Trakt client
+    logger.info("DEMO MODE: Using mock Trakt client")
+    return MockTraktClient(trakt_cfg.client_id)

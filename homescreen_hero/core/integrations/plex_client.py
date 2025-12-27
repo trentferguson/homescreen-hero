@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Dict, Iterable, List, Set
 
 from plexapi.server import PlexServer
 
 from ..config.schema import AppConfig
+from .mock_plex_client import MockPlexServer
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +18,10 @@ def get_plex_server(config: AppConfig) -> PlexServer:
 
     logger.info("Connecting to Plex at %s", base_url)
 
-    # Raises if connection fails, which is good for early detection
-    server = PlexServer(base_url, token)
+    # Check if we're in demo mode (hardcoded for demo branch)
+    # For demo branch, always use mock Plex
+    logger.info("DEMO MODE: Using mock Plex server")
+    server = MockPlexServer(base_url, token)
     return server
 
 

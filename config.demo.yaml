@@ -1,0 +1,134 @@
+# HomeScreen Hero Demo Configuration
+# This configuration is designed for Railway demo deployment with mock data
+# All external API connections are mocked
+
+plex:
+  base_url: "http://demo-plex-server:32400"  # Mock URL
+  token: "${HSH_PLEX_TOKEN}"  # Will use mock token from .env.railway
+
+  # Define mock libraries
+  libraries:
+    - name: "Movies"
+      enabled: true
+    - name: "TV Shows"
+      enabled: true
+    - name: "Anime"
+      enabled: false  # Disabled for demo variety
+
+# Authentication settings
+auth:
+  enabled: true  # Enable auth so users can test login
+  secret_key: "${HSH_AUTH_SECRET_KEY}"
+  password: "${HSH_AUTH_PASSWORD}"  # Will be "demo"
+  token_expiry_hours: 24
+
+# Rotation configuration
+rotation:
+  enabled: true  # Keep scheduler running for demo
+  interval_hours: 6  # Rotate every 6 hours
+  max_collections: 5  # Show up to 5 collections on home screen
+  min_gap_rotations: 2  # Wait 2 rotations before reusing a collection
+
+# Trakt integration (mocked)
+trakt:
+  enabled: true
+  client_id: "${HSH_TRAKT_CLIENT_ID}"  # Will use mock client ID
+  base_url: "https://api.trakt.tv"
+
+  # Sample Trakt sources (won't actually sync, but shows in UI)
+  sources:
+    - name: "Oscar Winners 2024"
+      list_url: "https://trakt.tv/users/demo/lists/oscar-winners"
+      target_collection: "Oscar Winners 2024"
+      target_library: "Movies"
+    - name: "Studio Ghibli"
+      list_url: "https://trakt.tv/users/demo/lists/ghibli-films"
+      target_collection: "Studio Ghibli Films"
+      target_library: "Movies"
+
+# Collection groups for rotation
+groups:
+  - name: "Award Winners"
+    collections:
+      - "Oscar Winners 2024"
+      - "Best Picture Winners"
+      - "Criterion Collection"
+    min_picks: 1
+    max_picks: 2
+    visibility:
+      home: true
+      shared: false
+      recommended: false
+
+  - name: "Action & Adventure"
+    collections:
+      - "80s Action Classics"
+      - "Nolan Collection"
+    min_picks: 0
+    max_picks: 1
+    visibility:
+      home: true
+      shared: false
+      recommended: false
+
+  - name: "Animation"
+    collections:
+      - "Studio Ghibli Films"
+    min_picks: 0
+    max_picks: 1
+    visibility:
+      home: true
+      shared: true
+      recommended: false
+
+  - name: "Prestige TV"
+    collections:
+      - "HBO Prestige Dramas"
+      - "British Comedy"
+    min_picks: 1
+    max_picks: 1
+    visibility:
+      home: true
+      shared: false
+      recommended: false
+
+  - name: "Comedy"
+    collections:
+      - "90s Sitcoms"
+      - "Modern Comedy Classics"
+    min_picks: 0
+    max_picks: 1
+    visibility:
+      home: true
+      shared: false
+      recommended: false
+    # Optional: Date range for seasonal rotation
+    # start_date: "2024-12-01"
+    # end_date: "2025-01-15"
+
+  - name: "Anime"
+    collections:
+      - "Anime Classics"
+    min_picks: 0
+    max_picks: 1
+    enabled: true
+    visibility:
+      home: true
+      shared: false
+      recommended: true
+
+  - name: "Genre Picks"
+    collections:
+      - "90s Crime Dramas"
+      - "Sci-Fi Essentials"
+    min_picks: 0
+    max_picks: 1
+    visibility:
+      home: true
+      shared: false
+      recommended: false
+
+# Logging configuration
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
