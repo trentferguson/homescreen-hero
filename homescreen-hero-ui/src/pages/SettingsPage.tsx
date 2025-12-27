@@ -62,7 +62,6 @@ export default function SettingsPage() {
         base_url: "https://api.trakt.tv",
     });
     const [traktSources, setTraktSources] = useState<TraktSource[]>([]);
-    const [loadingTrakt, setLoadingTrakt] = useState(true);
     const [loadingTraktSources, setLoadingTraktSources] = useState(true);
     const [savingSource, setSavingSource] = useState(false);
     const [deletingSource, setDeletingSource] = useState<number | null>(null);
@@ -218,7 +217,6 @@ export default function SettingsPage() {
             })
             .finally(() => {
                 if (!isMounted) return;
-                setLoadingTrakt(false);
             });
 
         return () => {
