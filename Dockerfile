@@ -52,5 +52,14 @@ EXPOSE 8000
 # Set default port (Railway will override with $PORT env var)
 ENV PORT=8000
 
+# Demo-specific environment variables (baked into image for Railway demo)
+ENV HOMESCREEN_HERO_CONFIG=/app/config.demo.yaml \
+    HSH_PLEX_TOKEN=demo-mock-token-not-real \
+    HSH_AUTH_PASSWORD=demo \
+    HSH_AUTH_SECRET_KEY=railway-demo-secret-key-change-me-in-production \
+    HSH_TRAKT_CLIENT_ID=demo-mock-trakt-client-id \
+    HOMESCREEN_HERO_DB=sqlite:////data/homescreen_hero.sqlite \
+    HOMESCREEN_HERO_LOG_DIR=/data/logs
+
 # IMPORTANT: single worker recommended (APScheduler runs in-process)
 CMD ["/app/start.sh"]
