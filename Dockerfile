@@ -40,6 +40,9 @@ COPY homescreen_hero/ /app/homescreen_hero/
 RUN mkdir -p /app/homescreen_hero/web/frontend
 COPY --from=ui-build /ui/dist/ /app/homescreen_hero/web/frontend/
 
+# Copy demo configuration file
+COPY config.demo.yaml /app/config.demo.yaml
+
 # Copy startup script
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
