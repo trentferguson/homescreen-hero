@@ -71,7 +71,6 @@ export default function TopNav() {
                     </button>
                     <button
                         type="button"
-                        onClick={toggleTheme}
                         aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
                         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-100 hover:shadow hover:border-slate-300 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
                     >
