@@ -23,7 +23,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 }
 
 export default function TopNav() {
-    const { theme, toggleTheme } = useTheme();
+    const { theme } = useTheme();
     const { logout, username, authEnabled } = useAuth();
     const navigate = useNavigate();
     const isDark = theme === "dark";
