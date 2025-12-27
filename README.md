@@ -7,8 +7,9 @@
 
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
-![GitHub last commit](https://img.shields.io/github/last-commit/trentferguson/homescreen-hero)
-![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero)
+![Static Badge](https://img.shields.io/badge/Plex-%20Built%20for%20Plex-e5a00d?style=flat&logo=Plex)
+![Static Badge](https://img.shields.io/badge/docker-%20build%20w%2F%20docker%20compose-0db7ed?style=flat&logo=Docker&logoColor=0db7ed&labelColor=384d54) ![Static Badge](https://img.shields.io/badge/Claude-vibecoded(ish)-%23D97757?style=flat&logo=Claude) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero?logo=GitHub&color=%2327B63F)
+
 
 ## Try the Demo
 
