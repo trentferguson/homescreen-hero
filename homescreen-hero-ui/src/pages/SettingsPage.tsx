@@ -55,9 +55,7 @@ export default function SettingsPage() {
     const [availableLibraries, setAvailableLibraries] = useState<AvailableLibrary[]>([]);
     const [loadingLibraries, setLoadingLibraries] = useState(false);
     const [loadingPlex, setLoadingPlex] = useState(true);
-    const [savingPlex, setSavingPlex] = useState(false);
     const [plexError, setPlexError] = useState<string | null>(null);
-    const [plexMessage, setPlexMessage] = useState<string | null>(null);
     const [traktSettings, setTraktSettings] = useState<TraktSettings>({
         enabled: false,
         client_id: "",
@@ -66,11 +64,9 @@ export default function SettingsPage() {
     const [traktSources, setTraktSources] = useState<TraktSource[]>([]);
     const [loadingTrakt, setLoadingTrakt] = useState(true);
     const [loadingTraktSources, setLoadingTraktSources] = useState(true);
-    const [savingTrakt, setSavingTrakt] = useState(false);
     const [savingSource, setSavingSource] = useState(false);
     const [deletingSource, setDeletingSource] = useState<number | null>(null);
     const [traktError, setTraktError] = useState<string | null>(null);
-    const [traktMessage, setTraktMessage] = useState<string | null>(null);
     const [traktSourcesError, setTraktSourcesError] = useState<string | null>(null);
     const [traktSourcesMessage, setTraktSourcesMessage] = useState<string | null>(null);
 
@@ -393,55 +389,6 @@ export default function SettingsPage() {
             [key]: Number.isNaN(parsed) ? 0 : parsed,
         }));
     };
-
-    async function savePlexSettings() {
-        try {
-            setSavingPlex(true);
-            setPlexError(null);
-            setPlexMessage(null);
-
-            const r = await fetchWithAuth("/api/admin/config/plex", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(plexSettings),
-            });
-
-            const text = await r.text();
-            if (!r.ok) throw new Error(text);
-
-            const data = JSON.parse(text) as ConfigSaveResponse;
-            setPlexMessage(data.message);
-        } catch (e) {
-            setPlexError(String(e));
-        } finally {
-            setSavingPlex(false);
-        }
-    }
-
-    async function saveTraktSettings() {
-        try {
-            setSavingTrakt(true);
-            setTraktError(null);
-            setTraktMessage(null);
-
-            const r = await fetchWithAuth("/api/admin/config/trakt", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(traktSettings),
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            const data: ConfigSaveResponse = await r.json();
-            setTraktMessage(data.message);
-        } catch (e) {
-            setTraktError(String(e));
-        } finally {
-            setSavingTrakt(false);
-        }
-    }
 
     return (
         <div className="flex flex-col gap-6">
@@ -791,12 +738,6 @@ export default function SettingsPage() {
                             </div>
                         </FieldRow>
 
-                        {plexMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {plexMessage}
-                            </div>
-                        ) : null}
-
                         {plexError ? (
                             <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
                                 {plexError}
@@ -865,12 +806,6 @@ export default function SettingsPage() {
                                 disabled
                             />
                         </FieldRow>
-
-                        {traktMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {traktMessage}
-                            </div>
-                        ) : null}
 
                         {traktError ? (
                             <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
