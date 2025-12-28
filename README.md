@@ -30,13 +30,15 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 
 ## Features
 
--   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
--   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
--   **Manage all your Collections in One Place:** Whether it be you're already existing Plex collection's, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
--   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
--   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
--   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
--   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
+-   **🧙 First-Time Setup Wizard:** Guided step-by-step configuration for new installations - get started in minutes without touching config files!
+-   **🔄 Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
+-   **🎨 Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
+-   **📚 Manage all your Collections in One Place:** Whether it be your already existing Plex collections, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
+-   **🎬 Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
+-   **🔗 3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!)
+-   **⚙️ Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
+-   **🔐 Optional Authentication:** Secure your dashboard with password protection configured through the setup wizard or environment variables
+-   **🐳 Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
 ## Screenshots
 
@@ -65,9 +67,16 @@ This project is designed for easy deployment using Docker and Docker Compose.
 -   [Docker Engine](https://docs.docker.com/engine/install/) (latest stable version)
 -   [Docker Compose](https://docs.docker.com/compose/install/) (v2.x recommended)
 -   A running [Plex Media Server](https://www.plex.tv/media-server-downloads/)
--   A Trakt API Key (Not required, more info [here](https://trakt.tv/oauth/applications))
+-   A Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
+-   (Optional) A Trakt API Key for third-party list integration ([how to get it](https://trakt.tv/oauth/applications))
 
 ### Installation
+
+HomeScreen Hero offers **two setup methods** - choose the one that works best for you:
+
+#### Option 1: Setup Wizard (Recommended for New Users) 🎯
+
+The easiest way to get started! The setup wizard guides you through configuration step-by-step.
 
 1.  **Clone the repository**
     ```bash
@@ -75,43 +84,68 @@ This project is designed for easy deployment using Docker and Docker Compose.
     cd homescreen-hero
     ```
 
-2.  **Configure HomeScreen Hero**
-
-    a. **Create configuration file:**
+2.  **Create data directory**
     ```bash
     mkdir -p data
-    cp example.config.yaml data/config.yaml
     ```
 
-    b. **Set up environment variables (recommended for security):**
+3.  **Start the application**
+    ```bash
+    docker-compose up -d
+    ```
+
+4.  **Open your browser and complete setup**
+    - Visit `http://localhost:8000`
+    - The **Setup Wizard** will automatically launch on first run
+    - Follow the guided steps to configure:
+      - Plex server connection
+      - Library selection
+      - Authentication (optional but recommended)
+      - Trakt integration (optional)
+      - Automatic rotation settings
+
+That's it! The wizard will create your `config.yaml` automatically.
+
+#### Option 2: Manual Configuration (Advanced Users) ⚙️
+
+For users who prefer direct control or want to use environment variables for secrets.
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/trentferguson/homescreen-hero.git
+    cd homescreen-hero
+    ```
+
+2.  **Set up environment variables (recommended for security):**
     ```bash
     cp .env.example .env
     ```
     Edit `.env` and fill in your sensitive values:
-    - `HSH_PLEX_TOKEN`: Your Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
+    - `HSH_PLEX_TOKEN`: Your Plex authentication token
+    - `HSH_PLEX_URL`: Your Plex server URL (e.g., `http://192.168.1.100:32400`)
     - `HSH_AUTH_PASSWORD`: Your desired admin password (if enabling auth)
     - `HSH_AUTH_SECRET_KEY`: Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
-    - `HSH_TRAKT_CLIENT_ID`: Your Trakt API key (if using Trakt) ([how to get it](https://forums.trakt.tv/t/where-do-i-find-the-api-key/60064))
+    - `HSH_TRAKT_CLIENT_ID`: Your Trakt API client ID (if using Trakt)
 
-    c. **Edit config.yaml:**
-    Open `data/config.yaml` and configure non-sensitive settings:
-    - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
+3.  **Create configuration file**
+    ```bash
+    mkdir -p data
+    cp example.config.yaml data/config.yaml
+    ```
+    Edit `data/config.yaml` to configure:
     - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
     - `rotation` settings: interval, max collections, strategy
     - `groups`: Define your collection groups
 
     **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
 
-3.  **Start the application with Docker Compose**
+4.  **Start the application**
     ```bash
     docker-compose up -d
     ```
-    This command will build the frontend, create the backend service, and any other necessary services (like a database, if configured) and run them in detached mode.
 
-4.  **Open your browser**
-    The web dashboard will be accessible at `http://localhost:[DETECTED_UI_PORT]` or `http://localhost:[DETECTED_FASTAPI_PORT]` depending on your `docker-compose.yml` configuration.
-    <!-- TODO: Specify the exact default port from docker-compose.yml, typically 8000 for FastAPI. -->
-    Visit `http://localhost:8000` (common FastAPI default)
+5.  **Access the dashboard**
+    Visit `http://localhost:8000` to access the web UI
 
 ## Project Structure
 
