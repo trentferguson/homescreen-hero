@@ -747,6 +747,7 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         # Use environment variables if payload values are empty
         plex_url = payload.plex_url or os.getenv("HSH_PLEX_URL", "")
         plex_token = payload.plex_token or os.getenv("HSH_PLEX_TOKEN", "")
+        plex_token_from_env = os.getenv("HSH_PLEX_TOKEN")
 
         # Build minimal config structure
         # Convert library names to library config objects
@@ -755,7 +756,6 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         minimal_config = {
             "plex": {
                 "base_url": plex_url,
-                "token": plex_token,
                 "libraries": libraries_config
             },
             "rotation": {
@@ -771,17 +771,24 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
             "groups": []
         }
 
+        # Only write plex token to config if not from environment variable
+        if not plex_token_from_env:
+            minimal_config["plex"]["token"] = plex_token
+
         # Add Trakt if enabled
         # Use environment variable if payload value is empty
         trakt_client_id = payload.trakt_client_id or os.getenv("HSH_TRAKT_CLIENT_ID", "")
+        trakt_client_id_from_env = os.getenv("HSH_TRAKT_CLIENT_ID")
 
         if payload.trakt_enabled and trakt_client_id:
             minimal_config["trakt"] = {
                 "enabled": True,
-                "client_id": trakt_client_id,
                 "base_url": payload.trakt_base_url,
                 "sources": []
             }
+            # Only write client_id to config if not from environment variable
+            if not trakt_client_id_from_env:
+                minimal_config["trakt"]["client_id"] = trakt_client_id
         else:
             minimal_config["trakt"] = {
                 "enabled": False,
