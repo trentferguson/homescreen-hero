@@ -8,7 +8,8 @@
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
 ![Static Badge](https://img.shields.io/badge/Plex-%20Built%20for%20Plex-e5a00d?style=flat&logo=Plex)
-![Static Badge](https://img.shields.io/badge/docker-%20build%20w%2F%20docker%20compose-0db7ed?style=flat&logo=Docker&logoColor=0db7ed&labelColor=384d54) ![Static Badge](https://img.shields.io/badge/Claude-vibecoded(ish)-%23D97757?style=flat&logo=Claude) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero?logo=GitHub&color=%2327B63F)
+<img alt="Static Badge" src="https://img.shields.io/badge/Discord-Get%20Suppor!!-5865F2?style=flat&logo=Discord&link=https%3A%2F%2Fdiscord.gg%2FmNFGaQ6N6c">
+ ![Static Badge](https://img.shields.io/badge/Claude-vibecoded(ish)-%23D97757?style=flat&logo=Claude) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero?logo=GitHub&color=%2327B63F)
 
 
 ## Try the Demo
