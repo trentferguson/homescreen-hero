@@ -31,7 +31,7 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 
 -   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
--   -   **Manage all your Collections in One Place:** Whether it be you're already existing Plex collection's, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
+-   **Manage all your Collections in One Place:** Whether it be you're already existing Plex collection's, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
 -   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
 -   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
 -   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
@@ -39,19 +39,7 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 
 ## Screenshots
 
-### Dashboard View (Run rotations, see current pinned Collections and history)
-<img width="1803" height="1281" alt="image" src="https://github.com/user-attachments/assets/f588cdf5-01a7-48ba-a68d-b4716d5b77c0" />
-
-### Collection Groups (View all groups/edit group names)
-
-### Edit Collection Groups (Edit rules, add collections, etc.)
-
-### Settings Page (Edit Plex/Trakt Connections and add Trakt Lists)
-<img width="1691" height="1760" alt="settings" src="https://github.com/user-attachments/assets/afe26b0d-1e39-48c9-86f0-056704ffac53" />
-
-
-
-
+- This is a placeholder for future screenshots/demo videos
 
 ## 🛠️ Tech Stack
 

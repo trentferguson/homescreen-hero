@@ -1,0 +1,23 @@
+POSTER NAMING CONVENTION
+========================
+
+Place your poster images in this directory with the following naming pattern:
+
+setup_poster_1.jpg
+setup_poster_2.jpg
+setup_poster_3.jpg
+...
+setup_poster_30.jpg
+
+Important:
+- Use simple numbering (1, 2, 3, etc. - no leading zeros needed)
+- File extension should be .jpg (or update staticPosters.ts if using .png)
+- Start numbering from 1
+- The default configuration expects 30 posters
+
+To change the number of posters:
+1. Add/remove poster files from this directory
+2. Update POSTER_COUNT in: src/utils/staticPosters.ts
+
+Example:
+If you have 25 posters, set POSTER_COUNT = 25 in staticPosters.ts
