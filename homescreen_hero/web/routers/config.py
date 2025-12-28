@@ -805,6 +805,11 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         serialized = yaml.safe_dump(minimal_config, sort_keys=False)
         save_config_text(serialized)
 
+        # Update rotation scheduler if rotation is enabled
+        if payload.rotation_enabled:
+            updated_config = load_config()
+            update_rotation_schedule(config=updated_config)
+
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
