@@ -46,6 +46,9 @@ groups:
   max_picks: 1
   weight: 1
   min_gap_rotations: 0
+  visibility_home: true        # Promote to admin's Home page
+  visibility_shared: false     # Promote to shared users' Home pages
+  visibility_recommended: false  # Promote to Library Recommended section
   collections:
   - Example Collection 1
   - Example Collection 2
