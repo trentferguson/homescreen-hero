@@ -726,6 +726,14 @@ def check_env_vars() -> EnvVarsResponse:
 def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
     """Initialize config.yaml with minimal Plex and optional Trakt settings."""
     try:
+        # SECURITY: Only allow quick-start on unconfigured instances
+        config_status = check_config_exists()
+        if config_status.is_configured:
+            raise HTTPException(
+                status_code=403,
+                detail="Configuration already exists. Use the settings page to modify configuration."
+            )
+
         config_path = get_config_path()
 
         # Use environment variables if payload values are empty
