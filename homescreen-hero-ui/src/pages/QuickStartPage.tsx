@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
 import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock } from "lucide-react";
 import { Switch } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
+import { getShuffledStaticPosters } from "../utils/staticPosters";
 
 type EnvVars = {
     plex_token_from_env: boolean;
@@ -37,7 +38,7 @@ type WizardData = {
 
 export default function QuickStartPage() {
     const [wizardData, setWizardData] = useState<WizardData>({
-        authEnabled: false,
+        authEnabled: true,
         authUsername: "admin",
         authPassword: "",
         plexUrl: "",
@@ -71,8 +72,11 @@ export default function QuickStartPage() {
             });
     }, []);
 
+    // Memoize static posters so they don't reshuffle on every render
+    const staticPosters = useMemo(() => getShuffledStaticPosters(), []);
+
     return (
-        <PosterBackground>
+        <PosterBackground staticPosters={staticPosters}>
             <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 w-full max-w-2xl p-8">
                     <Wizard>
@@ -93,41 +97,41 @@ function WelcomeStep() {
     const { nextStep } = useWizard();
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col items-center gap-4">
+        <div className="space-y-5 animate-in fade-in duration-500">
+            <div className="flex flex-col items-center gap-3">
                 <img
                     src="/logo_text.png"
                     alt="HomeScreen Hero"
-                    className="h-auto w-auto select-none"
+                    className="h-auto w-auto select-none scale-90"
                 />
-                <Sparkles className="h-12 w-12 text-primary" />
+                <Sparkles className="h-10 w-10 text-primary" />
             </div>
 
-            <div className="text-center space-y-4">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            <div className="text-center space-y-3">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
                     Welcome to HomeScreen Hero
                 </h1>
-                <p className="text-slate-600 dark:text-slate-400">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                     Let's get you set up in just a few quick steps. We'll configure your Plex connection, select your libraries, and optionally set up authentication and Trakt integration.
                 </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4">
-                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Shield className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">Secure</h3>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <Shield className="h-5 w-5 text-primary mb-1.5" />
+                    <h3 className="font-semibold text-xs text-slate-900 dark:text-white mb-0.5">Secure</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">Optional password protection for your dashboard</p>
                 </div>
-                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Server className="h-6 w-6 text-primary mb-2" />
-                    <h3 className="font-semibold text-sm text-slate-900 dark:text-white mb-1">Simple</h3>
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <Server className="h-5 w-5 text-primary mb-1.5" />
+                    <h3 className="font-semibold text-xs text-slate-900 dark:text-white mb-0.5">Simple</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">Easy Plex integration with just your URL and token</p>
                 </div>
             </div>
 
             <button
                 onClick={() => nextStep()}
-                className="w-full py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
             >
                 Get Started
                 <ArrowRight className="h-5 w-5" />
@@ -138,14 +142,13 @@ function WelcomeStep() {
 
 function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
     const { nextStep, previousStep } = useWizard();
-    const [localAuthEnabled, setLocalAuthEnabled] = useState(wizardData.authEnabled);
     const [localUsername, setLocalUsername] = useState(wizardData.authUsername);
     const [localPassword, setLocalPassword] = useState(wizardData.authPassword);
 
     const handleNext = () => {
         setWizardData({
             ...wizardData,
-            authEnabled: localAuthEnabled,
+            authEnabled: true,
             authUsername: localUsername,
             authPassword: localPassword,
         });
@@ -158,69 +161,47 @@ function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 <Shield className="h-12 w-12 text-primary mx-auto" />
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Authentication</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Protect your dashboard with a password (optional but recommended)
+                    Set up password protection for your dashboard
                 </p>
             </div>
 
             <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <input
-                        id="authEnabled"
-                        type="checkbox"
-                        checked={localAuthEnabled}
-                        onChange={(e) => setLocalAuthEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
-                    />
-                    <label htmlFor="authEnabled" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable password protection
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Require login to access the dashboard
-                        </div>
+                <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Username
                     </label>
+                    <input
+                        id="username"
+                        type="text"
+                        value={localUsername}
+                        onChange={(e) => setLocalUsername(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    />
                 </div>
 
-                {localAuthEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Username
-                            </label>
-                            <input
-                                id="username"
-                                type="text"
-                                value={localUsername}
-                                onChange={(e) => setLocalUsername(e.target.value)}
-                                required={localAuthEnabled}
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Password
+                    </label>
+                    {envVars.auth_password_from_env ? (
+                        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                            <p className="text-sm text-blue-700 dark:text-blue-400">
+                                ✓ Password configured via environment variable (HSH_AUTH_PASSWORD)
+                            </p>
                         </div>
-
-                        <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Password
-                            </label>
-                            {envVars.auth_password_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Password configured via environment variable (HSH_AUTH_PASSWORD)
-                                    </p>
-                                </div>
-                            ) : (
-                                <input
-                                    id="password"
-                                    type="password"
-                                    value={localPassword}
-                                    onChange={(e) => setLocalPassword(e.target.value)}
-                                    required={localAuthEnabled}
-                                    placeholder="Enter a secure password"
-                                    className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                />
-                            )}
-                        </div>
-                    </div>
-                )}
+                    ) : (
+                        <input
+                            id="password"
+                            type="password"
+                            value={localPassword}
+                            onChange={(e) => setLocalPassword(e.target.value)}
+                            required
+                            placeholder="Enter a secure password"
+                            className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        />
+                    )}
+                </div>
             </div>
 
             <div className="flex gap-3">
@@ -233,7 +214,7 @@ function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 </button>
                 <button
                     onClick={handleNext}
-                    disabled={localAuthEnabled && (!localUsername || (!localPassword && !envVars.auth_password_from_env))}
+                    disabled={!localUsername || (!localPassword && !envVars.auth_password_from_env)}
                     className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next

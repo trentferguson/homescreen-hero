@@ -2,13 +2,21 @@ import { useEffect, useState } from "react";
 
 interface PosterBackgroundProps {
     children: React.ReactNode;
+    staticPosters?: string[];
 }
 
-export default function PosterBackground({ children }: PosterBackgroundProps) {
+export default function PosterBackground({ children, staticPosters }: PosterBackgroundProps) {
     const [posters, setPosters] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // If static posters are provided, use them instead of fetching
+        if (staticPosters && staticPosters.length > 0) {
+            setPosters(staticPosters);
+            setLoading(false);
+            return;
+        }
+
         const fetchPosters = async () => {
             try {
                 const response = await fetch("/api/auth/posters");
@@ -24,14 +32,14 @@ export default function PosterBackground({ children }: PosterBackgroundProps) {
         };
 
         fetchPosters();
-    }, []);
+    }, [staticPosters]);
 
     return (
         <div className="relative min-h-screen overflow-hidden">
             {/* Animated Poster Grid Background */}
             <div className="absolute inset-0 z-0">
                 {!loading && posters.length > 0 && (
-                    <div className="grid grid-cols-8 gap-4 p-4 animate-slow-pan">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-4 p-4 animate-slow-pan">
                         {posters.map((poster, index) => (
                             <div
                                 key={index}
