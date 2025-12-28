@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Callable
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 JOB_ID = "rotation-job"
 _scheduler: Optional[BackgroundScheduler] = None
+_post_rotation_callbacks: list[Callable[[], None]] = []
 
 
 def get_scheduler() -> Optional[BackgroundScheduler]:
@@ -23,10 +24,21 @@ def get_scheduler() -> Optional[BackgroundScheduler]:
     return _scheduler
 
 
+def register_post_rotation_callback(callback: Callable[[], None]) -> None:
+    """Register a callback to be called after each rotation completes."""
+    _post_rotation_callbacks.append(callback)
+
+
 def _run_scheduled_rotation() -> None:
     try:
         logger.info("Running scheduled rotation")
         run_rotation_once(dry_run=False)
+        # Call all registered post-rotation callbacks
+        for callback in _post_rotation_callbacks:
+            try:
+                callback()
+            except Exception as e:
+                logger.warning(f"Post-rotation callback failed: {e}")
     except Exception:  # pragma: no cover
         logger.exception("Scheduled rotation failed")
 

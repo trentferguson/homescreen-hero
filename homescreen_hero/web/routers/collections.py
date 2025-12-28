@@ -123,6 +123,37 @@ poster_url_cache = TTLCache(maxsize=1000, ttl=3600)
 # Each image can be ~200KB, so 500 images = ~100MB in memory
 poster_image_cache = TTLCache(maxsize=500, ttl=3600)
 
+# Cache version counter - increment this to invalidate client-side caches
+_cache_version = 0
+
+
+class CacheVersionResponse(BaseModel):
+    version: int
+
+
+def invalidate_collections_cache():
+    """
+    Invalidate client-side collections cache by incrementing the version.
+    This is a module-level function that can be called from other parts of the app.
+    """
+    global _cache_version
+    _cache_version += 1
+    logger.info(f"Collections cache invalidated. New version: {_cache_version}")
+    return _cache_version
+
+
+@router.get("/cache-version", response_model=CacheVersionResponse)
+def get_cache_version() -> CacheVersionResponse:
+    """Get the current cache version to check if client-side cache should be invalidated."""
+    return CacheVersionResponse(version=_cache_version)
+
+
+@router.post("/invalidate-cache")
+def invalidate_cache_endpoint() -> dict:
+    """API endpoint to invalidate client-side collections cache."""
+    new_version = invalidate_collections_cache()
+    return {"success": True, "version": new_version}
+
 
 # Return the collections currently featured on the Plex home screen
 @router.get("/active", response_model=ActiveCollectionsResponse)

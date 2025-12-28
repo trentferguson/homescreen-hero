@@ -52,7 +52,7 @@ export default function ActiveCollectionsCard({
             ) : collections.length === 0 ? (
                 <div className="text-sm text-slate-600 dark:text-slate-400 py-4">No active collections yet.</div>
             ) : (
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hover-only">
+                <div className="flex gap-4 overflow-x-auto px-2 py-2 -mx-2 -my-2 scrollbar-hover-only">
                     {collections.map((c, index) => (
                         <button
                             key={c.title}
@@ -63,7 +63,7 @@ export default function ActiveCollectionsCard({
                                 animationDelay: `${index * 0.1}s`,
                             }}
                         >
-                            <div className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 shadow-md hover:shadow-xl transition-all duration-300 ring-1 ring-slate-700/50 hover:ring-slate-600 cursor-pointer">
+                            <div className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-800 shadow-md hover:shadow-xl hover:shadow-primary/20 transition-all duration-300 ring-1 ring-slate-700/50 hover:ring-slate-600 cursor-pointer">
                                 <div
                                     className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
                                     style={{

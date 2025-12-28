@@ -650,3 +650,196 @@ def save_rotation_settings(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Quick start setup endpoints
+class ConfigExistsResponse(BaseModel):
+    exists: bool
+    is_configured: bool
+    path: str
+
+
+class EnvVarsResponse(BaseModel):
+    plex_token_from_env: bool
+    plex_url_from_env: bool
+    auth_password_from_env: bool
+    auth_secret_from_env: bool
+    trakt_client_id_from_env: bool
+
+
+class QuickStartRequest(BaseModel):
+    plex_url: str
+    plex_token: str
+    trakt_enabled: bool = False
+    trakt_client_id: Optional[str] = None
+    trakt_base_url: str = "https://api.trakt.tv"
+    libraries: List[str] = []
+    auth_enabled: bool = False
+    auth_username: Optional[str] = None
+    auth_password: Optional[str] = None
+    rotation_enabled: bool = False
+    rotation_interval_hours: int = 12
+    rotation_max_collections: int = 5
+    rotation_strategy: str = "random"
+    rotation_allow_repeats: bool = False
+
+
+@router.get("/exists", response_model=ConfigExistsResponse)
+def check_config_exists() -> ConfigExistsResponse:
+    """Check if config file exists and is minimally configured."""
+    try:
+        config_path = get_config_path()
+        exists = config_path.exists()
+
+        is_configured = False
+        if exists:
+            try:
+                config = load_config()
+                # Consider it configured if it has a Plex URL
+                is_configured = bool(config.plex.base_url)
+            except Exception:
+                # Config exists but is invalid
+                is_configured = False
+
+        return ConfigExistsResponse(
+            exists=exists,
+            is_configured=is_configured,
+            path=str(config_path)
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/env-vars", response_model=EnvVarsResponse)
+def check_env_vars() -> EnvVarsResponse:
+    """Check which configuration values are provided via environment variables."""
+    return EnvVarsResponse(
+        plex_token_from_env=bool(os.getenv("HSH_PLEX_TOKEN")),
+        plex_url_from_env=bool(os.getenv("HSH_PLEX_URL")),
+        auth_password_from_env=bool(os.getenv("HSH_AUTH_PASSWORD")),
+        auth_secret_from_env=bool(os.getenv("HSH_AUTH_SECRET_KEY")),
+        trakt_client_id_from_env=bool(os.getenv("HSH_TRAKT_CLIENT_ID")),
+    )
+
+
+@router.post("/quick-start", response_model=ConfigSaveResponse)
+def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
+    """Initialize config.yaml with minimal Plex and optional Trakt settings."""
+    try:
+        # SECURITY: Only allow quick-start if auth is not configured
+        # This prevents unauthorized overwrites while allowing the wizard to work
+        config_status = check_config_exists()
+        if config_status.is_configured:
+            try:
+                config = load_config()
+                # If auth is enabled and configured, reject the request
+                if config.auth.enabled and config.auth.password:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Configuration is protected. Use the settings page to modify configuration."
+                    )
+            except Exception:
+                # If we can't load config, allow the setup to proceed
+                pass
+
+        config_path = get_config_path()
+
+        # Use environment variables if payload values are empty
+        plex_url = payload.plex_url or os.getenv("HSH_PLEX_URL", "")
+        plex_token = payload.plex_token or os.getenv("HSH_PLEX_TOKEN", "")
+        plex_token_from_env = os.getenv("HSH_PLEX_TOKEN")
+
+        # Build minimal config structure
+        # Convert library names to library config objects
+        libraries_config = [{"name": lib, "enabled": True} for lib in payload.libraries]
+
+        minimal_config = {
+            "plex": {
+                "base_url": plex_url,
+                "libraries": libraries_config
+            },
+            "rotation": {
+                "enabled": payload.rotation_enabled,
+                "interval_hours": payload.rotation_interval_hours,
+                "max_collections": payload.rotation_max_collections,
+                "strategy": payload.rotation_strategy,
+                "allow_repeats": payload.rotation_allow_repeats
+            },
+            "logging": {
+                "level": "INFO"
+            },
+            "groups": []
+        }
+
+        # Only write plex token to config if not from environment variable
+        if not plex_token_from_env:
+            minimal_config["plex"]["token"] = plex_token
+
+        # Add Trakt if enabled
+        # Use environment variable if payload value is empty
+        trakt_client_id = payload.trakt_client_id or os.getenv("HSH_TRAKT_CLIENT_ID", "")
+        trakt_client_id_from_env = os.getenv("HSH_TRAKT_CLIENT_ID")
+
+        if payload.trakt_enabled and trakt_client_id:
+            minimal_config["trakt"] = {
+                "enabled": True,
+                "base_url": payload.trakt_base_url,
+                "sources": []
+            }
+            # Only write client_id to config if not from environment variable
+            if not trakt_client_id_from_env:
+                minimal_config["trakt"]["client_id"] = trakt_client_id
+        else:
+            minimal_config["trakt"] = {
+                "enabled": False,
+                "base_url": payload.trakt_base_url,
+                "sources": []
+            }
+
+        # Add auth configuration
+        # Check if password is provided via env var or payload
+        password_from_env = os.getenv("HSH_AUTH_PASSWORD")
+        auth_password = payload.auth_password or password_from_env
+
+        if payload.auth_enabled and payload.auth_username and auth_password:
+            secret_from_env = os.getenv("HSH_AUTH_SECRET_KEY")
+
+            minimal_config["auth"] = {
+                "enabled": True,
+                "username": payload.auth_username,
+                "token_expire_days": 30
+            }
+
+            # Only write to config if not using env vars
+            if not password_from_env:
+                minimal_config["auth"]["password"] = payload.auth_password
+            if not secret_from_env:
+                # Generate a random secret key
+                import secrets
+                minimal_config["auth"]["secret_key"] = secrets.token_urlsafe(32)
+        else:
+            minimal_config["auth"] = {
+                "enabled": False,
+                "username": "admin",
+                "token_expire_days": 30
+            }
+
+        # Serialize and save
+        serialized = yaml.safe_dump(minimal_config, sort_keys=False)
+        save_config_text(serialized)
+
+        # Update rotation scheduler if rotation is enabled
+        if payload.rotation_enabled:
+            updated_config = load_config()
+            update_rotation_schedule(config=updated_config)
+
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Configuration initialized successfully. You can now configure libraries and rotation groups."
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

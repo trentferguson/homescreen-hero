@@ -7,13 +7,17 @@
 
 **A self-hosted web app that keeps your Plex home screen fresh by automatically rotating collections (scheduled or manual) via a modern FastAPI + React dashboard.**
 
-![GitHub last commit](https://img.shields.io/github/last-commit/trentferguson/homescreen-hero)
-![Docker Automated build](https://img.shields.io/docker/automated/trentferguson/homescreen-hero?logo=Docker&label=docker-compose) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/trentferguson/homescreen-hero) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero) 
+![Static Badge](https://img.shields.io/badge/Plex-%20Built%20for%20Plex-e5a00d?style=flat&logo=Plex)
+![Static Badge](https://img.shields.io/badge/docker-%20build%20w%2F%20docker%20compose-0db7ed?style=flat&logo=Docker&logoColor=0db7ed&labelColor=384d54) ![Static Badge](https://img.shields.io/badge/Claude-vibecoded(ish)-%23D97757?style=flat&logo=Claude) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![GitHub Release](https://img.shields.io/github/v/release/trentferguson/homescreen-hero?logo=GitHub&color=%2327B63F)
 
+
+## Try the Demo
+
+**[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
 
 </div>
 
-## 🚫A Quick Heads Up
+## A Quick Heads Up
 
 This app is very much a **WIP**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
 
@@ -26,8 +30,8 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 ## Features
 
 -   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
--   **Manual Collection Rotation:** If you want more control over what shows up on your homescreen, you can trigger an instant rotation of collections directly from the web dashboard. You can even simulate fake rotations and only apply them if you like it!
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
+-   **Manage all your Collections in One Place:** Whether it be you're already existing Plex collection's, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
 -   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
 -   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!) 
 -   **Flexible Configuration:** Utilize either the Web UI or the YAML-based configuration file for detailed control over application settings and Plex interactions
@@ -35,19 +39,7 @@ This app is very much a **WIP**. This started as a simple Python script to rotat
 
 ## Screenshots
 
-### Dashboard View (Run rotations, see current pinned Collections and history)
-<img width="1803" height="1281" alt="image" src="https://github.com/user-attachments/assets/f588cdf5-01a7-48ba-a68d-b4716d5b77c0" />
-
-### Collection Groups (View all groups/edit group names)
-
-### Edit Collection Groups (Edit rules, add collections, etc.)
-
-### Settings Page (Edit Plex/Trakt Connections and add Trakt Lists)
-<img width="1691" height="1760" alt="settings" src="https://github.com/user-attachments/assets/afe26b0d-1e39-48c9-86f0-056704ffac53" />
-
-
-
-
+- This is a placeholder for future screenshots/demo videos
 
 ## 🛠️ Tech Stack
 
@@ -103,12 +95,11 @@ This project is designed for easy deployment using Docker and Docker Compose.
     c. **Edit config.yaml:**
     Open `data/config.yaml` and configure non-sensitive settings:
     - `plex.base_url`: Your Plex Media Server URL (e.g., `http://192.168.1.100:32400`)
-    - `plex.libraries`: List of libraries to manage with `name` and `enabled` status
+    - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
     - `rotation` settings: interval, max collections, strategy
-    - `groups`: Define your collection groups with visibility options
-    - `auth`: Optional authentication settings (username, enabled flag)
+    - `groups`: Define your collection groups
 
-    **Note:** Sensitive values (tokens, passwords, API keys) should be in `.env`, not in `config.yaml`
+    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
 
 3.  **Start the application with Docker Compose**
     ```bash
@@ -184,11 +175,9 @@ Settings live in `config.yaml` and follow the schema in `homescreen_hero/core/co
 ```yaml
 plex:
   base_url: "YOUR_PLEX_SERVER_URL"
-  token: ""  # Leave empty, use HSH_PLEX_TOKEN env var instead
-  libraries:  # List of Plex libraries to use
+  token: "YOUR_PLEX_TOKEN"
+  libraries: # List of Plex libraries to use
     - name: Movies
-      enabled: true
-    - name: TV Shows
       enabled: true
 rotation:
   enabled: true
@@ -196,20 +185,14 @@ rotation:
   max_collections: 5
   strategy: random
   allow_repeats: false
-auth:
-  enabled: false  # Set to true to require login
-  username: admin
-  password: ""  # Leave empty, use HSH_AUTH_PASSWORD env var instead
-  secret_key: ""  # Leave empty, use HSH_AUTH_SECRET_KEY env var instead
-  token_expire_days: 30
 trakt:
   enabled: false
-  client_id: ""  # Leave empty, use HSH_TRAKT_CLIENT_ID env var instead
+  client_id: "YOUR_TRAKT_CLIENT_ID"
   base_url: https://api.trakt.tv
   sources:
-  - name: "TRAKT_COLLECTION_NAME"  # This is the name that will show up in Plex
-    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST"  # e.g., https://trakt.tv/users/username/collections/movies
-    plex_library: "Movies"
+  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
+    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
+    plex_library: "YOUR_PLEX_LIBRARY_NAME"
 logging:
   level: INFO
 groups:
@@ -219,9 +202,6 @@ groups:
   max_picks: 1
   weight: 1
   min_gap_rotations: 0
-  visibility_home: true        # Show on admin's Home page
-  visibility_shared: false     # Show on shared users' Home pages
-  visibility_recommended: false  # Show in Library Recommended section
   collections:
   - Example Collection 1
   - Example Collection 2
@@ -229,11 +209,10 @@ groups:
 ```
 
 Key sections:
-- **plex** – Server URL, token (use env var), and list of libraries to manage with individual enable/disable flags.
+- **plex** – Server URL, token, and library name to target.
 - **rotation** – Enable/disable scheduling, interval hours, max collections, strategy, and repeat rules.
-- **auth** – Optional authentication with username, password (use env var), secret key (use env var), and token expiration.
-- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, visibility toggles (home/shared/recommended), and optional date windows.
-- **trakt** – Enable Trakt, set the client ID (use env var), base URL, and list sources to sync into Plex collections.
+- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
+- **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
 
 ## Docker

@@ -33,6 +33,7 @@ const COLLECTIONS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 type CollectionsCache = {
     data: Collection[];
     timestamp: number;
+    version: number;
 };
 
 export default function CollectionsPage() {
@@ -110,7 +111,7 @@ export default function CollectionsPage() {
         }
     };
 
-    const loadFromCache = (): CollectionsCache | null => {
+    const loadFromCache = async (): Promise<CollectionsCache | null> => {
         try {
             const cached = localStorage.getItem(COLLECTIONS_CACHE_KEY);
             if (!cached) return null;
@@ -118,9 +119,23 @@ export default function CollectionsPage() {
             const parsedCache: CollectionsCache = JSON.parse(cached);
             const age = Date.now() - parsedCache.timestamp;
 
+            // Check if cache has expired
             if (age > COLLECTIONS_CACHE_TTL_MS) {
                 localStorage.removeItem(COLLECTIONS_CACHE_KEY);
                 return null;
+            }
+
+            // Check if cache version is still valid
+            try {
+                const versionResponse = await fetchWithAuth("/api/collections/cache-version");
+                const versionData = await versionResponse.json();
+                if (parsedCache.version !== versionData.version) {
+                    console.log("Cache invalidated by server (version mismatch)");
+                    localStorage.removeItem(COLLECTIONS_CACHE_KEY);
+                    return null;
+                }
+            } catch (err) {
+                console.warn("Failed to check cache version, using cached data anyway:", err);
             }
 
             return parsedCache;
@@ -130,11 +145,16 @@ export default function CollectionsPage() {
         }
     };
 
-    const saveToCache = (data: Collection[]) => {
+    const saveToCache = async (data: Collection[]) => {
         try {
+            // Get current cache version from server
+            const versionResponse = await fetchWithAuth("/api/collections/cache-version");
+            const versionData = await versionResponse.json();
+
             const cache: CollectionsCache = {
                 data,
                 timestamp: Date.now(),
+                version: versionData.version,
             };
             localStorage.setItem(COLLECTIONS_CACHE_KEY, JSON.stringify(cache));
             setLastCacheCheck(Date.now());
@@ -147,7 +167,7 @@ export default function CollectionsPage() {
         try {
             // Try to load from cache first
             if (!forceRefresh) {
-                const cached = loadFromCache();
+                const cached = await loadFromCache();
                 if (cached) {
                     console.log("Loading collections from cache");
                     setCollections(cached.data);
@@ -162,7 +182,7 @@ export default function CollectionsPage() {
             const response = await fetchWithAuth("/api/collections/all");
             const data = await response.json();
             setCollections(data.collections);
-            saveToCache(data.collections);
+            await saveToCache(data.collections);
             setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load collections");
@@ -526,7 +546,7 @@ export default function CollectionsPage() {
                                 <img
                                     src={collection.poster_url}
                                     alt={collection.title}
-                                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                                     loading="lazy"
                                 />
                             ) : (

@@ -13,6 +13,7 @@ from homescreen_hero.core.logging_config import level_from_name, setup_logging
 from homescreen_hero.core.scheduler import (
     start_rotation_scheduler,
     stop_rotation_scheduler,
+    register_post_rotation_callback,
 )
 from homescreen_hero.web.routers import (
     config_router,
@@ -23,6 +24,7 @@ from homescreen_hero.web.routers import (
     collections_router,
     auth_router,
 )
+from homescreen_hero.web.routers.collections import invalidate_collections_cache
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,8 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def _start_scheduler() -> None:  # pragma: no cover
         init_db()
+        # Register callback to invalidate collections cache after each rotation
+        register_post_rotation_callback(invalidate_collections_cache)
         try:
             start_rotation_scheduler()
         except Exception as exc:  # pragma: no cover

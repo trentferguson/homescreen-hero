@@ -44,7 +44,7 @@ export default function TopNav() {
                             className="h-10 w-auto select-none transition-transform duration-200 group-hover:scale-105"
                         />
                     </NavLink>
-                    <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">HomeScreen Hero</h1>
+                    <h1 className="text-2xl font-medium text-slate-900 dark:text-white tracking-tight" style={{ fontFamily: 'Oxanium' }}>homescreen-hero</h1>
                 </div>
 
                 {/* CENTER: Nav */}

@@ -91,8 +91,7 @@ class CollectionGroupConfig(BaseModel):
         description="Optional yearly date window when this group is active",
     )
     collections: List[str] = Field(
-        ...,
-        min_items=1,
+        default_factory=list,
         description="List of Plex collection names belonging to this group",
     )
 
