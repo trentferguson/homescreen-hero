@@ -23,7 +23,6 @@
 </div>
 
 ## A Quick Heads Up
-## A Quick Heads Up
 
 This app is very much a **WORK IN PROGRESS**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
 
