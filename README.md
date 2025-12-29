@@ -16,8 +16,13 @@
 
 **[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
 
+## Try the Demo
+
+**[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
+
 </div>
 
+## A Quick Heads Up
 ## A Quick Heads Up
 
 This app is very much a **WORK IN PROGRESS**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
@@ -147,7 +152,9 @@ For users who prefer direct control or want to use environment variables for sec
     - `plex.libraries`: List of libraries to manage (e.g., Movies, TV Shows)
     - `rotation` settings: interval, max collections, strategy
     - `groups`: Define your collection groups
+    - `groups`: Define your collection groups
 
+    **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
     **Note:** Sensitive values (tokens, passwords) should be in `.env`, not in `config.yaml`
 
 4.  **Start the application**
@@ -223,6 +230,8 @@ plex:
   base_url: "YOUR_PLEX_SERVER_URL"
   token: "YOUR_PLEX_TOKEN"
   libraries: # List of Plex libraries to use
+  token: "YOUR_PLEX_TOKEN"
+  libraries: # List of Plex libraries to use
     - name: Movies
       enabled: true
 rotation:
@@ -234,8 +243,12 @@ rotation:
 trakt:
   enabled: false
   client_id: "YOUR_TRAKT_CLIENT_ID"
+  client_id: "YOUR_TRAKT_CLIENT_ID"
   base_url: https://api.trakt.tv
   sources:
+  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
+    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
+    plex_library: "YOUR_PLEX_LIBRARY_NAME"
   - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
     url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
     plex_library: "YOUR_PLEX_LIBRARY_NAME"
@@ -256,7 +269,10 @@ groups:
 
 Key sections:
 - **plex** – Server URL, token, and library name to target.
+- **plex** – Server URL, token, and library name to target.
 - **rotation** – Enable/disable scheduling, interval hours, max collections, strategy, and repeat rules.
+- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
+- **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
 - **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
 - **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
