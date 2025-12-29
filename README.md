@@ -39,9 +39,21 @@ This app is very much a **WORK IN PROGRESS**. This started as a simple Python sc
 -   **Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
 -   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
-## Screenshots
+## Screenshots (or checkout the demo link above)
 
-- This is a placeholder for future screenshots/demo videos
+### Dashboard/System Overview:
+<img width="1910" height="1214" alt="image" src="https://github.com/user-attachments/assets/81eaff32-f4bc-4d9a-8935-85935f49b528" />
+
+### Groups Page:
+<img width="1823" height="1123" alt="image" src="https://github.com/user-attachments/assets/04c69449-9849-4871-8924-e645371fa403" />
+
+### Manage Groups (edit details, change schedule, add/remove collections)
+<img width="1757" height="1214" alt="image" src="https://github.com/user-attachments/assets/a9041a47-f41b-47df-915d-bdf542767a8d" />
+<img width="1723" height="1124" alt="image" src="https://github.com/user-attachments/assets/551083ab-9ebd-4d6e-a38e-0165344667c6" />
+
+### Collections Page (Create, Edit, and Delete your Plex/Trakt collections):
+<img width="1711" height="1209" alt="image" src="https://github.com/user-attachments/assets/76f7e00c-1212-48f0-999a-1bcfee785d6f" />
+
 
 ## Tech Stack
 
