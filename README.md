@@ -20,31 +20,30 @@
 
 ## A Quick Heads Up
 
-This app is very much a **WIP**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
+This app is very much a **WORK IN PROGRESS**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
 
-**Please note**- a good portion of this app is vibe-coded
+**Important Note:** a good portion of this app is vibe-coded
 (especially the frontend). As a Data Engineer who originally went to school to become a full-stack developer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
 ## Overview
 
-**HomeScreen Hero** aims to be your one-stop-shop for managing your Plex homescreen. Right now, HomeScreen Hero is a self-hosted Plex companion app that I built to solve a simple problem: keeping my Plex home screen from getting stale. It automatically rotates collections on a schedule, so featured content stays fresh without constantly tweaking things by hand. There’s a clean React-based web UI (Thanks Chat GPT!) for configuring and monitoring everything, with a FastAPI backend doing the heavy lifting behind the scenes.
+**HomeScreen Hero** aims to be your one-stop-shop for managing your Plex homescreen. Right now, HomeScreen Hero is a self-hosted Plex companion app that I built to solve a simple problem: keeping my Plex home screen from getting stale. It automatically rotates collections on a schedule, so featured content stays fresh without constantly tweaking things by hand. There’s a clean React-based web UI (Thanks Stitch/Claude!) for configuring and monitoring everything, with a FastAPI backend doing the heavy lifting behind the scenes.
 
 ## Features
 
--   **🧙 First-Time Setup Wizard:** Guided step-by-step configuration for new installations - get started in minutes without touching config files!
--   **🔄 Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
--   **🎨 Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
--   **📚 Manage all your Collections in One Place:** Whether it be your already existing Plex collections, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
--   **🎬 Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
--   **🔗 3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!)
--   **⚙️ Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
--   **🔐 Optional Authentication:** Secure your dashboard with password protection configured through the setup wizard or environment variables
--   **🐳 Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
+-   **First-Time Setup Wizard:** Guided step-by-step configuration for new installations - get started in minutes without touching config files!
+-   **Automated Plex Collection Rotation:** Schedule collections to rotate on your Plex home screen at predefined intervals. Various config options to get things exactly the way you want them!
+-   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
+-   **Manage all your Collections in One Place:** Whether it be your already existing Plex collections, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
+-   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
+-   ** 3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!)
+-   **Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
+-   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
 ## Screenshots
 
 - This is a placeholder for future screenshots/demo videos
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Frontend:**
 
@@ -74,7 +73,7 @@ This project is designed for easy deployment using Docker and Docker Compose.
 
 HomeScreen Hero offers **two setup methods** - choose the one that works best for you:
 
-#### Option 1: Setup Wizard (Recommended for New Users) 🎯
+#### Option 1: Setup Wizard (Recommended for New Users)
 
 The easiest way to get started! The setup wizard guides you through configuration step-by-step.
 
@@ -106,7 +105,7 @@ The easiest way to get started! The setup wizard guides you through configuratio
 
 That's it! The wizard will create your `config.yaml` automatically.
 
-#### Option 2: Manual Configuration (Advanced Users) ⚙️
+#### Option 2: Manual Configuration (Advanced Users)
 
 For users who prefer direct control or want to use environment variables for secrets.
 
@@ -336,30 +335,6 @@ For local development, you will typically run the frontend and backend services 
     ```
     The backend API will be available at `http://localhost:8000`. Access the auto-generated API documentation at `http://localhost:8000/docs` or `http://localhost:8000/redoc`.
 
-
-##  Deployment
-
-The recommended deployment method for HomeScreen Hero is using Docker and Docker Compose.
-
-### Production Build
-
-The `docker-compose.yml` file is configured to build the frontend and backend images, integrating them into a single deployable unit. The frontend is typically built into static assets which are then served by the backend or a dedicated web server within the container.
-
-### Deployment Options
-
--   **Docker Compose:**
-    The provided `docker-compose.yml` is the primary method for deploying the application.
-    ```bash
-    docker-compose up -d
-    ```
-    To update the application to a new version:
-    ```bash
-    docker-compose pull
-    docker-compose up -d --build --force-recreate
-    ```
--   **Kubernetes/Other Orchestrators:**
-    While not directly provided, the Docker images can be adapted for deployment on Kubernetes or other container orchestration platforms.
-
 ## API Reference
 
 The FastAPI backend automatically generates interactive API documentation.
@@ -394,10 +369,11 @@ This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LI
 
 -   **Agregarr:** For being an amazing self-hosted app and inspiring me to try building something myself. Seriously, this app is awesome.
 -   **ColleXions:** For initially doing exactly what I needed this app today. Another great inspiration for me to try my own hand at an creating something like this.
--   **Chat GPT & Github Copilot:** For building ~90% of my frontend. As a Data Engineer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
+-   **Stitch (Google):** For helping me come up with a clean frontend design philosophy. It took a lot of trial error (I have almost no frontend dev experience, but turns out I'm very picky about what it looks like lol)
+-   **Claude Code, Chat GPT, and Github Copilot:** For building ~90% of my frontend. As a Data Engineer, a big part of creating this app for myself was to get a true understanding of where AI Coding Agents stand today, and what exactly they can/cannot do. I got tired of the headlines/Reddit comments and figured this was the quickest way to the truth.
 
 ## 🐶 Puppy Tax 
-I'm not ashamed to use my cutie for free internet points! (*she was also great moral support on the "I've been banging my head against a wall for days trying to figure out why the rotation runs every thirty seconds lol*)
+I'm not ashamed to use my cutie for free internet points! (she was also great moral support on the *"I've been banging my head against a wall for days trying to figure out why the rotation runs every thirty seconds lol*)
 
 <img width="25%" height="25%" alt="IMG_3015" src="https://github.com/user-attachments/assets/e24b34da-b541-4ead-b822-98ec31b5154e" />
 <img width="25%" height="25%" alt="IMG_1225" src="https://github.com/user-attachments/assets/a4b6ad17-063b-4068-ac2d-91ec60f117f2" />
@@ -409,7 +385,6 @@ I'm not ashamed to use my cutie for free internet points! (*she was also great m
 
 **⭐ Star this repo if you find it helpful!**
 
-Made with ❤️ by [trentferguson](https://github.com/trentferguson)
+Made with ❤️, 💧, and ☕ by [trentferguson](https://github.com/trentferguson)
 
 </div>
-```
