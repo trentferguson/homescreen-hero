@@ -16,10 +16,6 @@
 
 **[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
 
-## Try the Demo
-
-**[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
-
 </div>
 
 ## A Quick Heads Up
