@@ -69,6 +69,14 @@ export default function CollectionDetailPage() {
     const [editPosterMode, setEditPosterMode] = useState<"upload" | "url">("upload");
     const [updating, setUpdating] = useState(false);
 
+    // Item poster edit modal
+    const [showItemPosterModal, setShowItemPosterModal] = useState(false);
+    const [editingItem, setEditingItem] = useState<CollectionItem | null>(null);
+    const [itemPosterFile, setItemPosterFile] = useState<File | null>(null);
+    const [itemPosterUrl, setItemPosterUrl] = useState("");
+    const [itemPosterMode, setItemPosterMode] = useState<"upload" | "url">("upload");
+    const [uploadingItemPoster, setUploadingItemPoster] = useState(false);
+
     useEffect(() => {
         if (library && collectionTitle) {
             loadCollectionDetails();
@@ -312,6 +320,65 @@ export default function CollectionDetailPage() {
         }
     };
 
+    const openItemPosterModal = (item: CollectionItem, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingItem(item);
+        setItemPosterFile(null);
+        setItemPosterUrl("");
+        setItemPosterMode("upload");
+        setShowItemPosterModal(true);
+    };
+
+    const closeItemPosterModal = () => {
+        setShowItemPosterModal(false);
+        setEditingItem(null);
+        setItemPosterFile(null);
+        setItemPosterUrl("");
+        setItemPosterMode("upload");
+    };
+
+    const handleItemPosterFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setItemPosterFile(file);
+            setItemPosterUrl("");
+        }
+    };
+
+    const handleUploadItemPoster = async () => {
+        if (!editingItem) return;
+
+        try {
+            setUploadingItemPoster(true);
+
+            const formData = new FormData();
+            if (itemPosterFile) {
+                formData.append("file", itemPosterFile);
+            } else if (itemPosterUrl) {
+                formData.append("url", itemPosterUrl);
+            } else {
+                setToast({ message: "Please select a file or enter a URL", type: "error" });
+                return;
+            }
+
+            await fetchWithAuth(
+                `/api/collections/${encodeURIComponent(library!)}/items/${encodeURIComponent(editingItem.rating_key)}/upload-poster`,
+                {
+                    method: "POST",
+                    body: formData,
+                }
+            );
+
+            setToast({ message: "Poster updated successfully!", type: "success" });
+            closeItemPosterModal();
+            await loadCollectionDetails();
+        } catch (err) {
+            setToast({ message: "Failed to upload poster", type: "error" });
+        } finally {
+            setUploadingItemPoster(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="p-8">
@@ -411,10 +478,19 @@ export default function CollectionDetailPage() {
                                 )}
                             </div>
 
-                            {/* Remove Button (shown on hover) */}
+                            {/* Edit Poster Button (shown on hover, top-left) */}
+                            <button
+                                onClick={(e) => openItemPosterModal(item, e)}
+                                className="absolute top-2 left-2 p-2 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                title="Edit poster"
+                            >
+                                <Image size={16} />
+                            </button>
+
+                            {/* Remove Button (shown on hover, top-right) */}
                             <button
                                 onClick={() => handleRemoveItem(item.rating_key)}
-                                className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                 title="Remove from collection"
                             >
                                 <Trash2 size={16} />
@@ -874,6 +950,153 @@ export default function CollectionDetailPage() {
                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {updating ? "Updating..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Item Poster Edit Modal */}
+            {showItemPosterModal && editingItem && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-[#1a1d29] rounded-lg max-w-2xl w-full">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-gray-800">
+                            <div>
+                                <h2 className="text-xl font-semibold text-white">Edit Poster</h2>
+                                <p className="text-gray-400 text-sm mt-1">{editingItem.title} {editingItem.year && `(${editingItem.year})`}</p>
+                            </div>
+                            <button
+                                onClick={closeItemPosterModal}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6">
+                            <div className="grid grid-cols-[200px_1fr] gap-6">
+                                {/* Left Column - Poster Preview */}
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                                        Current Poster
+                                    </label>
+
+                                    {/* Poster Preview */}
+                                    <div className="relative aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden border-2 border-dashed border-gray-700">
+                                        {editingItem.thumb ? (
+                                            <img
+                                                src={editingItem.thumb}
+                                                alt="Current poster"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-600">
+                                                No Poster
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recommended: 600×900px (JPG/PNG)
+                                    </p>
+                                </div>
+
+                                {/* Right Column - Upload Options */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                            Upload New Poster
+                                        </label>
+
+                                        {/* Tab Switcher */}
+                                        <div className="flex gap-2 mb-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setItemPosterMode("upload");
+                                                    setItemPosterUrl("");
+                                                }}
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                    itemPosterMode === "upload"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }`}
+                                            >
+                                                Upload File
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setItemPosterMode("url");
+                                                    setItemPosterFile(null);
+                                                }}
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                    itemPosterMode === "url"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }`}
+                                            >
+                                                From URL
+                                            </button>
+                                        </div>
+
+                                        {/* Upload Mode */}
+                                        {itemPosterMode === "upload" && (
+                                            <label className="block cursor-pointer">
+                                                <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-gray-600 transition-colors">
+                                                    <Image size={24} className="mx-auto mb-2 text-gray-400" />
+                                                    <span className="text-sm text-gray-400">
+                                                        {itemPosterFile ? itemPosterFile.name : "Click to select file"}
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleItemPosterFileSelect}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                        )}
+
+                                        {/* URL Mode */}
+                                        {itemPosterMode === "url" && (
+                                            <div>
+                                                <input
+                                                    type="url"
+                                                    value={itemPosterUrl}
+                                                    onChange={(e) => setItemPosterUrl(e.target.value)}
+                                                    placeholder="https://example.com/poster.jpg"
+                                                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    e.g., from ThePosterDB.com or TMDB
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-800">
+                            <button
+                                type="button"
+                                onClick={closeItemPosterModal}
+                                disabled={uploadingItemPoster}
+                                className="px-4 py-2 bg-transparent hover:bg-gray-800 text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleUploadItemPoster}
+                                disabled={uploadingItemPoster || (!itemPosterFile && !itemPosterUrl)}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {uploadingItemPoster ? "Uploading..." : "Upload Poster"}
                             </button>
                         </div>
                     </div>

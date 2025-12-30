@@ -939,3 +939,89 @@ async def upload_collection_poster(
         raise HTTPException(
             status_code=500, detail=f"Failed to upload poster: {str(e)}"
         )
+
+
+# Upload a poster to an item in a library (from file or URL)
+@router.post("/{library}/items/{rating_key}/upload-poster")
+async def upload_item_poster(
+    library: str,
+    rating_key: str,
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str] = Form(None),
+) -> dict:
+    """
+    Upload a custom poster to a Plex library item (movie or show).
+    Either provide a file upload OR a URL to a poster image.
+    """
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Validate that exactly one input method is provided
+        if not file and not url:
+            raise HTTPException(
+                status_code=400,
+                detail="Either 'file' or 'url' must be provided",
+            )
+        if file and url:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide either 'file' or 'url', not both",
+            )
+
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the item by rating key
+        item = section.fetchItem(int(rating_key))
+
+        if not item:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item with rating key '{rating_key}' not found in library '{library}'",
+            )
+
+        # Upload poster based on input method
+        if url:
+            # Upload from URL
+            logger.info(f"Uploading poster from URL for item '{item.title}' ({rating_key}): {url}")
+            item.uploadPoster(url=url)
+            logger.info(f"Successfully uploaded poster from URL for item '{item.title}'")
+        else:
+            # Upload from file
+            logger.info(f"Uploading poster from file for item '{item.title}' ({rating_key}): {file.filename}")
+
+            # Create a temporary file to save the uploaded content
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                # Read and write the uploaded file content
+                content = await file.read()
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+
+            try:
+                # Upload the poster using the temporary file
+                item.uploadPoster(filepath=temp_file_path)
+                logger.info(f"Successfully uploaded poster from file for item '{item.title}'")
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+        # Invalidate caches to show the new poster
+        poster_url_cache.clear()
+        poster_image_cache.clear()
+
+        return {
+            "success": True,
+            "message": f"Successfully uploaded poster for '{item.title}'",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading item poster: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to upload poster: {str(e)}"
+        )
