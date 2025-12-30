@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { RefreshCw, Plus, X, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
+import { RefreshCw, Plus, X, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
 
@@ -63,6 +63,17 @@ export default function CollectionsPage() {
     const [movieSearchResults, setMovieSearchResults] = useState<LibraryItem[]>([]);
     const [selectedMovies, setSelectedMovies] = useState<Set<string>>(new Set());
     const [searchLoading, setSearchLoading] = useState(false);
+
+    // Quick edit modal
+    const [showQuickEditModal, setShowQuickEditModal] = useState(false);
+    const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+    const [quickEditTitle, setQuickEditTitle] = useState("");
+    const [quickEditSummary, setQuickEditSummary] = useState("");
+    const [quickEditPosterFile, setQuickEditPosterFile] = useState<File | null>(null);
+    const [quickEditPosterUrl, setQuickEditPosterUrl] = useState("");
+    const [quickEditCurrentPosterUrl, setQuickEditCurrentPosterUrl] = useState<string | null>(null);
+    const [quickEditPosterMode, setQuickEditPosterMode] = useState<"upload" | "url">("upload");
+    const [quickEditing, setQuickEditing] = useState(false);
 
     const navigate = useNavigate();
 
@@ -360,6 +371,102 @@ export default function CollectionsPage() {
         }
     };
 
+    const openQuickEditModal = async (collection: Collection, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent navigating to collection detail
+
+        setEditingCollection(collection);
+        setQuickEditTitle(collection.title);
+        setQuickEditSummary("");
+        setQuickEditPosterFile(null);
+        setQuickEditPosterUrl("");
+        setQuickEditCurrentPosterUrl(collection.poster_url);
+
+        // Fetch full collection details to get summary
+        try {
+            const response = await fetchWithAuth(
+                `/api/collections/${encodeURIComponent(collection.library)}/${encodeURIComponent(collection.title)}`
+            );
+            const data = await response.json();
+            setQuickEditSummary(data.summary || "");
+        } catch (err) {
+            console.error("Failed to load collection details:", err);
+        }
+
+        setShowQuickEditModal(true);
+    };
+
+    const closeQuickEditModal = () => {
+        setShowQuickEditModal(false);
+        setEditingCollection(null);
+        setQuickEditTitle("");
+        setQuickEditSummary("");
+        setQuickEditPosterFile(null);
+        setQuickEditPosterUrl("");
+        setQuickEditCurrentPosterUrl(null);
+        setQuickEditPosterMode("upload");
+    };
+
+    const handleQuickEditSubmit = async () => {
+        if (!editingCollection) return;
+
+        try {
+            setQuickEditing(true);
+
+            // Update title and summary if changed
+            if (quickEditTitle.trim() !== editingCollection.title || quickEditSummary.trim() !== "") {
+                await fetchWithAuth(
+                    `/api/collections/${encodeURIComponent(editingCollection.library)}/${encodeURIComponent(editingCollection.title)}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            title: quickEditTitle.trim(),
+                            summary: quickEditSummary.trim() || null,
+                        }),
+                    }
+                );
+            }
+
+            // Upload poster if provided
+            if (quickEditPosterFile || quickEditPosterUrl) {
+                const formData = new FormData();
+                if (quickEditPosterFile) {
+                    formData.append("file", quickEditPosterFile);
+                } else if (quickEditPosterUrl) {
+                    formData.append("url", quickEditPosterUrl);
+                }
+
+                const titleForPosterUpload = quickEditTitle.trim() || editingCollection.title;
+                await fetchWithAuth(
+                    `/api/collections/${encodeURIComponent(editingCollection.library)}/${encodeURIComponent(titleForPosterUpload)}/upload-poster`,
+                    {
+                        method: "POST",
+                        body: formData,
+                    }
+                );
+            }
+
+            setToast({ message: "Collection updated successfully", type: "success" });
+            closeQuickEditModal();
+            await loadCollections(true);
+        } catch (err) {
+            setToast({
+                message: err instanceof Error ? err.message : "Failed to update collection",
+                type: "error"
+            });
+        } finally {
+            setQuickEditing(false);
+        }
+    };
+
+    const handleQuickEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setQuickEditPosterFile(file);
+            setQuickEditPosterUrl("");
+        }
+    };
+
     // Get unique libraries from collections
     const uniqueLibraries = Array.from(new Set(collections.map((col) => col.library))).sort();
 
@@ -555,12 +662,14 @@ export default function CollectionsPage() {
                                 </div>
                             )}
 
-                            {/* Library Badge Overlay */}
-                            <div className="absolute top-2 left-2">
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-900/60 text-gray-300 border border-gray-700/50 backdrop-blur-sm">
-                                    {collection.library}
-                                </span>
-                            </div>
+                            {/* Edit Button (shown on hover, top-left) */}
+                            <button
+                                onClick={(e) => openQuickEditModal(collection, e)}
+                                className="absolute top-2 left-2 p-2 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                title="Edit collection"
+                            >
+                                <Edit size={16} />
+                            </button>
 
                             {/* Item Count Badge Overlay */}
                             <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -579,7 +688,7 @@ export default function CollectionsPage() {
                             )}
                         </div>
 
-                        {/* Delete Button (shown on hover) */}
+                        {/* Delete Button (shown on hover, top-right) */}
                         <button
                             onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
                             className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
@@ -593,6 +702,9 @@ export default function CollectionsPage() {
                             <h3 className="text-white font-medium text-sm truncate text-center">
                                 {collection.title}
                             </h3>
+                            <p className="text-gray-400 text-xs text-center mt-1">
+                                {collection.library}
+                            </p>
                         </div>
                     </button>
                 ))}
@@ -601,6 +713,178 @@ export default function CollectionsPage() {
             {filteredCollections.length === 0 && (
                 <div className="text-center text-gray-400 mt-12">
                     {searchQuery ? "No collections found matching your search" : "No collections found"}
+                </div>
+            )}
+
+            {/* Quick Edit Modal */}
+            {showQuickEditModal && editingCollection && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-[#1a1d29] rounded-lg max-w-3xl w-full">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-6 border-b border-gray-800">
+                            <h2 className="text-xl font-semibold text-white">Edit Collection Details</h2>
+                            <button
+                                onClick={closeQuickEditModal}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6">
+                            <div className="grid grid-cols-[200px_1fr] gap-6">
+                                {/* Left Column - Poster Preview */}
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                                        Cover Poster
+                                    </label>
+
+                                    {/* Poster Preview */}
+                                    <div className="relative aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden border-2 border-dashed border-gray-700">
+                                        {quickEditCurrentPosterUrl ? (
+                                            <img
+                                                src={quickEditCurrentPosterUrl}
+                                                alt="Current poster"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-600">
+                                                No Poster
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Recommended: 600×900px (JPG/PNG)
+                                    </p>
+                                </div>
+
+                                {/* Right Column - Text Fields & Poster Upload */}
+                                <div className="space-y-4">
+                                    {/* Title */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                            Collection Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={quickEditTitle}
+                                            onChange={(e) => setQuickEditTitle(e.target.value)}
+                                            className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* Summary */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                            Brief Summary
+                                        </label>
+                                        <textarea
+                                            value={quickEditSummary}
+                                            onChange={(e) => setQuickEditSummary(e.target.value)}
+                                            rows={4}
+                                            className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                            placeholder="Enter a brief description of this collection..."
+                                        />
+                                    </div>
+
+                                    {/* Poster Upload Options */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                            Update Poster
+                                        </label>
+
+                                        {/* Tab Switcher */}
+                                        <div className="flex gap-2 mb-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setQuickEditPosterMode("upload");
+                                                    setQuickEditPosterUrl("");
+                                                }}
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                    quickEditPosterMode === "upload"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }`}
+                                            >
+                                                Upload File
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setQuickEditPosterMode("url");
+                                                    setQuickEditPosterFile(null);
+                                                }}
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                    quickEditPosterMode === "url"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }`}
+                                            >
+                                                From URL
+                                            </button>
+                                        </div>
+
+                                        {/* Upload Mode */}
+                                        {quickEditPosterMode === "upload" && (
+                                            <label className="block cursor-pointer">
+                                                <div className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center hover:border-gray-600 transition-colors">
+                                                    <Image size={20} className="mx-auto mb-2 text-gray-400" />
+                                                    <span className="text-xs text-gray-400">
+                                                        {quickEditPosterFile ? quickEditPosterFile.name : "Click to select file"}
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleQuickEditFileSelect}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                        )}
+
+                                        {/* URL Mode */}
+                                        {quickEditPosterMode === "url" && (
+                                            <div>
+                                                <input
+                                                    type="url"
+                                                    value={quickEditPosterUrl}
+                                                    onChange={(e) => setQuickEditPosterUrl(e.target.value)}
+                                                    placeholder="https://example.com/poster.jpg"
+                                                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-2">
+                                                    e.g., from ThePosterDB.com
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-800">
+                            <button
+                                onClick={closeQuickEditModal}
+                                disabled={quickEditing}
+                                className="px-4 py-2 bg-transparent hover:bg-gray-800 text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleQuickEditSubmit}
+                                disabled={quickEditing || !quickEditTitle.trim()}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="text-lg">💾</span>
+                                {quickEditing ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
