@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { Switch, Listbox, Tab } from "@headlessui/react";
-import { Check, ChevronDown, RefreshCw, ChevronRight, Wifi, ChevronLeft } from "lucide-react";
+import { Check, ChevronDown, RefreshCw, ChevronRight, Wifi, WifiOff, ChevronLeft } from "lucide-react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
@@ -414,6 +414,20 @@ export default function IntegrationsPage() {
                         disabled
                         className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition border-slate-800/60 bg-slate-900/30 text-slate-500 cursor-not-allowed"
                     >
+                        Letterboxd
+                        <span className="text-xs opacity-60">(Coming Soon)</span>
+                    </Tab>
+                    <Tab
+                        disabled
+                        className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition border-slate-800/60 bg-slate-900/30 text-slate-500 cursor-not-allowed"
+                    >
+                        IMDb
+                        <span className="text-xs opacity-60">(Coming Soon)</span>
+                    </Tab>
+                    <Tab
+                        disabled
+                        className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition border-slate-800/60 bg-slate-900/30 text-slate-500 cursor-not-allowed"
+                    >
                         Overseerr
                         <span className="text-xs opacity-60">(Coming Soon)</span>
                     </Tab>
@@ -423,15 +437,20 @@ export default function IntegrationsPage() {
                     {/* Trakt Tab */}
                     <Tab.Panel className="space-y-4 focus:outline-none">
                         {/* Trakt Configuration - Collapsible */}
-                        <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 overflow-hidden">
+                        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 overflow-hidden shadow-lg shadow-primary/5">
                             <button
                                 type="button"
                                 onClick={() => setIsConfigExpanded(!isConfigExpanded)}
                                 className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800/30 transition"
                             >
-                                <div className="text-left">
-                                    <h3 className="text-lg font-semibold text-slate-100">Trakt Configuration</h3>
-                                    <p className="text-xs text-slate-400 mt-1">Configure your Trakt API credentials and settings.</p>
+                                <div className="text-left flex items-start gap-3">
+                                    <div className="rounded-lg bg-primary/10 p-2 border border-primary/20 mt-0.5">
+                                        <Wifi className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-slate-100">Trakt Configuration</h3>
+                                        <p className="text-xs text-slate-400 mt-1">Configure your Trakt API credentials and settings.</p>
+                                    </div>
                                 </div>
                                 <ChevronRight className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isConfigExpanded ? "rotate-90" : ""}`} />
                             </button>
@@ -511,8 +530,18 @@ export default function IntegrationsPage() {
 
                                         <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 mt-6">
                                             <div className="flex items-center gap-3">
-                                                <span className="rounded-full p-2 bg-amber-500/15 text-amber-400">
-                                                    <Wifi size={18} />
+                                                <span className={`rounded-full p-2 ${
+                                                    traktTestStatus === "success"
+                                                        ? "bg-emerald-500/15 text-emerald-400"
+                                                        : traktTestStatus === "error"
+                                                        ? "bg-rose-500/15 text-rose-400"
+                                                        : "bg-amber-500/15 text-amber-400"
+                                                }`}>
+                                                    {traktTestStatus === "success" ? (
+                                                        <Wifi size={18} />
+                                                    ) : (
+                                                        <WifiOff size={18} />
+                                                    )}
                                                 </span>
                                                 <div className="space-y-0.5">
                                                     <p className="text-sm font-semibold text-white">Test Trakt connection</p>
