@@ -17,8 +17,6 @@ type TabId = (typeof tabs)[number]["id"];
 type PlexLibraryConfig = { name: string; enabled: boolean };
 type PlexSettings = { base_url: string; token: string; libraries: PlexLibraryConfig[] };
 type AvailableLibrary = { title: string; type: string };
-type TraktSettings = { enabled: boolean; client_id: string; base_url: string; sources?: TraktSource[] };
-type TraktSource = { name: string; url: string; plex_library: string };
 type RotationSettings = {
     enabled: boolean;
     interval_hours: number;
@@ -32,7 +30,6 @@ type HealthComponent = { ok: boolean; error?: string | null };
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-    const [traktTestStatus, setTraktTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
     const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
@@ -58,27 +55,6 @@ export default function SettingsPage() {
     const [savingPlex, setSavingPlex] = useState(false);
     const [plexError, setPlexError] = useState<string | null>(null);
     const [plexMessage, setPlexMessage] = useState<string | null>(null);
-    const [traktSettings, setTraktSettings] = useState<TraktSettings>({
-        enabled: false,
-        client_id: "",
-        base_url: "https://api.trakt.tv",
-    });
-    const [traktSources, setTraktSources] = useState<TraktSource[]>([]);
-    const [loadingTrakt, setLoadingTrakt] = useState(true);
-    const [loadingTraktSources, setLoadingTraktSources] = useState(true);
-    const [savingTrakt, setSavingTrakt] = useState(false);
-    const [savingSource, setSavingSource] = useState(false);
-    const [deletingSource, setDeletingSource] = useState<number | null>(null);
-    const [traktError, setTraktError] = useState<string | null>(null);
-    const [traktMessage, setTraktMessage] = useState<string | null>(null);
-    const [traktSourcesError, setTraktSourcesError] = useState<string | null>(null);
-    const [traktSourcesMessage, setTraktSourcesMessage] = useState<string | null>(null);
-
-    const [newSource, setNewSource] = useState<TraktSource>({
-        name: "",
-        url: "",
-        plex_library: "",
-    });
 
     const tabDescription = useMemo(() => {
         switch (activeTab) {
@@ -115,31 +91,6 @@ export default function SettingsPage() {
         } catch (e) {
             setPlexTestStatus("error");
             setPlexError(String(e));
-        }
-    };
-
-    const handleTraktTestConnection = async () => {
-        try {
-            setTraktTestStatus("testing");
-
-            const r = await fetchWithAuth("/api/health/trakt");
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            const data: HealthComponent = await r.json();
-            const ok = data?.ok === true;
-
-            if (ok) {
-                setTraktError(null);
-                setTraktTestStatus("success");
-            } else {
-                setTraktTestStatus("error");
-                setTraktError(data?.error || "Trakt API health check failed.");
-            }
-        } catch (e) {
-            setTraktTestStatus("error");
-            setTraktError(String(e));
         }
     };
 
@@ -190,66 +141,6 @@ export default function SettingsPage() {
             .finally(() => {
                 if (!isMounted) return;
                 setLoadingPlex(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-        fetchWithAuth("/api/admin/config/trakt")
-            .then(async (r) => {
-                if (!r.ok) {
-                    throw new Error(await r.text());
-                }
-                return r.json();
-            })
-            .then((data: TraktSettings | null) => {
-                if (!isMounted) return;
-                if (!data) return;
-                setTraktSettings({
-                    enabled: data.enabled ?? false,
-                    client_id: data.client_id ?? "",
-                    base_url: data.base_url || "https://api.trakt.tv",
-                    sources: data.sources ?? [],
-                });
-            })
-            .catch((e) => {
-                if (!isMounted) return;
-                setTraktError(String(e));
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingTrakt(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-        fetchWithAuth("/api/admin/config/trakt/sources")
-            .then(async (r) => {
-                if (!r.ok) {
-                    throw new Error(await r.text());
-                }
-                return r.json();
-            })
-            .then((data: TraktSource[]) => {
-                if (!isMounted) return;
-                setTraktSources(data || []);
-            })
-            .catch((e) => {
-                if (!isMounted) return;
-                setTraktSourcesError(String(e));
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingTraktSources(false);
             });
 
         return () => {
@@ -326,63 +217,6 @@ export default function SettingsPage() {
         }
     }
 
-    async function addTraktSource() {
-        try {
-            setSavingSource(true);
-            setTraktSourcesError(null);
-            setTraktSourcesMessage(null);
-
-            const r = await fetchWithAuth("/api/admin/config/trakt/sources", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newSource),
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            await fetchWithAuth("/api/admin/config/trakt/sources")
-                .then((resp) => resp.json())
-                .then((data: TraktSource[]) => setTraktSources(data || []));
-
-            setNewSource({ name: "", url: "", plex_library: "" });
-            const data: ConfigSaveResponse = await r.json();
-            setTraktSourcesMessage(data.message);
-        } catch (e) {
-            setTraktSourcesError(String(e));
-        } finally {
-            setSavingSource(false);
-        }
-    }
-
-    async function removeTraktSource(index: number) {
-        try {
-            setDeletingSource(index);
-            setTraktSourcesError(null);
-            setTraktSourcesMessage(null);
-
-            const r = await fetchWithAuth(`/api/admin/config/trakt/sources/${index}`, {
-                method: "DELETE",
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            await fetchWithAuth("/api/admin/config/trakt/sources")
-                .then((resp) => resp.json())
-                .then((data: TraktSource[]) => setTraktSources(data || []));
-
-            const data: ConfigSaveResponse = await r.json();
-            setTraktSourcesMessage(data.message);
-        } catch (e) {
-            setTraktSourcesError(String(e));
-        } finally {
-            setDeletingSource(null);
-        }
-    }
-
     const handleRotationNumberChange = (
         key: "interval_hours" | "max_collections",
         value: string,
@@ -415,31 +249,6 @@ export default function SettingsPage() {
             setPlexError(String(e));
         } finally {
             setSavingPlex(false);
-        }
-    }
-
-    async function saveTraktSettings() {
-        try {
-            setSavingTrakt(true);
-            setTraktError(null);
-            setTraktMessage(null);
-
-            const r = await fetchWithAuth("/api/admin/config/trakt", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(traktSettings),
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            const data: ConfigSaveResponse = await r.json();
-            setTraktMessage(data.message);
-        } catch (e) {
-            setTraktError(String(e));
-        } finally {
-            setSavingTrakt(false);
         }
     }
 
@@ -793,215 +602,6 @@ export default function SettingsPage() {
                             message="Run a dry connection test without restarting the service."
                         />
                     </FormSection>
-
-                    <FormSection
-                        title="Trakt"
-                        description="Keep Trakt lists in sync without hand-editing the config file."
-                        actions={
-                            <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={saveTraktSettings}
-                                    disabled={savingTrakt || loadingTrakt}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingTrakt ? "Saving…" : "Save Trakt Settings"}
-                                </button>
-                            </div>
-                        }
-                    >
-                        <FieldRow
-                            label="Enable Trakt"
-                            description="Toggle syncing Trakt lists to your Plex collections."
-                        >
-                            <Switch
-                                checked={traktSettings.enabled}
-                                onChange={() =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        enabled: !prev.enabled,
-                                    }))
-                                }
-                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
-                            >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
-                            </Switch>
-                        </FieldRow>
-
-                        <FieldRow
-                            label="Client ID"
-                            description="Found in your Trakt application settings."
-                        >
-                            <input
-                                type="text"
-                                placeholder="Trakt client ID"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={traktSettings.client_id}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        client_id: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
-                            />
-                        </FieldRow>
-
-                        <FieldRow
-                            label="Base URL"
-                            description="Override only if you self-host the Trakt API."
-                        >
-                            <input
-                                type="url"
-                                placeholder="https://api.trakt.tv"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={traktSettings.base_url}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        base_url: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
-                            />
-                        </FieldRow>
-
-                        {traktMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {traktMessage}
-                            </div>
-                        ) : null}
-
-                        {traktError ? (
-                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                {traktError}
-                            </div>
-                        ) : null}
-
-                        <TestConnectionCta
-                            service="Trakt"
-                            status={traktTestStatus}
-                            onTest={handleTraktTestConnection}
-                            message="Run a dry connection test without restarting the service."
-                        />
-
-                        <div className="mt-6 space-y-3 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-base font-semibold text-slate-100">Trakt lists</p>
-                                    <p className="text-xs text-slate-400">Add or remove Trakt list sources that sync into Plex collections.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addTraktSource}
-                                    disabled={savingSource || loadingTraktSources}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingSource ? "Adding…" : "Add list"}
-                                </button>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <input
-                                    type="text"
-                                    placeholder="Friendly name"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    value={newSource.name}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, name: e.target.value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                />
-                                <input
-                                    type="url"
-                                    placeholder="https://trakt.tv/users/you/lists/favorites"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    value={newSource.url}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                />
-                                <Listbox
-                                    value={newSource.plex_library}
-                                    onChange={(value) => setNewSource((prev) => ({ ...prev, plex_library: value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                >
-                                    <div className="relative">
-                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
-                                            <span className={newSource.plex_library ? "text-slate-100" : "text-slate-500"}>
-                                                {newSource.plex_library || "Select Plex library"}
-                                            </span>
-                                            <ChevronDown className="h-4 w-4 text-slate-400" />
-                                        </Listbox.Button>
-                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
-                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
-                                                <div className="px-3 py-2 text-xs text-slate-500">
-                                                    No enabled Plex libraries configured.
-                                                </div>
-                                            ) : (
-                                                plexSettings.libraries
-                                                    .filter((lib) => lib.enabled)
-                                                    .map((lib) => (
-                                                        <Listbox.Option
-                                                            key={lib.name}
-                                                            value={lib.name}
-                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
-                                                        >
-                                                            {({ selected }) => (
-                                                                <>
-                                                                    <span>{lib.name}</span>
-                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
-                                                                </>
-                                                            )}
-                                                        </Listbox.Option>
-                                                    ))
-                                            )}
-                                        </Listbox.Options>
-                                    </div>
-                                </Listbox>
-                            </div>
-
-                            {traktSourcesMessage ? (
-                                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                    {traktSourcesMessage}
-                                </div>
-                            ) : null}
-
-                            {traktSourcesError ? (
-                                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                    {traktSourcesError}
-                                </div>
-                            ) : null}
-
-                            <div className="space-y-2">
-                                {loadingTraktSources ? (
-                                    <p className="text-xs text-slate-400">Loading sources…</p>
-                                ) : traktSources.length === 0 ? (
-                                    <p className="text-xs text-slate-400">No Trakt lists added yet.</p>
-                                ) : (
-                                    <ul className="divide-y divide-slate-800 border border-slate-800/80 rounded-lg">
-                                        {traktSources.map((source, idx) => (
-                                            <li key={`${source.name}-${idx}`} className="flex flex-col gap-2 p-3 md:flex-row md:items-center md:justify-between">
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-semibold text-slate-100">{source.name}</p>
-                                                    <p className="text-xs text-slate-400 break-all">{source.url}</p>
-                                                    <p className="text-xs text-slate-500">Plex library: {source.plex_library || "(none)"}</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeTraktSource(idx)}
-                                                    disabled={deletingSource === idx}
-                                                    className="self-start rounded-lg border border-rose-800 px-3 py-1 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/40 disabled:opacity-60"
-                                                >
-                                                    {deletingSource === idx ? "Removing…" : "Remove"}
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                    </FormSection>
-
 
                     <FormSection
                         title="Other integrations"
