@@ -54,7 +54,6 @@ export default function TopNav() {
                     <NavItem to="/collections" label="Collections" />
                     <NavItem to="/integrations" label="Integrations" />
                     <NavItem to="/settings" label="Settings" />
-                    <NavItem to="/logs" label="Logs" />
                 </nav>
 
                 {/* RIGHT: Icons */}
