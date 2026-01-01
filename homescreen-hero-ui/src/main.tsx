@@ -6,8 +6,8 @@ import "./index.css";
 import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ConfigPage from "./pages/ConfigPage";
-import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
+import IntegrationsPage from "./pages/IntegrationsPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import LoginPage from "./pages/LoginPage";
@@ -43,9 +43,9 @@ const router = createBrowserRouter([
       { path: "/groups/:groupId", element: <GroupDetailPage /> },
       { path: "/collections", element: <CollectionsPage /> },
       { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },
+      { path: "/integrations", element: <IntegrationsPage /> },
       { path: "/config", element: <ConfigPage /> },
       { path: "/settings", element: <SettingsPage /> },
-      { path: "/logs", element: <LogsPage /> },
     ],
   },
 ]);

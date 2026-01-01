@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { Bell, Shield, SlidersHorizontal, Check, ChevronDown } from "lucide-react";
+import { Bell, Shield, SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
@@ -10,6 +10,7 @@ const tabs = [
     { id: "general", label: "General", icon: SlidersHorizontal },
     { id: "integrations", label: "Integrations", icon: Shield },
     { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "logs", label: "Logs", icon: FileText },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -17,8 +18,6 @@ type TabId = (typeof tabs)[number]["id"];
 type PlexLibraryConfig = { name: string; enabled: boolean };
 type PlexSettings = { base_url: string; token: string; libraries: PlexLibraryConfig[] };
 type AvailableLibrary = { title: string; type: string };
-type TraktSettings = { enabled: boolean; client_id: string; base_url: string; sources?: TraktSource[] };
-type TraktSource = { name: string; url: string; plex_library: string };
 type RotationSettings = {
     enabled: boolean;
     interval_hours: number;
@@ -28,11 +27,63 @@ type RotationSettings = {
 };
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
+type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "ALL";
+
+function guessLevel(line: string): Exclude<LogLevel, "ALL"> | null {
+    const up = line.toUpperCase();
+    if (up.includes(" ERROR ") || up.startsWith("ERROR") || up.includes("] ERROR")) return "ERROR";
+    if (up.includes(" WARN ") || up.startsWith("WARN") || up.includes("] WARN")) return "WARN";
+    if (up.includes(" INFO ") || up.startsWith("INFO") || up.includes("] INFO")) return "INFO";
+    if (up.includes(" DEBUG ") || up.startsWith("DEBUG") || up.includes("] DEBUG")) return "DEBUG";
+    return null;
+}
+
+function LevelBadge({ level }: { level: Exclude<LogLevel, "ALL"> | null }) {
+    const cls =
+        level === "ERROR"
+            ? "bg-red-500/15 text-red-300 ring-red-500/20"
+            : level === "WARN"
+                ? "bg-amber-500/15 text-amber-300 ring-amber-500/20"
+                : level === "INFO"
+                    ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/20"
+                    : level === "DEBUG"
+                        ? "bg-sky-500/15 text-sky-300 ring-sky-500/20"
+                        : "bg-slate-500/10 text-slate-300 ring-slate-500/20";
+
+    return (
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${cls}`}>
+            {level ?? "LOG"}
+        </span>
+    );
+}
+
+function IconButton({
+    label,
+    onClick,
+    disabled,
+    children,
+}: {
+    label: string;
+    onClick?: () => void;
+    disabled?: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            aria-label={label}
+            title={label}
+            onClick={onClick}
+            disabled={disabled}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-800 bg-white/5 hover:bg-white/10 text-slate-200 disabled:opacity-60 disabled:hover:bg-white/5 transition-colors"
+        >
+            {children}
+        </button>
+    );
+}
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-    const [traktTestStatus, setTraktTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
     const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
@@ -58,27 +109,15 @@ export default function SettingsPage() {
     const [savingPlex, setSavingPlex] = useState(false);
     const [plexError, setPlexError] = useState<string | null>(null);
     const [plexMessage, setPlexMessage] = useState<string | null>(null);
-    const [traktSettings, setTraktSettings] = useState<TraktSettings>({
-        enabled: false,
-        client_id: "",
-        base_url: "https://api.trakt.tv",
-    });
-    const [traktSources, setTraktSources] = useState<TraktSource[]>([]);
-    const [loadingTrakt, setLoadingTrakt] = useState(true);
-    const [loadingTraktSources, setLoadingTraktSources] = useState(true);
-    const [savingTrakt, setSavingTrakt] = useState(false);
-    const [savingSource, setSavingSource] = useState(false);
-    const [deletingSource, setDeletingSource] = useState<number | null>(null);
-    const [traktError, setTraktError] = useState<string | null>(null);
-    const [traktMessage, setTraktMessage] = useState<string | null>(null);
-    const [traktSourcesError, setTraktSourcesError] = useState<string | null>(null);
-    const [traktSourcesMessage, setTraktSourcesMessage] = useState<string | null>(null);
 
-    const [newSource, setNewSource] = useState<TraktSource>({
-        name: "",
-        url: "",
-        plex_library: "",
-    });
+    // Logs state
+    const [lines, setLines] = useState<string[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [logsError, setLogsError] = useState<string | null>(null);
+    const [query, setQuery] = useState("");
+    const [level, setLevel] = useState<LogLevel>("ALL");
+    const [paused, setPaused] = useState(false);
+    const scrollerRef = useRef<HTMLDivElement | null>(null);
 
     const tabDescription = useMemo(() => {
         switch (activeTab) {
@@ -88,6 +127,8 @@ export default function SettingsPage() {
                 return "Manage connected services like Plex with credential-safe forms.";
             case "notifications":
                 return "Fine-tune how the app keeps you informed.";
+            case "logs":
+                return "View and search application logs in real-time.";
             default:
                 return "";
         }
@@ -115,31 +156,6 @@ export default function SettingsPage() {
         } catch (e) {
             setPlexTestStatus("error");
             setPlexError(String(e));
-        }
-    };
-
-    const handleTraktTestConnection = async () => {
-        try {
-            setTraktTestStatus("testing");
-
-            const r = await fetchWithAuth("/api/health/trakt");
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            const data: HealthComponent = await r.json();
-            const ok = data?.ok === true;
-
-            if (ok) {
-                setTraktError(null);
-                setTraktTestStatus("success");
-            } else {
-                setTraktTestStatus("error");
-                setTraktError(data?.error || "Trakt API health check failed.");
-            }
-        } catch (e) {
-            setTraktTestStatus("error");
-            setTraktError(String(e));
         }
     };
 
@@ -190,66 +206,6 @@ export default function SettingsPage() {
             .finally(() => {
                 if (!isMounted) return;
                 setLoadingPlex(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-        fetchWithAuth("/api/admin/config/trakt")
-            .then(async (r) => {
-                if (!r.ok) {
-                    throw new Error(await r.text());
-                }
-                return r.json();
-            })
-            .then((data: TraktSettings | null) => {
-                if (!isMounted) return;
-                if (!data) return;
-                setTraktSettings({
-                    enabled: data.enabled ?? false,
-                    client_id: data.client_id ?? "",
-                    base_url: data.base_url || "https://api.trakt.tv",
-                    sources: data.sources ?? [],
-                });
-            })
-            .catch((e) => {
-                if (!isMounted) return;
-                setTraktError(String(e));
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingTrakt(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        let isMounted = true;
-        fetchWithAuth("/api/admin/config/trakt/sources")
-            .then(async (r) => {
-                if (!r.ok) {
-                    throw new Error(await r.text());
-                }
-                return r.json();
-            })
-            .then((data: TraktSource[]) => {
-                if (!isMounted) return;
-                setTraktSources(data || []);
-            })
-            .catch((e) => {
-                if (!isMounted) return;
-                setTraktSourcesError(String(e));
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingTraktSources(false);
             });
 
         return () => {
@@ -326,63 +282,6 @@ export default function SettingsPage() {
         }
     }
 
-    async function addTraktSource() {
-        try {
-            setSavingSource(true);
-            setTraktSourcesError(null);
-            setTraktSourcesMessage(null);
-
-            const r = await fetchWithAuth("/api/admin/config/trakt/sources", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newSource),
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            await fetchWithAuth("/api/admin/config/trakt/sources")
-                .then((resp) => resp.json())
-                .then((data: TraktSource[]) => setTraktSources(data || []));
-
-            setNewSource({ name: "", url: "", plex_library: "" });
-            const data: ConfigSaveResponse = await r.json();
-            setTraktSourcesMessage(data.message);
-        } catch (e) {
-            setTraktSourcesError(String(e));
-        } finally {
-            setSavingSource(false);
-        }
-    }
-
-    async function removeTraktSource(index: number) {
-        try {
-            setDeletingSource(index);
-            setTraktSourcesError(null);
-            setTraktSourcesMessage(null);
-
-            const r = await fetchWithAuth(`/api/admin/config/trakt/sources/${index}`, {
-                method: "DELETE",
-            });
-
-            if (!r.ok) {
-                throw new Error(await r.text());
-            }
-
-            await fetchWithAuth("/api/admin/config/trakt/sources")
-                .then((resp) => resp.json())
-                .then((data: TraktSource[]) => setTraktSources(data || []));
-
-            const data: ConfigSaveResponse = await r.json();
-            setTraktSourcesMessage(data.message);
-        } catch (e) {
-            setTraktSourcesError(String(e));
-        } finally {
-            setDeletingSource(null);
-        }
-    }
-
     const handleRotationNumberChange = (
         key: "interval_hours" | "max_collections",
         value: string,
@@ -418,30 +317,90 @@ export default function SettingsPage() {
         }
     }
 
-    async function saveTraktSettings() {
+    // Logs functions
+    async function fetchLogs() {
+        setLoadingLogs(true);
+        setLogsError(null);
+
         try {
-            setSavingTrakt(true);
-            setTraktError(null);
-            setTraktMessage(null);
+            const res = await fetchWithAuth("/api/logs/tail");
+            const text = await res.text();
 
-            const r = await fetchWithAuth("/api/admin/config/trakt", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(traktSettings),
-            });
+            if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
 
-            if (!r.ok) {
-                throw new Error(await r.text());
+            const trimmed = text.trim();
+            let nextLines: string[] = [];
+
+            if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                try {
+                    const json = JSON.parse(trimmed);
+                    if (Array.isArray(json)) {
+                        nextLines = json.map(String);
+                    } else if (Array.isArray(json.lines)) {
+                        nextLines = json.lines.map(String);
+                    } else if (typeof json.text === "string") {
+                        nextLines = json.text.split(/\r?\n/);
+                    } else {
+                        nextLines = [JSON.stringify(json, null, 2)];
+                    }
+                } catch {
+                    nextLines = trimmed.split(/\r?\n/);
+                }
+            } else {
+                nextLines = trimmed.length ? trimmed.split(/\r?\n/).filter(Boolean) : [];
             }
 
-            const data: ConfigSaveResponse = await r.json();
-            setTraktMessage(data.message);
-        } catch (e) {
-            setTraktError(String(e));
+            setLines(nextLines);
+        } catch (e: any) {
+            setLogsError(e?.message ?? "Failed to load logs");
         } finally {
-            setSavingTrakt(false);
+            setLoadingLogs(false);
         }
     }
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        return lines.filter((line) => {
+            const lvl = guessLevel(line);
+            if (level !== "ALL" && lvl !== level) return false;
+            if (q && !line.toLowerCase().includes(q)) return false;
+            return true;
+        });
+    }, [lines, query, level]);
+
+    const counts = useMemo(() => {
+        let errorN = 0, warnN = 0, infoN = 0, debugN = 0;
+        for (const l of lines) {
+            const lvl = guessLevel(l);
+            if (lvl === "ERROR") errorN++;
+            else if (lvl === "WARN") warnN++;
+            else if (lvl === "INFO") infoN++;
+            else if (lvl === "DEBUG") debugN++;
+        }
+        return { errorN, warnN, infoN, debugN };
+    }, [lines]);
+
+    function copyVisible() {
+        const text = filtered.join("\n");
+        navigator.clipboard.writeText(text);
+    }
+
+    function clearLocal() {
+        setLines([]);
+    }
+
+    // Logs effects
+    useEffect(() => {
+        if (activeTab === "logs") {
+            fetchLogs();
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== "logs" || paused) return;
+        const id = window.setInterval(fetchLogs, 2000);
+        return () => window.clearInterval(id);
+    }, [activeTab, paused]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -795,215 +754,6 @@ export default function SettingsPage() {
                     </FormSection>
 
                     <FormSection
-                        title="Trakt"
-                        description="Keep Trakt lists in sync without hand-editing the config file."
-                        actions={
-                            <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={saveTraktSettings}
-                                    disabled={savingTrakt || loadingTrakt}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingTrakt ? "Saving…" : "Save Trakt Settings"}
-                                </button>
-                            </div>
-                        }
-                    >
-                        <FieldRow
-                            label="Enable Trakt"
-                            description="Toggle syncing Trakt lists to your Plex collections."
-                        >
-                            <Switch
-                                checked={traktSettings.enabled}
-                                onChange={() =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        enabled: !prev.enabled,
-                                    }))
-                                }
-                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
-                            >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
-                            </Switch>
-                        </FieldRow>
-
-                        <FieldRow
-                            label="Client ID"
-                            description="Found in your Trakt application settings."
-                        >
-                            <input
-                                type="text"
-                                placeholder="Trakt client ID"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={traktSettings.client_id}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        client_id: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
-                            />
-                        </FieldRow>
-
-                        <FieldRow
-                            label="Base URL"
-                            description="Override only if you self-host the Trakt API."
-                        >
-                            <input
-                                type="url"
-                                placeholder="https://api.trakt.tv"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={traktSettings.base_url}
-                                onChange={(e) =>
-                                    setTraktSettings((prev) => ({
-                                        ...prev,
-                                        base_url: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingTrakt}
-                            />
-                        </FieldRow>
-
-                        {traktMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {traktMessage}
-                            </div>
-                        ) : null}
-
-                        {traktError ? (
-                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                {traktError}
-                            </div>
-                        ) : null}
-
-                        <TestConnectionCta
-                            service="Trakt"
-                            status={traktTestStatus}
-                            onTest={handleTraktTestConnection}
-                            message="Run a dry connection test without restarting the service."
-                        />
-
-                        <div className="mt-6 space-y-3 rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-base font-semibold text-slate-100">Trakt lists</p>
-                                    <p className="text-xs text-slate-400">Add or remove Trakt list sources that sync into Plex collections.</p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addTraktSource}
-                                    disabled={savingSource || loadingTraktSources}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingSource ? "Adding…" : "Add list"}
-                                </button>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <input
-                                    type="text"
-                                    placeholder="Friendly name"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    value={newSource.name}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, name: e.target.value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                />
-                                <input
-                                    type="url"
-                                    placeholder="https://trakt.tv/users/you/lists/favorites"
-                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    value={newSource.url}
-                                    onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                />
-                                <Listbox
-                                    value={newSource.plex_library}
-                                    onChange={(value) => setNewSource((prev) => ({ ...prev, plex_library: value }))}
-                                    disabled={savingSource || loadingTraktSources}
-                                >
-                                    <div className="relative">
-                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
-                                            <span className={newSource.plex_library ? "text-slate-100" : "text-slate-500"}>
-                                                {newSource.plex_library || "Select Plex library"}
-                                            </span>
-                                            <ChevronDown className="h-4 w-4 text-slate-400" />
-                                        </Listbox.Button>
-                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
-                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
-                                                <div className="px-3 py-2 text-xs text-slate-500">
-                                                    No enabled Plex libraries configured.
-                                                </div>
-                                            ) : (
-                                                plexSettings.libraries
-                                                    .filter((lib) => lib.enabled)
-                                                    .map((lib) => (
-                                                        <Listbox.Option
-                                                            key={lib.name}
-                                                            value={lib.name}
-                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
-                                                        >
-                                                            {({ selected }) => (
-                                                                <>
-                                                                    <span>{lib.name}</span>
-                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
-                                                                </>
-                                                            )}
-                                                        </Listbox.Option>
-                                                    ))
-                                            )}
-                                        </Listbox.Options>
-                                    </div>
-                                </Listbox>
-                            </div>
-
-                            {traktSourcesMessage ? (
-                                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                    {traktSourcesMessage}
-                                </div>
-                            ) : null}
-
-                            {traktSourcesError ? (
-                                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                    {traktSourcesError}
-                                </div>
-                            ) : null}
-
-                            <div className="space-y-2">
-                                {loadingTraktSources ? (
-                                    <p className="text-xs text-slate-400">Loading sources…</p>
-                                ) : traktSources.length === 0 ? (
-                                    <p className="text-xs text-slate-400">No Trakt lists added yet.</p>
-                                ) : (
-                                    <ul className="divide-y divide-slate-800 border border-slate-800/80 rounded-lg">
-                                        {traktSources.map((source, idx) => (
-                                            <li key={`${source.name}-${idx}`} className="flex flex-col gap-2 p-3 md:flex-row md:items-center md:justify-between">
-                                                <div className="space-y-1">
-                                                    <p className="text-sm font-semibold text-slate-100">{source.name}</p>
-                                                    <p className="text-xs text-slate-400 break-all">{source.url}</p>
-                                                    <p className="text-xs text-slate-500">Plex library: {source.plex_library || "(none)"}</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeTraktSource(idx)}
-                                                    disabled={deletingSource === idx}
-                                                    className="self-start rounded-lg border border-rose-800 px-3 py-1 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/40 disabled:opacity-60"
-                                                >
-                                                    {deletingSource === idx ? "Removing…" : "Remove"}
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                    </FormSection>
-
-
-                    <FormSection
                         title="Other integrations"
                         description="Wire up optional services while keeping the configuration safe."
                     >
@@ -1062,6 +812,136 @@ export default function SettingsPage() {
                             />
                         </FieldRow>
                     </FormSection>
+                </div>
+            ) : null}
+
+            {activeTab === "logs" ? (
+                <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                        <div>
+                            <h2 className="text-white text-2xl font-bold">Application Logs</h2>
+                            <p className="text-slate-400 text-sm">
+                                {lines.length} lines • {counts.errorN} errors • {counts.warnN} warnings
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            <IconButton label="Refresh" onClick={fetchLogs} disabled={loadingLogs}>
+                                <RefreshCw size={18} />
+                                Refresh
+                            </IconButton>
+
+                            <IconButton
+                                label={paused ? "Resume polling" : "Pause polling"}
+                                onClick={() => setPaused((p) => !p)}
+                            >
+                                {paused ? <Play size={18} /> : <Pause size={18} />}
+                                {paused ? "Resume" : "Pause"}
+                            </IconButton>
+
+                            <IconButton label="Copy visible" onClick={copyVisible} disabled={filtered.length === 0}>
+                                <Copy size={18} />
+                                Copy
+                            </IconButton>
+
+                            <IconButton label="Clear (local)" onClick={clearLocal} disabled={lines.length === 0}>
+                                <Trash2 size={18} />
+                                Clear
+                            </IconButton>
+                        </div>
+                    </div>
+
+                    {/* Toolbar */}
+                    <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+                        <div className="relative flex-1">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Search logs…"
+                                className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 items-center">
+                            <Listbox value={level} onChange={(val) => setLevel(val)}>
+                                <div className="relative">
+                                    <Listbox.Button className="px-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 flex items-center gap-2 min-w-[140px] justify-between">
+                                        <span>
+                                            {level === "ALL" ? "All levels" :
+                                             level === "ERROR" ? "Error" :
+                                             level === "WARN" ? "Warn" :
+                                             level === "INFO" ? "Info" : "Debug"}
+                                        </span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden focus:outline-none">
+                                        {[
+                                            { value: "ALL", label: "All levels" },
+                                            { value: "ERROR", label: "Error" },
+                                            { value: "WARN", label: "Warn" },
+                                            { value: "INFO", label: "Info" },
+                                            { value: "DEBUG", label: "Debug" },
+                                        ].map((option) => (
+                                            <Listbox.Option
+                                                key={option.value}
+                                                value={option.value}
+                                                className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-800"
+                                            >
+                                                <div className="flex items-center justify-between text-slate-100">
+                                                    <span className="data-[selected]:font-medium">{option.label}</span>
+                                                    <Check size={16} className="text-emerald-500 invisible data-[selected]:visible" />
+                                                </div>
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
+                        </div>
+                    </div>
+
+                    {/* Viewer */}
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+                            <div className="text-slate-200 font-semibold text-sm">Log stream</div>
+                            <div className="text-slate-400 text-xs">
+                                Showing {filtered.length} / {lines.length}
+                            </div>
+                        </div>
+
+                        {logsError ? (
+                            <div className="p-4 text-amber-300 text-sm whitespace-pre-wrap">{logsError}</div>
+                        ) : (
+                            <div
+                                ref={scrollerRef}
+                                className="max-h-[70vh] overflow-auto font-mono text-[12px] leading-relaxed"
+                            >
+                                {loadingLogs && lines.length === 0 ? (
+                                    <div className="p-4 text-slate-400">Loading logs…</div>
+                                ) : filtered.length === 0 ? (
+                                    <div className="p-4 text-slate-400">No matching log lines.</div>
+                                ) : (
+                                    filtered.map((line, idx) => {
+                                        const lvl = guessLevel(line);
+                                        return (
+                                            <div
+                                                key={`${idx}-${line.slice(0, 16)}`}
+                                                className="grid grid-cols-[52px_90px_1fr] gap-3 px-4 py-2 border-b border-slate-900/60 hover:bg-white/[0.03]"
+                                            >
+                                                <div className="text-slate-600 text-right tabular-nums">{idx + 1}</div>
+                                                <div>
+                                                    <LevelBadge level={lvl} />
+                                                </div>
+                                                <div className="text-slate-200 whitespace-pre-wrap break-words">{line}</div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             ) : null}
         </div>

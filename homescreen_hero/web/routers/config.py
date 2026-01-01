@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime
 from typing import List, Literal, Optional
 
 import yaml
@@ -86,6 +87,40 @@ class CollectionSourcesResponse(BaseModel):
 
     plex: List[CollectionSource]
     trakt: List[CollectionSource]
+
+
+class TraktSourceStatus(BaseModel):
+    """Status information for a Trakt source including sync history."""
+    source_index: int
+    name: str
+    last_sync_time: Optional[datetime] = None
+    sync_status: Literal["success", "error", "pending", "never_synced"]
+    error_message: Optional[str] = None
+    items_matched: int = 0
+    items_total: int = 0
+
+
+class TraktSyncResponse(BaseModel):
+    """Response from manual Trakt sync operation."""
+    ok: bool
+    message: str
+    items_total: int
+    items_matched: int
+    items_missing: int
+    sync_time: datetime
+
+
+class TraktMissingItemOut(BaseModel):
+    """A Trakt item that wasn't found in Plex."""
+    title: str
+    year: Optional[int]
+    trakt_id: Optional[int]
+    slug: Optional[str]
+    imdb_id: Optional[str]
+    tmdb_id: Optional[int]
+    first_seen: datetime
+    last_seen: datetime
+    times_seen: int
 
 
 # Helper to load and save the full config mapping
@@ -400,6 +435,125 @@ def delete_trakt_source(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Get sync status for all Trakt sources
+@router.get("/trakt/sources/status", response_model=list[TraktSourceStatus])
+def get_trakt_sources_status(
+    current_user: str = Depends(get_current_user)
+) -> list[TraktSourceStatus]:
+    """Return sync status for each configured Trakt source."""
+    try:
+        config = load_config()
+        sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
+
+        # For now, return basic status without historical sync data
+        # Future enhancement: query database for actual sync history
+        statuses: list[TraktSourceStatus] = []
+        for idx, source in enumerate(sources):
+            statuses.append(
+                TraktSourceStatus(
+                    source_index=idx,
+                    name=source.name,
+                    last_sync_time=None,
+                    sync_status="never_synced",
+                    error_message=None,
+                    items_matched=0,
+                    items_total=0,
+                )
+            )
+
+        return statuses
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Manually trigger sync for a specific Trakt source
+@router.post("/trakt/sources/{index}/sync", response_model=TraktSyncResponse)
+def sync_trakt_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> TraktSyncResponse:
+    """Manually sync a specific Trakt source to Plex collection."""
+    try:
+        from homescreen_hero.core.integrations.trakt_sync import sync_single_trakt_source
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Trakt source not found")
+
+        source = sources[index]
+        server = get_plex_server(config)
+
+        # Execute the sync
+        total, matched = sync_single_trakt_source(server, config, source)
+        missing = total - matched
+
+        return TraktSyncResponse(
+            ok=True,
+            message=f"Synced '{source.name}' successfully",
+            items_total=total,
+            items_matched=matched,
+            items_missing=missing,
+            sync_time=datetime.utcnow(),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error syncing Trakt source at index %d: %s", index, exc)
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
+
+
+# Get missing items for a specific Trakt source
+@router.get("/trakt/sources/{index}/missing", response_model=list[TraktMissingItemOut])
+def get_missing_items_for_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> list[TraktMissingItemOut]:
+    """Get items from a Trakt list that weren't found in Plex."""
+    try:
+        from homescreen_hero.core.db import get_session
+        from homescreen_hero.core.db.models import TraktMissingItem
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Trakt source not found")
+
+        source = sources[index]
+
+        # Query database for missing items from this source
+        with get_session() as session:
+            results = session.query(TraktMissingItem).filter(
+                TraktMissingItem.source_name == source.name,
+                TraktMissingItem.source_url == source.url
+            ).order_by(TraktMissingItem.last_seen.desc()).all()
+
+            # Convert to response model
+            return [
+                TraktMissingItemOut(
+                    title=item.title,
+                    year=item.year,
+                    trakt_id=item.trakt_id,
+                    slug=item.slug,
+                    imdb_id=item.imdb_id,
+                    tmdb_id=item.tmdb_id,
+                    first_seen=item.first_seen,
+                    last_seen=item.last_seen,
+                    times_seen=item.times_seen,
+                )
+                for item in results
+            ]
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Error fetching missing items for source at index %d: %s", index, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
