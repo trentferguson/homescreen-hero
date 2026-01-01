@@ -277,6 +277,12 @@ export default function IntegrationsPage() {
                 .then((resp) => resp.json())
                 .then((data: TraktSource[]) => setTraktSources(data || []));
 
+            // Clear all index-based caches since indices have shifted after deletion
+            setTraktMissingItems(new Map());
+            setExpandedMissingItems(new Set());
+            setMissingItemsPage(new Map());
+            setTraktStatuses(new Map());
+
             const data: ConfigSaveResponse = await r.json();
             setTraktSourcesMessage(data.message);
         } catch (e) {
