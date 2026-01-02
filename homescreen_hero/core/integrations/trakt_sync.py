@@ -142,19 +142,28 @@ def sync_single_trakt_source(
         # Create collection if it doesn't exist
         plex_item.addCollection(source.name)
 
-    new_keys = {item.ratingKey for item in matched_items}
-    to_remove_keys = existing_ids - new_keys
+    # Only remove items if we successfully fetched items from Trakt
+    # This prevents wiping collections on network errors or API failures
+    if items:
+        new_keys = {item.ratingKey for item in matched_items}
+        to_remove_keys = existing_ids - new_keys
 
-    for old_item in existing_collection_items:
-        if old_item.ratingKey in to_remove_keys:
-            try:
-                old_item.removeCollection(source.name)
-            except Exception:
-                logger.warning(
-                    "Failed to remove %s from collection %s",
-                    old_item.title,
-                    source.name,
-                )
+        for old_item in existing_collection_items:
+            if old_item.ratingKey in to_remove_keys:
+                try:
+                    old_item.removeCollection(source.name)
+                except Exception:
+                    logger.warning(
+                        "Failed to remove %s from collection %s",
+                        old_item.title,
+                        source.name,
+                    )
+    else:
+        logger.warning(
+            "Trakt source '%s' returned no items - skipping removal to prevent data loss. "
+            "This could indicate a network error or API failure.",
+            source.name,
+        )
 
     total = len(items)
     matched = len(matched_items)

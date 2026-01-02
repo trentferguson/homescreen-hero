@@ -151,19 +151,28 @@ def sync_single_letterboxd_source(
         # Create collection if it doesn't exist
         plex_item.addCollection(source.name)
 
-    new_keys = {item.ratingKey for item in matched_items}
-    to_remove_keys = existing_ids - new_keys
+    # Only remove items if we successfully scraped movies from Letterboxd
+    # This prevents wiping collections on network errors or temporarily unavailable lists
+    if movies:
+        new_keys = {item.ratingKey for item in matched_items}
+        to_remove_keys = existing_ids - new_keys
 
-    for old_item in existing_collection_items:
-        if old_item.ratingKey in to_remove_keys:
-            try:
-                old_item.removeCollection(source.name)
-            except Exception:
-                logger.warning(
-                    "Failed to remove %s from collection %s",
-                    old_item.title,
-                    source.name,
-                )
+        for old_item in existing_collection_items:
+            if old_item.ratingKey in to_remove_keys:
+                try:
+                    old_item.removeCollection(source.name)
+                except Exception:
+                    logger.warning(
+                        "Failed to remove %s from collection %s",
+                        old_item.title,
+                        source.name,
+                    )
+    else:
+        logger.warning(
+            "Letterboxd source '%s' returned no movies - skipping removal to prevent data loss. "
+            "This could indicate a network error or temporarily unavailable list.",
+            source.name,
+        )
 
     total = len(movies)
     matched = len(matched_items)
