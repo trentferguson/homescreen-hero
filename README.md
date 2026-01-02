@@ -281,6 +281,27 @@ A ready-to-use Compose file builds the service, exposes the API on **port 8000**
 docker-compose up -d
 ```
 
+### Docker Image Tags
+
+HomeScreen Hero provides multiple Docker image tags to suit different needs:
+
+- **`latest`** - Latest stable release (recommended for production)
+  ```bash
+  docker pull trentferguson/homescreen-hero:latest
+  ```
+
+- **`v0.3.1`, `v0.3.0`, etc.** - Specific version tags for pinned deployments
+  ```bash
+  docker pull trentferguson/homescreen-hero:v0.3.1
+  ```
+
+- **`nightly`** - Automated builds from the `develop` branch (unstable, for testing)
+  ```bash
+  docker pull trentferguson/homescreen-hero:nightly
+  ```
+
+  ⚠️ **Warning**: Nightly builds contain the latest features and fixes but may include bugs or breaking changes. Use at your own risk!
+
 ### Environment Variables in Docker
 
 The `docker-compose.yml` is configured to read sensitive values from a `.env` file:
