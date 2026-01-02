@@ -8,6 +8,7 @@ import logging
 from .integrations import (
     get_plex_server,
     sync_all_trakt_sources,
+    sync_all_letterboxd_sources,
     apply_home_screen_selection,
 )
 
@@ -50,6 +51,9 @@ def run_rotation_once(
 
     # Check that Trakt-backed Plex collections are up to date
     sync_all_trakt_sources(server, config)
+
+    # Check that Letterboxd-backed Plex collections are up to date
+    sync_all_letterboxd_sources(server, config)
 
     max_rotation_id, usage_map = get_rotation_history_context()
 
