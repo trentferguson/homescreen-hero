@@ -490,11 +490,7 @@ export default function Dashboard() {
                     <div className="flex flex-col gap-1.5">
                         <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Monitor rotation status, history, and collection usage.{schedulerStatus?.enabled && schedulerStatus.is_running && schedulerStatus.next_run_time ? (
-                                <span className="text-slate-600 dark:text-slate-500"> Next rotation: <span className="font-semibold text-slate-700 dark:text-slate-400">{timeUntil(schedulerStatus.next_run_time, currentTime)}</span></span>
-                            ) : schedulerStatus?.enabled === false ? (
-                                <span className="text-amber-600 dark:text-amber-400"> (Auto-rotation disabled)</span>
-                            ) : null}
+                            Monitor rotation status, history, and collection usage.
                         </p>
                     </div>
 
