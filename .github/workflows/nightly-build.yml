@@ -1,0 +1,42 @@
+name: Nightly Build
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            trentferguson/homescreen-hero:nightly
+            trentferguson/homescreen-hero:develop
+          cache-from: type=registry,ref=trentferguson/homescreen-hero:nightly
+          cache-to: type=inline
+      
+      - name: Update nightly tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -f nightly
+          git push origin nightly --force
