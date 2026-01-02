@@ -58,6 +58,7 @@ def apply_home_screen_selection(
     #
     # Strategy:
     #   - Build the union of all config-defined collection names
+    #   - Also include previously rotated collections (from CollectionUsage table)
     #   - Fetch those collections from all enabled Plex libraries
     #   - For each:
     #       - If in selected_collection_names -> apply visibility settings from collection_visibility
@@ -69,6 +70,9 @@ def apply_home_screen_selection(
     #
     # Returns a list of collection titles that were (or would be) set to show on Home
 
+    # Import here to avoid circular dependency
+    from ..db.history import get_rotation_history_context
+
     # Get enabled libraries
     enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
 
@@ -78,6 +82,13 @@ def apply_home_screen_selection(
 
     selected_set = set(selected_collection_names)
     configured_names = get_configured_collection_names(config)
+
+    # Get all collections that have ever been rotated to ensure we clean them up if removed
+    _, usage_map = get_rotation_history_context()
+    previously_rotated_names = set(usage_map.keys())
+
+    # Process both currently configured collections AND previously rotated ones
+    all_names_to_process = configured_names | previously_rotated_names
 
     # Fetch collections from all enabled libraries
     all_collections: Dict[str, object] = {}
@@ -93,19 +104,23 @@ def apply_home_screen_selection(
     applied: List[str] = []
 
     logger.info(
-        "Applying home screen selection to %d configured collections across %d libraries (dry_run=%s)",
+        "Applying home screen selection to %d total collections (%d configured, %d previously rotated) across %d libraries (dry_run=%s)",
+        len(all_names_to_process),
         len(configured_names),
+        len(previously_rotated_names),
         len(enabled_libraries),
         dry_run,
     )
 
-    for name in sorted(configured_names):
+    for name in sorted(all_names_to_process):
         coll = all_collections.get(name)
         if coll is None:
-            logger.warning(
-                "Configured collection not found in any enabled Plex library: %s",
-                name,
-            )
+            # Collection not found in Plex - might have been deleted from Plex library
+            if name in configured_names:
+                logger.warning(
+                    "Configured collection not found in any enabled Plex library: %s",
+                    name,
+                )
             continue
 
         hub = coll.visibility()
@@ -133,14 +148,18 @@ def apply_home_screen_selection(
                     recommended=visibility.get("recommended", False)
                 )
         else:
-            logger.debug("Disabling all visibility for collection: %s", name)
+            # Collection is either configured but not selected, or was previously rotated but removed from config
+            if name in previously_rotated_names and name not in configured_names:
+                logger.info("Disabling visibility for previously managed collection (removed from config): %s", name)
+            else:
+                logger.debug("Disabling visibility for collection: %s", name)
             if not dry_run:
                 hub.updateVisibility(home=False, shared=False, recommended=False)
 
     logger.info(
-        "Home screen selection applied; %d collections enabled, %d configured",
+        "Home screen selection applied; %d collections enabled, %d collections processed",
         len(applied),
-        len(configured_names),
+        len(all_names_to_process),
     )
 
     if dry_run:

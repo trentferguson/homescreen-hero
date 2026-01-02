@@ -90,3 +90,34 @@ class TraktMissingItem(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class LetterboxdMissingItem(Base):
+    __tablename__ = "letterboxd_missing_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Which Letterboxd source this came from
+    source_name: Mapped[str] = mapped_column(String, nullable=False)
+    source_url: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Where we expected to find it in Plex
+    plex_library: Mapped[str] = mapped_column(String, nullable=False)
+    plex_collection: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Movie identity
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Letterboxd identifiers
+    slug: Mapped[str] = mapped_column(String, nullable=False)
+    letterboxd_url: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Tracking
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

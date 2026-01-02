@@ -16,13 +16,8 @@
 
 **[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
 
-## Try the Demo
-
-**[Check out the live demo](https://demo.homescreenhero.com)** to see HomeScreen Hero in action!
-
 </div>
 
-## A Quick Heads Up
 ## A Quick Heads Up
 
 This app is very much a **WORK IN PROGRESS**. This started as a simple Python script to rotate my Plex homescreen, and slowly turned in to much, much more. I still have a lot of really cool things planned in the coming weeks, so stay tuned!
@@ -40,7 +35,7 @@ This app is very much a **WORK IN PROGRESS**. This started as a simple Python sc
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
 -   **Manage all your Collections in One Place:** Whether it be your already existing Plex collections, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
 -   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
--   ** 3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt lists (IMDb, TMDb, TVDb, and more coming soon!)
+-   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt & Letterboxd lists (IMDb, TMDb, TVDb, and more coming soon!)
 -   **Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
 -   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
@@ -240,6 +235,7 @@ rotation:
   max_collections: 5
   strategy: random
   allow_repeats: false
+  sync_all_on_rotation: false # Controls if all third-party lists are synced on rotation, or just lists selected during rotation
 trakt:
   enabled: false
   client_id: "YOUR_TRAKT_CLIENT_ID"

@@ -1,10 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, UploadFile, File, Form
 from pydantic import BaseModel
 import logging
 import random
 import requests
+import tempfile
+import os
 from cachetools import TTLCache
 
 from homescreen_hero.core.config.loader import load_config
@@ -75,6 +77,12 @@ class CollectionDetailResponse(BaseModel):
     title: str
     library: str
     summary: Optional[str] = None
+    poster_url: Optional[str] = None
+    sort_title: Optional[str] = None
+    content_rating: Optional[str] = None
+    labels: List[str] = []
+    collection_mode: Optional[str] = None
+    collection_order: Optional[str] = None
     item_count: int
     items: List[CollectionItemOut]
 
@@ -110,6 +118,11 @@ class CreateCollectionRequest(BaseModel):
 class UpdateCollectionRequest(BaseModel):
     title: Optional[str] = None
     summary: Optional[str] = None
+    sort_title: Optional[str] = None
+    content_rating: Optional[str] = None
+    labels: Optional[List[str]] = None
+    collection_mode: Optional[str] = None  # "default", "hide", "hideItems", "showItems"
+    collection_order: Optional[str] = None  # "release", "alpha", "custom"
 
 
 logger = logging.getLogger(__name__)
@@ -455,10 +468,44 @@ def get_collection_details(
 
         summary = getattr(collection, "summary", None)
 
+        # Get poster URL
+        poster_url = None
+        if hasattr(collection, "thumb") and collection.thumb:
+            poster_url = server.url(collection.thumb, includeToken=True)
+
+        # Get additional metadata
+        sort_title = getattr(collection, "titleSort", None)
+        content_rating = getattr(collection, "contentRating", None)
+
+        # Get labels
+        labels = []
+        if hasattr(collection, "labels"):
+            labels = [label.tag for label in collection.labels]
+
+        # Map collection mode from integer to string
+        collection_mode = None
+        mode_value = getattr(collection, "collectionMode", None)
+        if mode_value is not None:
+            mode_map = {-1: "default", 0: "hide", 1: "hideItems", 2: "showItems"}
+            collection_mode = mode_map.get(mode_value)
+
+        # Map collection order from integer to string
+        collection_order = None
+        order_value = getattr(collection, "collectionSort", None)
+        if order_value is not None:
+            order_map = {0: "release", 1: "alpha", 2: "custom"}
+            collection_order = order_map.get(order_value)
+
         return CollectionDetailResponse(
             title=collection.title,
             library=library,
             summary=summary,
+            poster_url=poster_url,
+            sort_title=sort_title,
+            content_rating=content_rating,
+            labels=labels,
+            collection_mode=collection_mode,
+            collection_order=collection_order,
             item_count=len(collection_items),
             items=collection_items,
         )
@@ -704,11 +751,48 @@ def update_collection(
 
         # Apply edits using the new non-deprecated methods
         updated = False
-        if request.title:
+
+        if request.title is not None:
             collection.editTitle(request.title)
             updated = True
-        if request.summary:
+
+        if request.summary is not None:
             collection.editSummary(request.summary)
+            updated = True
+
+        if request.sort_title is not None:
+            collection.editSortTitle(request.sort_title)
+            updated = True
+
+        if request.content_rating is not None:
+            collection.editContentRating(request.content_rating)
+            updated = True
+
+        # Handle labels - replace all labels
+        if request.labels is not None:
+            # Get current labels
+            current_labels = [label.tag for label in collection.labels] if hasattr(collection, "labels") else []
+
+            # Remove labels that aren't in the new list
+            for label in current_labels:
+                if label not in request.labels:
+                    collection.removeLabel(label)
+
+            # Add labels that aren't already present
+            for label in request.labels:
+                if label not in current_labels:
+                    collection.addLabel(label)
+
+            updated = True
+
+        # Handle collection mode
+        if request.collection_mode is not None:
+            collection.modeUpdate(mode=request.collection_mode)
+            updated = True
+
+        # Handle collection order
+        if request.collection_order is not None:
+            collection.sortUpdate(sort=request.collection_order)
             updated = True
 
         if not updated:
@@ -763,4 +847,181 @@ def delete_collection(library: str, collection_title: str) -> dict:
         logger.error(f"Error deleting collection: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to delete collection: {str(e)}"
+        )
+
+
+# Upload a poster to a collection (from file or URL)
+@router.post("/{library}/{collection_title}/upload-poster")
+async def upload_collection_poster(
+    library: str,
+    collection_title: str,
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str] = Form(None),
+) -> dict:
+    """
+    Upload a custom poster to a Plex collection.
+    Either provide a file upload OR a URL to a poster image.
+    """
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Validate that exactly one input method is provided
+        if not file and not url:
+            raise HTTPException(
+                status_code=400,
+                detail="Either 'file' or 'url' must be provided",
+            )
+        if file and url:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide either 'file' or 'url', not both",
+            )
+
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the collection
+        collection = None
+        for col in section.collections():
+            if col.title == collection_title:
+                collection = col
+                break
+
+        if not collection:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Collection '{collection_title}' not found in library '{library}'",
+            )
+
+        # Upload poster based on input method
+        if url:
+            # Upload from URL
+            logger.info(f"Uploading poster from URL for collection '{collection_title}': {url}")
+            collection.uploadPoster(url=url)
+            logger.info(f"Successfully uploaded poster from URL for collection '{collection_title}'")
+        else:
+            # Upload from file
+            logger.info(f"Uploading poster from file for collection '{collection_title}': {file.filename}")
+
+            # Create a temporary file to save the uploaded content
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                # Read and write the uploaded file content
+                content = await file.read()
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+
+            try:
+                # Upload the poster using the temporary file
+                collection.uploadPoster(filepath=temp_file_path)
+                logger.info(f"Successfully uploaded poster from file for collection '{collection_title}'")
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+        # Invalidate caches to show the new poster
+        invalidate_collections_cache()
+        poster_url_cache.clear()
+        poster_image_cache.clear()
+
+        return {
+            "success": True,
+            "message": f"Successfully uploaded poster for collection '{collection_title}'",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading poster: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to upload poster: {str(e)}"
+        )
+
+
+# Upload a poster to an item in a library (from file or URL)
+@router.post("/{library}/items/{rating_key}/upload-poster")
+async def upload_item_poster(
+    library: str,
+    rating_key: str,
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str] = Form(None),
+) -> dict:
+    """
+    Upload a custom poster to a Plex library item (movie or show).
+    Either provide a file upload OR a URL to a poster image.
+    """
+    config = load_config()
+    server = get_plex_server(config)
+
+    try:
+        # Validate that exactly one input method is provided
+        if not file and not url:
+            raise HTTPException(
+                status_code=400,
+                detail="Either 'file' or 'url' must be provided",
+            )
+        if file and url:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide either 'file' or 'url', not both",
+            )
+
+        # Get the library section
+        section = server.library.section(library)
+
+        # Find the item by rating key
+        item = section.fetchItem(int(rating_key))
+
+        if not item:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Item with rating key '{rating_key}' not found in library '{library}'",
+            )
+
+        # Upload poster based on input method
+        if url:
+            # Upload from URL
+            logger.info(f"Uploading poster from URL for item '{item.title}' ({rating_key}): {url}")
+            item.uploadPoster(url=url)
+            logger.info(f"Successfully uploaded poster from URL for item '{item.title}'")
+        else:
+            # Upload from file
+            logger.info(f"Uploading poster from file for item '{item.title}' ({rating_key}): {file.filename}")
+
+            # Create a temporary file to save the uploaded content
+            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
+                # Read and write the uploaded file content
+                content = await file.read()
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+
+            try:
+                # Upload the poster using the temporary file
+                item.uploadPoster(filepath=temp_file_path)
+                logger.info(f"Successfully uploaded poster from file for item '{item.title}'")
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.unlink(temp_file_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+
+        # Invalidate caches to show the new poster
+        poster_url_cache.clear()
+        poster_image_cache.clear()
+
+        return {
+            "success": True,
+            "message": f"Successfully uploaded poster for '{item.title}'",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading item poster: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to upload poster: {str(e)}"
         )

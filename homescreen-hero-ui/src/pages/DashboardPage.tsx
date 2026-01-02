@@ -323,6 +323,33 @@ export default function Dashboard() {
         }
     }
 
+    async function syncAllLists() {
+        try {
+            setBusy("sync");
+            setError(null);
+            const r = await fetchWithAuth("/api/rotate/sync-all", { method: "POST" });
+            if (!r.ok) throw new Error(`Sync failed: HTTP ${r.status} ${await r.text()}`);
+
+            const result = await r.json();
+
+            // Show success toast
+            setToast({
+                message: result.message || "All lists synced successfully!",
+                type: "success"
+            });
+
+            void loadActiveCollections();
+        } catch (e) {
+            setError(String(e));
+            setToast({
+                message: "Failed to sync lists",
+                type: "error"
+            });
+        } finally {
+            setBusy(null);
+        }
+    }
+
 
     return (
         <>
@@ -463,11 +490,7 @@ export default function Dashboard() {
                     <div className="flex flex-col gap-1.5">
                         <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Monitor rotation status, history, and collection usage.{schedulerStatus?.enabled && schedulerStatus.is_running && schedulerStatus.next_run_time ? (
-                                <span className="text-slate-600 dark:text-slate-500"> Next rotation: <span className="font-semibold text-slate-700 dark:text-slate-400">{timeUntil(schedulerStatus.next_run_time, currentTime)}</span></span>
-                            ) : schedulerStatus?.enabled === false ? (
-                                <span className="text-amber-600 dark:text-amber-400"> (Auto-rotation disabled)</span>
-                            ) : null}
+                            Monitor rotation status, history, and collection usage.
                         </p>
                     </div>
 
@@ -490,11 +513,19 @@ export default function Dashboard() {
                         </button>
 
                         <button
+                            onClick={syncAllLists}
+                            disabled={busy !== null}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
+                        >
+                            {busy === "sync" ? "Syncing…" : "Sync All Lists"}
+                        </button>
+
+                        <button
                             onClick={forceRunRotation}
                             disabled={busy !== null}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
                         >
-                            {busy === "sync" ? "Syncing…" : "Run Rotation Now"}
+                            {busy === "sync" ? "Running…" : "Run Rotation Now"}
                         </button>
                     </div>
                 </div>
