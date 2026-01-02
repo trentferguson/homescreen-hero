@@ -27,13 +27,14 @@ type CollectionGroup = {
 
 type CollectionSource = {
     name: string;
-    source: "plex" | "trakt";
+    source: "plex" | "trakt" | "letterboxd";
     detail?: string | null;
 };
 
 type CollectionSourcesResponse = {
     plex: CollectionSource[];
     trakt: CollectionSource[];
+    letterboxd: CollectionSource[];
 };
 
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
@@ -77,7 +78,7 @@ export default function GroupDetailPage() {
     const [message, setMessage] = useState<string | null>(null);
     const [sources, setSources] = useState<CollectionSource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-    const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt">("all");
+    const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd">("all");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 24; // 4 columns × 6 rows
 
@@ -117,7 +118,7 @@ export default function GroupDetailPage() {
         fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
-                const combined = [...(data.plex || []), ...(data.trakt || [])];
+                const combined = [...(data.plex || []), ...(data.trakt || []), ...(data.letterboxd || [])];
                 setSources(combined);
             })
             .catch(() => {
@@ -557,7 +558,7 @@ export default function GroupDetailPage() {
 
             <FormSection
                 title="Content sources"
-                description="Pull collections from Plex and Trakt. Use the quick-add buttons or type names manually."
+                description="Pull collections from Plex, Trakt, and Letterboxd. Use the quick-add buttons or type names manually."
                 actions={
                             <button
                                 type="button"
@@ -592,7 +593,7 @@ export default function GroupDetailPage() {
 
                         <FieldRow
                             label="Add from available sources"
-                            description="Choose from discovered Plex collections or configured Trakt lists."
+                            description="Choose from discovered Plex collections, configured Trakt lists, or Letterboxd lists."
                         >
                             <div className="flex flex-col gap-3 mb-3">
                                 <div className="relative">
@@ -639,6 +640,17 @@ export default function GroupDetailPage() {
                                 >
                                     Trakt
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("letterboxd")}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                        sourceFilter === "letterboxd"
+                                            ? "bg-green-500 text-white"
+                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                                    }`}
+                                >
+                                    Letterboxd
+                                </button>
                                 </div>
                             </div>
                             <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -652,12 +664,15 @@ export default function GroupDetailPage() {
                                         <div className="flex items-start justify-between gap-2">
                                             <p className="font-semibold text-sm leading-tight flex-1">{source.name}</p>
                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 ${source.source === "plex"
-                                                    ? "bg-blue-500/20 text-blue-100"
-                                                    : "bg-rose-500/20 text-rose-100"
+                                                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 ${
+                                                    source.source === "plex"
+                                                        ? "bg-blue-500/20 text-blue-100"
+                                                        : source.source === "trakt"
+                                                        ? "bg-rose-500/20 text-rose-100"
+                                                        : "bg-green-500/20 text-green-100"
                                                     }`}
                                             >
-                                                {source.source === "plex" ? "Plex" : "Trakt"}
+                                                {source.source === "plex" ? "Plex" : source.source === "trakt" ? "Trakt" : "Letterboxd"}
                                             </span>
                                         </div>
                                         {source.detail ? (
