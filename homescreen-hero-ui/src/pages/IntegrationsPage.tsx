@@ -544,6 +544,65 @@ export default function IntegrationsPage() {
         }
     }
 
+    async function addLetterboxdSource() {
+        try {
+            setSavingLetterboxdSource(true);
+            setLetterboxdSourcesError(null);
+            setLetterboxdSourcesMessage(null);
+
+            const r = await fetchWithAuth("/api/admin/config/letterboxd/sources", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newLetterboxdSource),
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            await fetchWithAuth("/api/admin/config/letterboxd/sources")
+                .then((resp) => resp.json())
+                .then((data: LetterboxdSource[]) => setLetterboxdSources(data || []));
+
+            setNewLetterboxdSource({ name: "", url: "", plex_library: "" });
+            const data: ConfigSaveResponse = await r.json();
+            setLetterboxdSourcesMessage(data.message);
+        } catch (e) {
+            setLetterboxdSourcesError(String(e));
+        } finally {
+            setSavingLetterboxdSource(false);
+        }
+    }
+
+    async function removeLetterboxdSource(index: number) {
+        try {
+            setDeletingLetterboxdSource(index);
+            setLetterboxdSourcesError(null);
+            setLetterboxdSourcesMessage(null);
+
+            const r = await fetchWithAuth(`/api/admin/config/letterboxd/sources/${index}`, {
+                method: "DELETE",
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            await fetchWithAuth("/api/admin/config/letterboxd/sources")
+                .then((resp) => resp.json())
+                .then((data: LetterboxdSource[]) => setLetterboxdSources(data || []));
+
+            // Clear all index-based caches since indices have shifted after deletion
+            setLetterboxdMissingItems(new Map());
+            setExpandedLetterboxdMissingItems(new Set());
+            setLetterboxdMissingItemsPage(new Map());
+            setLetterboxdStatuses(new Map());
+
+            const data: ConfigSaveResponse = await r.json();
+            setLetterboxdSourcesMessage(data.message);
+        } catch (e) {
+            setLetterboxdSourcesError(String(e));
+        } finally {
+            setDeletingLetterboxdSource(null);
+        }
+    }
+
     async function loadLetterboxdMissingItems(index: number) {
         if (letterboxdMissingItems.has(index)) {
             // Toggle collapse if already loaded
@@ -1023,45 +1082,40 @@ export default function IntegrationsPage() {
                                                                                     </div>
 
                                                                                     {totalPages > 1 && (
-                                                                                        <div className="flex items-center justify-between px-3 py-2 border-t border-slate-800 bg-slate-900/30">
-                                                                                            <p className="text-xs text-slate-400">
-                                                                                                Showing {startIndex + 1}-{Math.min(endIndex, missingItems.length)} of {missingItems.length}
-                                                                                            </p>
-                                                                                            <div className="flex items-center gap-2">
-                                                                                                <button
-                                                                                                    type="button"
-                                                                                                    onClick={() => {
-                                                                                                        setMissingItemsPage(prev => {
-                                                                                                            const newMap = new Map(prev);
-                                                                                                            newMap.set(idx, Math.max(0, currentPage - 1));
-                                                                                                            return newMap;
-                                                                                                        });
-                                                                                                    }}
-                                                                                                    disabled={currentPage === 0}
-                                                                                                    className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                                                                                                    aria-label="Previous page"
-                                                                                                >
-                                                                                                    <ChevronLeft size={16} />
-                                                                                                </button>
-                                                                                                <span className="text-xs text-slate-400">
-                                                                                                    Page {currentPage + 1} of {totalPages}
-                                                                                                </span>
-                                                                                                <button
-                                                                                                    type="button"
-                                                                                                    onClick={() => {
-                                                                                                        setMissingItemsPage(prev => {
-                                                                                                            const newMap = new Map(prev);
-                                                                                                            newMap.set(idx, Math.min(totalPages - 1, currentPage + 1));
-                                                                                                            return newMap;
-                                                                                                        });
-                                                                                                    }}
-                                                                                                    disabled={currentPage >= totalPages - 1}
-                                                                                                    className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
-                                                                                                    aria-label="Next page"
-                                                                                                >
-                                                                                                    <ChevronRight size={16} />
-                                                                                                </button>
-                                                                                            </div>
+                                                                                        <div className="flex items-center justify-center gap-3 pt-2">
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    setMissingItemsPage(prev => {
+                                                                                                        const newMap = new Map(prev);
+                                                                                                        newMap.set(idx, Math.max(0, currentPage - 1));
+                                                                                                        return newMap;
+                                                                                                    });
+                                                                                                }}
+                                                                                                disabled={currentPage === 0}
+                                                                                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                                                                                                aria-label="Previous page"
+                                                                                            >
+                                                                                                <ChevronLeft size={16} />
+                                                                                            </button>
+                                                                                            <span className="text-xs text-slate-400">
+                                                                                                Page {currentPage + 1} of {totalPages}
+                                                                                            </span>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    setMissingItemsPage(prev => {
+                                                                                                        const newMap = new Map(prev);
+                                                                                                        newMap.set(idx, Math.min(totalPages - 1, currentPage + 1));
+                                                                                                        return newMap;
+                                                                                                    });
+                                                                                                }}
+                                                                                                disabled={currentPage >= totalPages - 1}
+                                                                                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                                                                                                aria-label="Next page"
+                                                                                            >
+                                                                                                <ChevronRight size={16} />
+                                                                                            </button>
                                                                                         </div>
                                                                                     )}
                                                                                 </>
@@ -1089,16 +1143,78 @@ export default function IntegrationsPage() {
                                 <div>
                                     <h3 className="text-lg font-semibold text-slate-100">Letterboxd Lists</h3>
                                     <p className="text-xs text-slate-400 mt-1">
-                                        Letterboxd list sources that sync into Plex collections. No API key required - uses web scraping.
+                                        Add or remove Letterboxd list sources that sync into Plex collections.
                                     </p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={addLetterboxdSource}
+                                    disabled={savingLetterboxdSource || loadingLetterboxdSources || !newLetterboxdSource.name || !newLetterboxdSource.url || !newLetterboxdSource.plex_library}
+                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {savingLetterboxdSource ? "Adding…" : "Add List"}
+                                </button>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <input
+                                    type="text"
+                                    placeholder="Friendly name"
+                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    value={newLetterboxdSource.name}
+                                    onChange={(e) => setNewLetterboxdSource((prev) => ({ ...prev, name: e.target.value }))}
+                                    disabled={savingLetterboxdSource || loadingLetterboxdSources}
+                                />
+                                <input
+                                    type="url"
+                                    placeholder="https://letterboxd.com/username/list/listname/"
+                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    value={newLetterboxdSource.url}
+                                    onChange={(e) => setNewLetterboxdSource((prev) => ({ ...prev, url: e.target.value }))}
+                                    disabled={savingLetterboxdSource || loadingLetterboxdSources}
+                                />
+                                <Listbox
+                                    value={newLetterboxdSource.plex_library}
+                                    onChange={(value) => setNewLetterboxdSource((prev) => ({ ...prev, plex_library: value }))}
+                                    disabled={savingLetterboxdSource || loadingLetterboxdSources}
+                                >
+                                    <div className="relative">
+                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
+                                            <span className={newLetterboxdSource.plex_library ? "text-slate-100" : "text-slate-500"}>
+                                                {newLetterboxdSource.plex_library || "Select Plex library"}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
+                                                <div className="px-3 py-2 text-xs text-slate-500">No enabled Plex libraries configured.</div>
+                                            ) : (
+                                                plexSettings.libraries
+                                                    .filter((lib) => lib.enabled)
+                                                    .map((lib) => (
+                                                        <Listbox.Option
+                                                            key={lib.name}
+                                                            value={lib.name}
+                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
+                                                        >
+                                                            {({ selected }) => (
+                                                                <>
+                                                                    <span>{lib.name}</span>
+                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
+                                                                </>
+                                                            )}
+                                                        </Listbox.Option>
+                                                    ))
+                                            )}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
                             </div>
 
                             <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3">
                                 <p className="text-xs text-amber-200">
                                     <strong>Note:</strong> Letterboxd integration uses web scraping since their API requires approval.
                                     Movies are matched by title and year, which may be less accurate than ID-based matching.
-                                    Add sources via config.yaml, then sync them here.
                                 </p>
                             </div>
 
@@ -1118,7 +1234,7 @@ export default function IntegrationsPage() {
                                 {loadingLetterboxdSources ? (
                                     <p className="text-xs text-slate-400">Loading sources…</p>
                                 ) : letterboxdSources.length === 0 ? (
-                                    <p className="text-xs text-slate-400">No Letterboxd lists configured yet. Add them via config.yaml.</p>
+                                    <p className="text-xs text-slate-400">No Letterboxd lists added yet. Use the form above to add your first list.</p>
                                 ) : (
                                     letterboxdSources.map((source, idx) => {
                                         const status = letterboxdStatuses.get(idx);
@@ -1160,6 +1276,14 @@ export default function IntegrationsPage() {
                                                             >
                                                                 <RefreshCw className={`h-3 w-3 ${syncingLetterboxdSource === idx ? "animate-spin" : ""}`} />
                                                                 {syncingLetterboxdSource === idx ? "Syncing…" : "Sync Now"}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeLetterboxdSource(idx)}
+                                                                disabled={deletingLetterboxdSource === idx}
+                                                                className="rounded-lg border border-rose-800 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/40 disabled:opacity-60"
+                                                            >
+                                                                {deletingLetterboxdSource === idx ? "Removing…" : "Remove"}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1203,20 +1327,37 @@ export default function IntegrationsPage() {
                                                                                             className="flex items-start justify-between gap-3 rounded-md border border-slate-800/40 bg-slate-950/40 px-3 py-2"
                                                                                         >
                                                                                             <div className="flex-1 min-w-0">
-                                                                                                <p className="text-xs font-medium text-slate-200 truncate">
-                                                                                                    {item.title}
-                                                                                                    {item.year ? ` (${item.year})` : ""}
-                                                                                                </p>
-                                                                                                {item.letterboxd_url && (
-                                                                                                    <a
-                                                                                                        href={item.letterboxd_url}
-                                                                                                        target="_blank"
-                                                                                                        rel="noopener noreferrer"
-                                                                                                        className="text-xs text-primary/80 hover:text-primary underline truncate block"
-                                                                                                    >
-                                                                                                        View on Letterboxd →
-                                                                                                    </a>
-                                                                                                )}
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <p className="text-xs font-medium text-slate-200 truncate">
+                                                                                                        {item.title}
+                                                                                                        {item.year ? ` (${item.year})` : ""}
+                                                                                                    </p>
+                                                                                                    {item.letterboxd_url && (
+                                                                                                        <a
+                                                                                                            href={item.letterboxd_url}
+                                                                                                            target="_blank"
+                                                                                                            rel="noopener noreferrer"
+                                                                                                            className="text-primary/70 hover:text-primary transition flex-shrink-0"
+                                                                                                            title="View on Letterboxd"
+                                                                                                        >
+                                                                                                            <svg
+                                                                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                                                                width="14"
+                                                                                                                height="14"
+                                                                                                                viewBox="0 0 24 24"
+                                                                                                                fill="none"
+                                                                                                                stroke="currentColor"
+                                                                                                                strokeWidth="2"
+                                                                                                                strokeLinecap="round"
+                                                                                                                strokeLinejoin="round"
+                                                                                                            >
+                                                                                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                                                                                <polyline points="15 3 21 3 21 9"></polyline>
+                                                                                                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                                                                                                            </svg>
+                                                                                                        </a>
+                                                                                                    )}
+                                                                                                </div>
                                                                                             </div>
                                                                                             <div className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
                                                                                                 <span>Seen {item.times_seen}x</span>
