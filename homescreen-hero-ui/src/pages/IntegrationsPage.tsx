@@ -253,7 +253,6 @@ export default function IntegrationsPage() {
         if (loadingLetterboxdSources || letterboxdSources.length === 0) return;
 
         let isMounted = true;
-        setLoadingLetterboxdStatuses(true);
 
         fetchWithAuth("/api/admin/config/letterboxd/sources/status")
             .then(async (r) => {
