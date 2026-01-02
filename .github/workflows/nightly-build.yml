@@ -6,6 +6,9 @@ on:
       - develop
   workflow_dispatch:  # Allow manual triggering
 
+permissions:
+  contents: write  # Required to push tags
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
