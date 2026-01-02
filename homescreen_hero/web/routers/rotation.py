@@ -11,6 +11,7 @@ from homescreen_hero.core.service import (
     apply_simulation,
     run_rotation_once,
     simulate_rotation_once,
+    sync_all_sources,
 )
 from homescreen_hero.core.config.schema import RotationExecution
 from homescreen_hero.core.config.loader import load_config
@@ -128,4 +129,26 @@ def get_scheduler_status(current_user: str = Depends(get_current_user)) -> Sched
         )
     except Exception as exc:
         logger.exception("Failed to get scheduler status")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+class SyncResponse(BaseModel):
+    status: str
+    message: str
+
+
+@router.post("/sync-all", response_model=SyncResponse)
+def sync_all(current_user: str = Depends(get_current_user)) -> SyncResponse:
+    """Manually sync all Trakt and Letterboxd sources without running a rotation."""
+    try:
+        logger.info("Handling /sync-all request")
+        sync_all_sources()
+        # Invalidate collections cache so newly synced collections are visible
+        invalidate_collections_cache()
+        return SyncResponse(
+            status="success",
+            message="All Trakt and Letterboxd sources have been synced successfully"
+        )
+    except Exception as exc:
+        logger.exception("Manual sync failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

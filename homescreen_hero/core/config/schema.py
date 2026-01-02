@@ -49,6 +49,10 @@ class RotationSettings(BaseModel):
         default=False,
         description="Allow same collection to appear in consecutive rotations",
     )
+    sync_all_on_rotation: bool = Field(
+        default=True,
+        description="Whether to sync all Trakt/Letterboxd lists on every rotation (true) or only selected collections (false)",
+    )
 
 
 class CollectionGroupConfig(BaseModel):
