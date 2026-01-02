@@ -3,8 +3,6 @@ import { fetchWithAuth } from "../utils/api";
 import { Switch, Listbox, Tab } from "@headlessui/react";
 import { Check, ChevronDown, RefreshCw, ChevronRight, Wifi, WifiOff, ChevronLeft } from "lucide-react";
 import FieldRow from "../components/FieldRow";
-import FormSection from "../components/FormSection";
-import TestConnectionCta from "../components/TestConnectionCta";
 
 type PlexLibraryConfig = { name: string; enabled: boolean };
 type PlexSettings = { base_url: string; token: string; libraries: PlexLibraryConfig[] };
@@ -30,7 +28,6 @@ type TraktMissingItem = {
     last_seen: string;
     times_seen: number;
 };
-type LetterboxdSettings = { enabled: boolean; sources?: LetterboxdSource[] };
 type LetterboxdSource = { name: string; url: string; plex_library: string };
 type LetterboxdSourceStatus = {
     source_index: number;
@@ -71,7 +68,6 @@ export default function IntegrationsPage() {
 
     const [loadingTrakt, setLoadingTrakt] = useState(true);
     const [loadingTraktSources, setLoadingTraktSources] = useState(true);
-    const [loadingStatuses, setLoadingStatuses] = useState(false);
     const [savingTrakt, setSavingTrakt] = useState(false);
     const [savingSource, setSavingSource] = useState(false);
     const [syncingSource, setSyncingSource] = useState<number | null>(null);
@@ -84,26 +80,18 @@ export default function IntegrationsPage() {
     const [traktSourcesMessage, setTraktSourcesMessage] = useState<string | null>(null);
 
     // Letterboxd settings state
-    const [letterboxdSettings, setLetterboxdSettings] = useState<LetterboxdSettings>({
-        enabled: false,
-    });
     const [letterboxdSources, setLetterboxdSources] = useState<LetterboxdSource[]>([]);
     const [letterboxdStatuses, setLetterboxdStatuses] = useState<Map<number, LetterboxdSourceStatus>>(new Map());
     const [letterboxdMissingItems, setLetterboxdMissingItems] = useState<Map<number, LetterboxdMissingItem[]>>(new Map());
     const [expandedLetterboxdMissingItems, setExpandedLetterboxdMissingItems] = useState<Set<number>>(new Set());
     const [letterboxdMissingItemsPage, setLetterboxdMissingItemsPage] = useState<Map<number, number>>(new Map());
 
-    const [loadingLetterboxd, setLoadingLetterboxd] = useState(true);
     const [loadingLetterboxdSources, setLoadingLetterboxdSources] = useState(true);
-    const [loadingLetterboxdStatuses, setLoadingLetterboxdStatuses] = useState(false);
-    const [savingLetterboxd, setSavingLetterboxd] = useState(false);
     const [savingLetterboxdSource, setSavingLetterboxdSource] = useState(false);
     const [syncingLetterboxdSource, setSyncingLetterboxdSource] = useState<number | null>(null);
     const [deletingLetterboxdSource, setDeletingLetterboxdSource] = useState<number | null>(null);
     const [loadingLetterboxdMissing, setLoadingLetterboxdMissing] = useState<Set<number>>(new Set());
 
-    const [letterboxdError, setLetterboxdError] = useState<string | null>(null);
-    const [letterboxdMessage, setLetterboxdMessage] = useState<string | null>(null);
     const [letterboxdSourcesError, setLetterboxdSourcesError] = useState<string | null>(null);
     const [letterboxdSourcesMessage, setLetterboxdSourcesMessage] = useState<string | null>(null);
 
@@ -209,7 +197,6 @@ export default function IntegrationsPage() {
         if (loadingTraktSources || traktSources.length === 0) return;
 
         let isMounted = true;
-        setLoadingStatuses(true);
 
         fetchWithAuth("/api/admin/config/trakt/sources/status")
             .then(async (r) => {
@@ -226,10 +213,6 @@ export default function IntegrationsPage() {
             })
             .catch(() => {
                 // Silently fail, statuses are optional
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingStatuses(false);
             });
 
         return () => {
@@ -237,35 +220,7 @@ export default function IntegrationsPage() {
         };
     }, [loadingTraktSources, traktSources.length]);
 
-    // Load Letterboxd settings
-    useEffect(() => {
-        let isMounted = true;
-        fetchWithAuth("/api/admin/config/letterboxd")
-            .then(async (r) => {
-                if (!r.ok) throw new Error(await r.text());
-                return r.json();
-            })
-            .then((data: LetterboxdSettings | null) => {
-                if (!isMounted) return;
-                if (!data) return;
-                setLetterboxdSettings({
-                    enabled: data.enabled ?? false,
-                    sources: data.sources ?? [],
-                });
-            })
-            .catch((e) => {
-                if (!isMounted) return;
-                setLetterboxdError(String(e));
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingLetterboxd(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+    // Letterboxd settings are managed through sources only (no global settings needed)
 
     // Load Letterboxd sources
     useEffect(() => {
@@ -298,7 +253,6 @@ export default function IntegrationsPage() {
         if (loadingLetterboxdSources || letterboxdSources.length === 0) return;
 
         let isMounted = true;
-        setLoadingLetterboxdStatuses(true);
 
         fetchWithAuth("/api/admin/config/letterboxd/sources/status")
             .then(async (r) => {
@@ -315,10 +269,6 @@ export default function IntegrationsPage() {
             })
             .catch(() => {
                 // Silently fail, statuses are optional
-            })
-            .finally(() => {
-                if (!isMounted) return;
-                setLoadingLetterboxdStatuses(false);
             });
 
         return () => {
