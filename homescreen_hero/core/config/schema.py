@@ -49,6 +49,10 @@ class RotationSettings(BaseModel):
         default=False,
         description="Allow same collection to appear in consecutive rotations",
     )
+    sync_all_on_rotation: bool = Field(
+        default=True,
+        description="Whether to sync all Trakt/Letterboxd lists on every rotation (true) or only selected collections (false)",
+    )
 
 
 class CollectionGroupConfig(BaseModel):
@@ -151,12 +155,28 @@ class TraktSettings(BaseModel):
     sources: List[TraktSource] = Field(default_factory=list)
 
 
+class LetterboxdSource(BaseModel):
+    name: str = Field(..., description="Display name for this list")
+    url: str = Field(..., description="Full or short Letterboxd list URL")
+    plex_library: str = Field(..., description="Target Plex library name")
+
+
+class LetterboxdSettings(BaseModel):
+    # Letterboxd connection details.
+    enabled: bool = Field(
+        default=False,
+        description="Whether Letterboxd integration is enabled",
+    )
+    sources: List[LetterboxdSource] = Field(default_factory=list)
+
+
 class AppConfig(BaseModel):
     # Root application configuration, loaded from config.yaml.
     plex: PlexSettings
     rotation: RotationSettings
     groups: List[CollectionGroupConfig]
     trakt: Optional[TraktSettings] = None
+    letterboxd: Optional[LetterboxdSettings] = None
     logging: LoggingSettings = LoggingSettings()
     auth: Optional[AuthSettings] = None
 

@@ -24,6 +24,8 @@ from homescreen_hero.core.config.schema import (
     RotationSettings,
     TraktSettings,
     TraktSource,
+    LetterboxdSettings,
+    LetterboxdSource,
     CollectionGroupConfig,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
@@ -71,6 +73,14 @@ class TraktSourcePayload(TraktSource):
     """Incoming payload for Trakt source create/update operations."""
 
 
+class LetterboxdConfigSaveRequest(LetterboxdSettings):
+    """Incoming payload for Letterboxd settings updates."""
+
+
+class LetterboxdSourcePayload(LetterboxdSource):
+    """Incoming payload for Letterboxd source create/update operations."""
+
+
 class CollectionGroupPayload(CollectionGroupConfig):
     """Group payload used for create/update operations."""
 
@@ -82,11 +92,12 @@ class RotationConfigSaveRequest(RotationSettings):
 class CollectionSourcesResponse(BaseModel):
     class CollectionSource(BaseModel):
         name: str
-        source: Literal["plex", "trakt"]
+        source: Literal["plex", "trakt", "letterboxd"]
         detail: Optional[str] = None
 
     plex: List[CollectionSource]
     trakt: List[CollectionSource]
+    letterboxd: List[CollectionSource]
 
 
 class TraktSourceStatus(BaseModel):
@@ -118,6 +129,38 @@ class TraktMissingItemOut(BaseModel):
     slug: Optional[str]
     imdb_id: Optional[str]
     tmdb_id: Optional[int]
+    first_seen: datetime
+    last_seen: datetime
+    times_seen: int
+
+
+class LetterboxdSourceStatus(BaseModel):
+    """Status information for a Letterboxd source including sync history."""
+    source_index: int
+    name: str
+    last_sync_time: Optional[datetime] = None
+    sync_status: Literal["success", "error", "pending", "never_synced"]
+    error_message: Optional[str] = None
+    items_matched: int = 0
+    items_total: int = 0
+
+
+class LetterboxdSyncResponse(BaseModel):
+    """Response from manual Letterboxd sync operation."""
+    ok: bool
+    message: str
+    items_total: int
+    items_matched: int
+    items_missing: int
+    sync_time: datetime
+
+
+class LetterboxdMissingItemOut(BaseModel):
+    """A Letterboxd item that wasn't found in Plex."""
+    title: str
+    year: Optional[int]
+    slug: str
+    letterboxd_url: Optional[str]
     first_seen: datetime
     last_seen: datetime
     times_seen: int
@@ -156,6 +199,19 @@ def _load_trakt_sources(data: dict) -> list[dict]:
     sources = trakt_section.get("sources") if isinstance(trakt_section, dict) else []
     if sources and not isinstance(sources, list):
         raise ValueError("config.trakt.sources must be a list")
+
+    return list(sources or [])
+
+
+# Helper to load the list of Letterboxd sources from config mapping
+def _load_letterboxd_sources(data: dict) -> list[dict]:
+    letterboxd_section = data.get("letterboxd")
+    if letterboxd_section and not isinstance(letterboxd_section, dict):
+        raise ValueError("config.letterboxd must be a mapping if present")
+
+    sources = letterboxd_section.get("sources") if isinstance(letterboxd_section, dict) else []
+    if sources and not isinstance(sources, list):
+        raise ValueError("config.letterboxd.sources must be a list")
 
     return list(sources or [])
 
@@ -557,6 +613,293 @@ def get_missing_items_for_source(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+# Return the currently configured Letterboxd settings
+@router.get("/letterboxd", response_model=LetterboxdSettings)
+def get_letterboxd_settings(current_user: str = Depends(get_current_user)) -> LetterboxdSettings:
+    try:
+        config = load_config()
+        return config.letterboxd if config.letterboxd else LetterboxdSettings(enabled=False, sources=[])
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Update only Letterboxd settings in config.yaml while preserving other keys
+@router.post("/letterboxd", response_model=ConfigSaveResponse)
+def save_letterboxd_settings(
+    payload: LetterboxdConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    try:
+        data = _load_config_mapping()
+
+        letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
+        letterboxd_section = dict(letterboxd_section)
+
+        letterboxd_section.update(
+            enabled=payload.enabled,
+        )
+
+        data["letterboxd"] = letterboxd_section
+        _save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Letterboxd settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Return list of all configured Letterboxd sources
+@router.get("/letterboxd/sources", response_model=list[LetterboxdSource])
+def list_letterboxd_sources(current_user: str = Depends(get_current_user),) -> list[LetterboxdSource]:
+    try:
+        config = load_config()
+        return list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Append new Letterboxd source to config.yaml
+@router.post("/letterboxd/sources", response_model=ConfigSaveResponse)
+def create_letterboxd_source(
+    payload: LetterboxdSourcePayload,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    try:
+        data = _load_config_mapping()
+        letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
+        letterboxd_section = dict(letterboxd_section)
+
+        sources = _load_letterboxd_sources(data)
+        sources.append(payload.model_dump(exclude_none=True))
+
+        letterboxd_section["sources"] = sources
+        data["letterboxd"] = letterboxd_section
+
+        _save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"Letterboxd source '{payload.name}' added.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Replace existing Letterboxd source at given index in config.yaml
+@router.put("/letterboxd/sources/{index}", response_model=ConfigSaveResponse)
+def update_letterboxd_source(
+    index: int,
+    payload: LetterboxdSourcePayload,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
+    try:
+        data = _load_config_mapping()
+        letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
+        letterboxd_section = dict(letterboxd_section)
+
+        sources = _load_letterboxd_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Letterboxd source not found")
+
+        sources[index] = payload.model_dump(exclude_none=True)
+        letterboxd_section["sources"] = sources
+        data["letterboxd"] = letterboxd_section
+
+        _save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"Letterboxd source '{payload.name}' updated.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Remove Letterboxd source at given index from config.yaml
+@router.delete("/letterboxd/sources/{index}", response_model=ConfigSaveResponse)
+def delete_letterboxd_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    try:
+        data = _load_config_mapping()
+        letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
+        letterboxd_section = dict(letterboxd_section)
+
+        sources = _load_letterboxd_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Letterboxd source not found")
+
+        removed = sources.pop(index)
+        letterboxd_section["sources"] = sources
+        data["letterboxd"] = letterboxd_section
+
+        _save_config_mapping(data)
+
+        name = removed.get("name") if isinstance(removed, dict) else None
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"Letterboxd source '{name or index}' deleted.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Get sync status for all Letterboxd sources
+@router.get("/letterboxd/sources/status", response_model=list[LetterboxdSourceStatus])
+def get_letterboxd_sources_status(
+    current_user: str = Depends(get_current_user)
+) -> list[LetterboxdSourceStatus]:
+    """Return sync status for each configured Letterboxd source."""
+    try:
+        config = load_config()
+        sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
+
+        # For now, return basic status without historical sync data
+        # Future enhancement: query database for actual sync history
+        statuses: list[LetterboxdSourceStatus] = []
+        for idx, source in enumerate(sources):
+            statuses.append(
+                LetterboxdSourceStatus(
+                    source_index=idx,
+                    name=source.name,
+                    last_sync_time=None,
+                    sync_status="never_synced",
+                    error_message=None,
+                    items_matched=0,
+                    items_total=0,
+                )
+            )
+
+        return statuses
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Manually trigger sync for a specific Letterboxd source
+@router.post("/letterboxd/sources/{index}/sync", response_model=LetterboxdSyncResponse)
+def sync_letterboxd_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> LetterboxdSyncResponse:
+    """Manually sync a specific Letterboxd source to Plex collection."""
+    try:
+        from homescreen_hero.core.integrations.letterboxd_sync import sync_single_letterboxd_source
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Letterboxd source not found")
+
+        source = sources[index]
+        server = get_plex_server(config)
+
+        # Execute the sync
+        total, matched = sync_single_letterboxd_source(server, config, source)
+        missing = total - matched
+
+        return LetterboxdSyncResponse(
+            ok=True,
+            message=f"Synced '{source.name}' successfully",
+            items_total=total,
+            items_matched=matched,
+            items_missing=missing,
+            sync_time=datetime.utcnow(),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error syncing Letterboxd source at index %d: %s", index, exc)
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
+
+
+# Get missing items for a specific Letterboxd source
+@router.get("/letterboxd/sources/{index}/missing", response_model=list[LetterboxdMissingItemOut])
+def get_missing_items_for_letterboxd_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> list[LetterboxdMissingItemOut]:
+    """Get items from a Letterboxd list that weren't found in Plex."""
+    try:
+        from homescreen_hero.core.db import get_session
+        from homescreen_hero.core.db.models import LetterboxdMissingItem
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="Letterboxd source not found")
+
+        source = sources[index]
+
+        # Query database for missing items from this source
+        with get_session() as session:
+            results = session.query(LetterboxdMissingItem).filter(
+                LetterboxdMissingItem.source_name == source.name,
+                LetterboxdMissingItem.source_url == source.url
+            ).order_by(LetterboxdMissingItem.last_seen.desc()).all()
+
+            # Convert to response model
+            return [
+                LetterboxdMissingItemOut(
+                    title=item.title,
+                    year=item.year,
+                    slug=item.slug,
+                    letterboxd_url=item.letterboxd_url,
+                    first_seen=item.first_seen,
+                    last_seen=item.last_seen,
+                    times_seen=item.times_seen,
+                )
+                for item in results
+            ]
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Error fetching missing items for Letterboxd source at index %d: %s", index, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # Validate configured collection groups against Plex collections
 @router.get("/validate", response_model=List[GroupValidationResult])
 def validate_config_groups(current_user: str = Depends(get_current_user)) -> List[GroupValidationResult]:
@@ -713,7 +1056,7 @@ def delete_group(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-# Return list of all available Plex collections and configured Trakt sources
+# Return list of all available Plex collections and configured Trakt/Letterboxd sources
 @router.get("/group-sources", response_model=CollectionSourcesResponse)
 def list_group_sources(current_user: str = Depends(get_current_user)) -> CollectionSourcesResponse:
     try:
@@ -746,7 +1089,19 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
                     )
                 )
 
-        return CollectionSourcesResponse(plex=plex_sources, trakt=trakt_sources)
+        letterboxd_sources: list[CollectionSourcesResponse.CollectionSource] = []
+        letterboxd_cfg: Optional[LetterboxdSettings] = getattr(config, "letterboxd", None)
+        if letterboxd_cfg and getattr(letterboxd_cfg, "sources", None):
+            for src in letterboxd_cfg.sources:
+                letterboxd_sources.append(
+                    CollectionSourcesResponse.CollectionSource(
+                        name=src.name,
+                        source="letterboxd",
+                        detail=src.plex_library or src.url,
+                    )
+                )
+
+        return CollectionSourcesResponse(plex=plex_sources, trakt=trakt_sources, letterboxd=letterboxd_sources)
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -783,6 +1138,7 @@ def save_rotation_settings(
             max_collections=payload.max_collections,
             strategy=payload.strategy,
             allow_repeats=payload.allow_repeats,
+            sync_all_on_rotation=payload.sync_all_on_rotation,
         )
 
         data["rotation"] = rotation_section

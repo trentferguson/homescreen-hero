@@ -24,6 +24,7 @@ type RotationSettings = {
     max_collections: number;
     strategy: string;
     allow_repeats: boolean;
+    sync_all_on_rotation: boolean;
 };
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
@@ -93,6 +94,7 @@ export default function SettingsPage() {
         max_collections: 5,
         strategy: "random",
         allow_repeats: false,
+        sync_all_on_rotation: true,
     });
     const [loadingRotation, setLoadingRotation] = useState(true);
     const [savingRotation, setSavingRotation] = useState(false);
@@ -516,7 +518,7 @@ export default function SettingsPage() {
                                     }}
                                     className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                                 >
-                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                 </Switch>
                             </div>
                         </FieldRow>
@@ -587,7 +589,23 @@ export default function SettingsPage() {
                                 }}
                                 className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.allow_repeats ? 'translate-x-5' : 'translate-x-1'}`} />
+                            </Switch>
+                        </FieldRow>
+
+                        <FieldRow label="Sync all lists on rotation" hint="When enabled, all Trakt/Letterboxd lists sync on every rotation. When disabled, only selected collections sync.">
+                            <Switch
+                                checked={rotationSettings.sync_all_on_rotation}
+                                onChange={() => {
+                                    if (loadingRotation) return;
+                                    setRotationSettings((prev) => ({
+                                        ...prev,
+                                        sync_all_on_rotation: !prev.sync_all_on_rotation,
+                                    }));
+                                }}
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                            >
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.sync_all_on_rotation ? 'translate-x-5' : 'translate-x-1'}`} />
                             </Switch>
                         </FieldRow>
 
@@ -788,7 +806,7 @@ export default function SettingsPage() {
                                     onChange={() => setNotificationsEnabled((v) => !v)}
                                     className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                                 >
-                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${notificationsEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                 </Switch>
                             </div>
                         </FieldRow>
@@ -799,7 +817,7 @@ export default function SettingsPage() {
                                 onChange={() => setWeeklySummary((v) => !v)}
                                 className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${weeklySummary ? 'translate-x-5' : 'translate-x-1'}`} />
                             </Switch>
                         </FieldRow>
 

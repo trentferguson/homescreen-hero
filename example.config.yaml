@@ -17,6 +17,9 @@ rotation:
   max_collections: 5
   strategy: random
   allow_repeats: false
+  sync_all_on_rotation: true # Default: true
+  # If true, sync all third-party lists on each rotation run (good if < 10 lists)
+  # If false, only sync lists when they are selected during a rotation (runs faster if you have many lists)
 
 # Optional: Authentication settings
 auth:

@@ -12,3 +12,5 @@ passlib[bcrypt]
 python-jose[cryptography]
 python-dotenv
 cachetools
+beautifulsoup4
+lxml
