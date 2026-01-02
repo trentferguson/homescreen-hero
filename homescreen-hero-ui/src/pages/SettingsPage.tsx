@@ -518,7 +518,7 @@ export default function SettingsPage() {
                                     }}
                                     className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                                 >
-                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                 </Switch>
                             </div>
                         </FieldRow>
@@ -589,7 +589,7 @@ export default function SettingsPage() {
                                 }}
                                 className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.allow_repeats ? 'translate-x-5' : 'translate-x-1'}`} />
                             </Switch>
                         </FieldRow>
 
@@ -605,7 +605,7 @@ export default function SettingsPage() {
                                 }}
                                 className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${rotationSettings.sync_all_on_rotation ? 'translate-x-5' : 'translate-x-1'}`} />
                             </Switch>
                         </FieldRow>
 
@@ -806,7 +806,7 @@ export default function SettingsPage() {
                                     onChange={() => setNotificationsEnabled((v) => !v)}
                                     className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                                 >
-                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${notificationsEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                                 </Switch>
                             </div>
                         </FieldRow>
@@ -817,7 +817,7 @@ export default function SettingsPage() {
                                 onChange={() => setWeeklySummary((v) => !v)}
                                 className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${weeklySummary ? 'translate-x-5' : 'translate-x-1'}`} />
                             </Switch>
                         </FieldRow>
 
