@@ -121,3 +121,36 @@ class LetterboxdMissingItem(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class MDBListMissingItem(Base):
+    __tablename__ = "mdblist_missing_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Which MDBList source this came from
+    source_name: Mapped[str] = mapped_column(String, nullable=False)
+    source_url: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Where we expected to find it in Plex
+    plex_library: Mapped[str] = mapped_column(String, nullable=False)
+    plex_collection: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Movie identity
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # MDBList / external IDs (nullable if not present)
+    imdb_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    trakt_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mdblist_id: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Tracking
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
