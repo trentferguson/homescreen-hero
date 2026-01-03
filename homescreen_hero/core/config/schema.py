@@ -170,6 +170,29 @@ class LetterboxdSettings(BaseModel):
     sources: List[LetterboxdSource] = Field(default_factory=list)
 
 
+class MDBListSource(BaseModel):
+    name: str = Field(..., description="Display name for this list")
+    url: str = Field(..., description="MDBList URL (e.g., https://mdblist.com/lists/username/listname)")
+    plex_library: str = Field(..., description="Target Plex library name")
+
+
+class MDBListSettings(BaseModel):
+    # MDBList connection details.
+    enabled: bool = Field(
+        default=False,
+        description="Whether MDBList integration is enabled",
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="MDBList API key (can be set via HSH_MDBLIST_API_KEY env var)",
+    )
+    base_url: str = Field(
+        "https://api.mdblist.com",
+        description="Base URL for MDBList API",
+    )
+    sources: List[MDBListSource] = Field(default_factory=list)
+
+
 class AppConfig(BaseModel):
     # Root application configuration, loaded from config.yaml.
     plex: PlexSettings
@@ -177,6 +200,7 @@ class AppConfig(BaseModel):
     groups: List[CollectionGroupConfig]
     trakt: Optional[TraktSettings] = None
     letterboxd: Optional[LetterboxdSettings] = None
+    mdblist: Optional[MDBListSettings] = None
     logging: LoggingSettings = LoggingSettings()
     auth: Optional[AuthSettings] = None
 
