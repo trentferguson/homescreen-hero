@@ -138,6 +138,13 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Trakt client ID is required when Trakt is enabled. Set it in config.yaml or via HSH_TRAKT_CLIENT_ID environment variable"
             )
 
+    # MDBList API key override (if MDBList is enabled)
+    if config.mdblist and config.mdblist.enabled:
+        mdblist_api_key = os.getenv("HSH_MDBLIST_API_KEY")
+        if mdblist_api_key:
+            logger.info("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
+            config.mdblist.api_key = mdblist_api_key
+
     return config
 
 

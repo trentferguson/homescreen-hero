@@ -39,6 +39,25 @@ trakt:
     url: "LINK_TO_TRAKT_COLLECTION_OR_LIST"  # e.g., https://trakt.tv/users/username/collections/movies
     plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
 
+# Optional: Letterboxd integration
+letterboxd:
+  sources:
+  - name: "LETTERBOXD_LIST_NAME"  # This is the name that will show up in Plex
+    url: "LINK_TO_LETTERBOXD_LIST"  # e.g., https://letterboxd.com/username/list/listname/
+    plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
+
+# Optional: MDBList integration
+mdblist:
+  enabled: false
+  # api_key: "YOUR_MDBLIST_API_KEY"  # RECOMMENDED: Use HSH_MDBLIST_API_KEY environment variable instead
+  # Get your API key from: https://mdblist.com/preferences/
+  # Free tier: 1,000 requests per day
+  base_url: https://api.mdblist.com
+  sources:
+  - name: "MDBLIST_LIST_NAME"  # This is the name that will show up in Plex
+    url: "LINK_TO_MDBLIST_LIST"  # e.g., https://mdblist.com/lists/username/listname
+    plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
+
 logging:
   level: INFO
 

@@ -1008,6 +1008,8 @@ def get_missing_items_for_letterboxd_source(
 def get_mdblist_settings(current_user: str = Depends(get_current_user)) -> MDBListSettings:
     try:
         config = load_config()
+        if config.mdblist is None:
+            return MDBListSettings(enabled=False, api_key=None, base_url="https://api.mdblist.com", sources=[])
         return config.mdblist
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

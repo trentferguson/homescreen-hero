@@ -87,6 +87,10 @@ class MDBListClient:
 
     # Test MDBList API connectivity and validate API key
     def ping(self) -> Tuple[bool, Optional[str]]:
+        # Check if API key is configured
+        if not self.cfg.api_key:
+            return False, "No API key configured"
+
         try:
             data = self._request("GET", "/user")
 

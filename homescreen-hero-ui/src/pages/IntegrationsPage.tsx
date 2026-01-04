@@ -47,12 +47,36 @@ type LetterboxdMissingItem = {
     last_seen: string;
     times_seen: number;
 };
+type MDBListSettings = { enabled: boolean; api_key: string; base_url: string; sources?: MDBListSource[] };
+type MDBListSource = { name: string; url: string; plex_library: string };
+type MDBListSourceStatus = {
+    source_index: number;
+    name: string;
+    last_sync_time: string | null;
+    sync_status: "success" | "error" | "pending" | "never_synced";
+    error_message: string | null;
+    items_matched: number;
+    items_total: number;
+};
+type MDBListMissingItem = {
+    title: string;
+    year: number | null;
+    imdb_id: string | null;
+    tmdb_id: number | null;
+    trakt_id: number | null;
+    mdblist_id: string | null;
+    first_seen: string;
+    last_seen: string;
+    times_seen: number;
+};
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
 
 export default function IntegrationsPage() {
     const [traktTestStatus, setTraktTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [mdblistTestStatus, setMdblistTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [isConfigExpanded, setIsConfigExpanded] = useState(false);
+    const [isMdblistConfigExpanded, setIsMdblistConfigExpanded] = useState(false);
 
     // Trakt settings state
     const [traktSettings, setTraktSettings] = useState<TraktSettings>({
@@ -95,6 +119,31 @@ export default function IntegrationsPage() {
     const [letterboxdSourcesError, setLetterboxdSourcesError] = useState<string | null>(null);
     const [letterboxdSourcesMessage, setLetterboxdSourcesMessage] = useState<string | null>(null);
 
+    // MDBList settings state
+    const [mdblistSettings, setMdblistSettings] = useState<MDBListSettings>({
+        enabled: false,
+        api_key: "",
+        base_url: "https://api.mdblist.com",
+    });
+    const [mdblistSources, setMdblistSources] = useState<MDBListSource[]>([]);
+    const [mdblistStatuses, setMdblistStatuses] = useState<Map<number, MDBListSourceStatus>>(new Map());
+    const [mdblistMissingItems, setMdblistMissingItems] = useState<Map<number, MDBListMissingItem[]>>(new Map());
+    const [expandedMdblistMissingItems, setExpandedMdblistMissingItems] = useState<Set<number>>(new Set());
+    const [mdblistMissingItemsPage, setMdblistMissingItemsPage] = useState<Map<number, number>>(new Map());
+
+    const [loadingMdblist, setLoadingMdblist] = useState(true);
+    const [loadingMdblistSources, setLoadingMdblistSources] = useState(true);
+    const [savingMdblist, setSavingMdblist] = useState(false);
+    const [savingMdblistSource, setSavingMdblistSource] = useState(false);
+    const [syncingMdblistSource, setSyncingMdblistSource] = useState<number | null>(null);
+    const [deletingMdblistSource, setDeletingMdblistSource] = useState<number | null>(null);
+    const [loadingMdblistMissing, setLoadingMdblistMissing] = useState<Set<number>>(new Set());
+
+    const [mdblistError, setMdblistError] = useState<string | null>(null);
+    const [mdblistMessage, setMdblistMessage] = useState<string | null>(null);
+    const [mdblistSourcesError, setMdblistSourcesError] = useState<string | null>(null);
+    const [mdblistSourcesMessage, setMdblistSourcesMessage] = useState<string | null>(null);
+
     const [plexSettings, setPlexSettings] = useState<PlexSettings>({
         base_url: "",
         token: "",
@@ -108,6 +157,12 @@ export default function IntegrationsPage() {
     });
 
     const [newLetterboxdSource, setNewLetterboxdSource] = useState<LetterboxdSource>({
+        name: "",
+        url: "",
+        plex_library: "",
+    });
+
+    const [newMdblistSource, setNewMdblistSource] = useState<MDBListSource>({
         name: "",
         url: "",
         plex_library: "",
@@ -275,6 +330,92 @@ export default function IntegrationsPage() {
             isMounted = false;
         };
     }, [loadingLetterboxdSources, letterboxdSources.length]);
+
+    // Load MDBList settings
+    useEffect(() => {
+        let isMounted = true;
+        fetchWithAuth("/api/admin/config/mdblist")
+            .then(async (r) => {
+                if (!r.ok) throw new Error(await r.text());
+                return r.json();
+            })
+            .then((data: MDBListSettings | null) => {
+                if (!isMounted) return;
+                if (!data) return;
+                setMdblistSettings({
+                    enabled: data.enabled ?? false,
+                    api_key: data.api_key ?? "",
+                    base_url: data.base_url || "https://api.mdblist.com",
+                    sources: data.sources ?? [],
+                });
+            })
+            .catch((e) => {
+                if (!isMounted) return;
+                setMdblistError(String(e));
+            })
+            .finally(() => {
+                if (!isMounted) return;
+                setLoadingMdblist(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Load MDBList sources
+    useEffect(() => {
+        let isMounted = true;
+        fetchWithAuth("/api/admin/config/mdblist/sources")
+            .then(async (r) => {
+                if (!r.ok) throw new Error(await r.text());
+                return r.json();
+            })
+            .then((data: MDBListSource[]) => {
+                if (!isMounted) return;
+                setMdblistSources(data || []);
+            })
+            .catch((e) => {
+                if (!isMounted) return;
+                setMdblistSourcesError(String(e));
+            })
+            .finally(() => {
+                if (!isMounted) return;
+                setLoadingMdblistSources(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    // Load MDBList sources sync status
+    useEffect(() => {
+        if (loadingMdblistSources || mdblistSources.length === 0) return;
+
+        let isMounted = true;
+
+        fetchWithAuth("/api/admin/config/mdblist/sources/status")
+            .then(async (r) => {
+                if (!r.ok) throw new Error(await r.text());
+                return r.json();
+            })
+            .then((data: MDBListSourceStatus[]) => {
+                if (!isMounted) return;
+                const statusMap = new Map<number, MDBListSourceStatus>();
+                data.forEach((status) => {
+                    statusMap.set(status.source_index, status);
+                });
+                setMdblistStatuses(statusMap);
+            })
+            .catch(() => {
+                // Silently fail, statuses are optional
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [loadingMdblistSources, mdblistSources.length]);
 
     const handleTraktTestConnection = async () => {
         try {
@@ -648,6 +789,215 @@ export default function IntegrationsPage() {
         }
     }
 
+    const handleMdblistTestConnection = async () => {
+        try {
+            setMdblistTestStatus("testing");
+
+            const r = await fetchWithAuth("/api/health/mdblist");
+            if (!r.ok) throw new Error(await r.text());
+
+            const data: HealthComponent = await r.json();
+            const ok = data?.ok === true;
+
+            if (ok) {
+                setMdblistError(null);
+                setMdblistTestStatus("success");
+            } else {
+                setMdblistTestStatus("error");
+                setMdblistError(data?.error || "MDBList API health check failed.");
+            }
+        } catch (e) {
+            setMdblistTestStatus("error");
+            setMdblistError(String(e));
+        }
+    };
+
+    async function saveMdblistSettings() {
+        try {
+            setSavingMdblist(true);
+            setMdblistError(null);
+            setMdblistMessage(null);
+
+            const r = await fetchWithAuth("/api/admin/config/mdblist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(mdblistSettings),
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            const data: ConfigSaveResponse = await r.json();
+            setMdblistMessage(data.message);
+        } catch (e) {
+            setMdblistError(String(e));
+        } finally {
+            setSavingMdblist(false);
+        }
+    }
+
+    async function addMdblistSource() {
+        try {
+            setSavingMdblistSource(true);
+            setMdblistSourcesError(null);
+            setMdblistSourcesMessage(null);
+
+            const r = await fetchWithAuth("/api/admin/config/mdblist/sources", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newMdblistSource),
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            await fetchWithAuth("/api/admin/config/mdblist/sources")
+                .then((resp) => resp.json())
+                .then((data: MDBListSource[]) => setMdblistSources(data || []));
+
+            setNewMdblistSource({ name: "", url: "", plex_library: "" });
+            const data: ConfigSaveResponse = await r.json();
+            setMdblistSourcesMessage(data.message);
+        } catch (e) {
+            setMdblistSourcesError(String(e));
+        } finally {
+            setSavingMdblistSource(false);
+        }
+    }
+
+    async function removeMdblistSource(index: number) {
+        try {
+            setDeletingMdblistSource(index);
+            setMdblistSourcesError(null);
+            setMdblistSourcesMessage(null);
+
+            const r = await fetchWithAuth(`/api/admin/config/mdblist/sources/${index}`, {
+                method: "DELETE",
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            await fetchWithAuth("/api/admin/config/mdblist/sources")
+                .then((resp) => resp.json())
+                .then((data: MDBListSource[]) => setMdblistSources(data || []));
+
+            // Clear all index-based caches since indices have shifted after deletion
+            setMdblistMissingItems(new Map());
+            setExpandedMdblistMissingItems(new Set());
+            setMdblistMissingItemsPage(new Map());
+            setMdblistStatuses(new Map());
+
+            const data: ConfigSaveResponse = await r.json();
+            setMdblistSourcesMessage(data.message);
+        } catch (e) {
+            setMdblistSourcesError(String(e));
+        } finally {
+            setDeletingMdblistSource(null);
+        }
+    }
+
+    async function syncMdblistSource(index: number) {
+        try {
+            setSyncingMdblistSource(index);
+            setMdblistSourcesError(null);
+            setMdblistSourcesMessage(null);
+
+            const r = await fetchWithAuth(`/api/admin/config/mdblist/sources/${index}/sync`, {
+                method: "POST",
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            const data = await r.json();
+            setMdblistSourcesMessage(`Synced ${data.items_matched}/${data.items_total} items`);
+
+            // Refresh statuses after sync
+            const statusR = await fetchWithAuth("/api/admin/config/mdblist/sources/status");
+            if (statusR.ok) {
+                const statuses: MDBListSourceStatus[] = await statusR.json();
+                const statusMap = new Map<number, MDBListSourceStatus>();
+                statuses.forEach((status) => {
+                    statusMap.set(status.source_index, status);
+                });
+                setMdblistStatuses(statusMap);
+            }
+
+            // Clear missing items cache for this source so it reloads
+            setMdblistMissingItems((prev) => {
+                const newMap = new Map(prev);
+                newMap.delete(index);
+                return newMap;
+            });
+        } catch (e) {
+            setMdblistSourcesError(String(e));
+        } finally {
+            setSyncingMdblistSource(null);
+        }
+    }
+
+    async function loadMdblistMissingItems(index: number) {
+        if (mdblistMissingItems.has(index)) {
+            // Toggle collapse if already loaded
+            setExpandedMdblistMissingItems((prev) => {
+                const newSet = new Set(prev);
+                if (newSet.has(index)) {
+                    newSet.delete(index);
+                } else {
+                    newSet.add(index);
+                }
+                return newSet;
+            });
+            return;
+        }
+
+        try {
+            setLoadingMdblistMissing((prev) => new Set(prev).add(index));
+
+            const r = await fetchWithAuth(`/api/admin/config/mdblist/sources/${index}/missing`);
+            if (!r.ok) throw new Error(await r.text());
+
+            const data: MDBListMissingItem[] = await r.json();
+            setMdblistMissingItems((prev) => new Map(prev).set(index, data));
+            setExpandedMdblistMissingItems((prev) => new Set(prev).add(index));
+        } catch (e) {
+            setMdblistSourcesError(`Failed to load missing items: ${String(e)}`);
+        } finally {
+            setLoadingMdblistMissing((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(index);
+                return newSet;
+            });
+        }
+    }
+
+    function getMdblistSyncStatusBadge(status: MDBListSourceStatus) {
+        switch (status.sync_status) {
+            case "success":
+                return (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-900/50 px-2 py-1 text-xs font-medium text-emerald-100 border border-emerald-700">
+                        Success
+                    </span>
+                );
+            case "error":
+                return (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-rose-900/50 px-2 py-1 text-xs font-medium text-rose-100 border border-rose-700">
+                        Error
+                    </span>
+                );
+            case "pending":
+                return (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-900/50 px-2 py-1 text-xs font-medium text-amber-100 border border-amber-700">
+                        Pending
+                    </span>
+                );
+            case "never_synced":
+            default:
+                return (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-800/50 px-2 py-1 text-xs font-medium text-slate-300 border border-slate-700">
+                        last_sync_tbd
+                    </span>
+                );
+        }
+    }
+
     function formatDate(dateString: string | null) {
         if (!dateString) return "Never";
         const date = new Date(dateString);
@@ -671,12 +1021,8 @@ export default function IntegrationsPage() {
                     <Tab className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700 focus:outline-none">
                         Letterboxd
                     </Tab>
-                    <Tab
-                        disabled
-                        className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition border-slate-800/60 bg-slate-900/30 text-slate-500 cursor-not-allowed"
-                    >
-                        IMDb
-                        <span className="text-xs opacity-60">(Coming Soon)</span>
+                    <Tab className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700 focus:outline-none">
+                        MDBList
                     </Tab>
                     <Tab
                         disabled
@@ -1339,6 +1685,410 @@ export default function IntegrationsPage() {
                                                                                             type="button"
                                                                                             onClick={() => {
                                                                                                 setLetterboxdMissingItemsPage(prev => {
+                                                                                                    const newMap = new Map(prev);
+                                                                                                    newMap.set(idx, Math.min(totalPages - 1, currentPage + 1));
+                                                                                                    return newMap;
+                                                                                                });
+                                                                                            }}
+                                                                                            disabled={currentPage >= totalPages - 1}
+                                                                                            className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                                                                                            aria-label="Next page"
+                                                                                        >
+                                                                                            <ChevronRight size={16} />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })()
+                                                                ) : (
+                                                                    <p className="text-xs text-emerald-400">All items found in Plex!</p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </Tab.Panel>
+
+                    {/* MDBList Tab */}
+                    <Tab.Panel className="space-y-4 focus:outline-none">
+                        {/* MDBList Configuration - Collapsible */}
+                        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 overflow-hidden shadow-lg shadow-primary/5">
+                            <button
+                                type="button"
+                                onClick={() => setIsMdblistConfigExpanded(!isMdblistConfigExpanded)}
+                                className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800/30 transition"
+                            >
+                                <div className="text-left flex items-start gap-3">
+                                    <div className="rounded-lg bg-primary/10 p-2 border border-primary/20 mt-0.5">
+                                        <Wifi className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-slate-100">MDBList Configuration</h3>
+                                        <p className="text-xs text-slate-400 mt-1">Configure your MDBList API credentials and settings.</p>
+                                    </div>
+                                </div>
+                                <ChevronRight className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isMdblistConfigExpanded ? "rotate-90" : ""}`} />
+                            </button>
+
+                            <div
+                                className={`grid transition-all duration-300 ease-in-out ${
+                                    isMdblistConfigExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                                }`}
+                            >
+                                <div className="overflow-hidden">
+                                    <div className="px-6 pb-6 space-y-4 border-t border-slate-800">
+                                        <div className="pt-4">
+                                        <FieldRow label="Enable MDBList" description="Toggle syncing MDBList lists to your Plex collections.">
+                                            <div className="flex justify-end">
+                                                <Switch
+                                                    checked={mdblistSettings.enabled}
+                                                    onChange={() =>
+                                                        setMdblistSettings((prev) => ({
+                                                            ...prev,
+                                                            enabled: !prev.enabled,
+                                                        }))
+                                                    }
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                                                        mdblistSettings.enabled ? "bg-primary" : "bg-slate-600"
+                                                    }`}
+                                                >
+                                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                                                        mdblistSettings.enabled ? "translate-x-5" : "translate-x-0.5"
+                                                    }`} />
+                                                </Switch>
+                                            </div>
+                                        </FieldRow>
+
+                                        <FieldRow label="API Key" description="Your MDBList API key (or set via HSH_MDBLIST_API_KEY environment variable).">
+                                            <input
+                                                type="password"
+                                                placeholder="MDBList API key"
+                                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                value={mdblistSettings.api_key}
+                                                onChange={(e) =>
+                                                    setMdblistSettings((prev) => ({
+                                                        ...prev,
+                                                        api_key: e.target.value,
+                                                    }))
+                                                }
+                                                disabled={loadingMdblist}
+                                            />
+                                        </FieldRow>
+
+                                        <FieldRow label="Base URL" description="Override only if you self-host the MDBList API.">
+                                            <input
+                                                type="url"
+                                                placeholder="https://api.mdblist.com"
+                                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                value={mdblistSettings.base_url}
+                                                onChange={(e) =>
+                                                    setMdblistSettings((prev) => ({
+                                                        ...prev,
+                                                        base_url: e.target.value,
+                                                    }))
+                                                }
+                                                disabled={loadingMdblist}
+                                            />
+                                        </FieldRow>
+
+                                        {mdblistMessage ? (
+                                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
+                                                {mdblistMessage}
+                                            </div>
+                                        ) : null}
+
+                                        {mdblistError ? (
+                                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
+                                                {mdblistError}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 mt-6">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`rounded-full p-2 ${
+                                                    mdblistTestStatus === "success"
+                                                        ? "bg-emerald-500/15 text-emerald-400"
+                                                        : mdblistTestStatus === "error"
+                                                        ? "bg-rose-500/15 text-rose-400"
+                                                        : "bg-amber-500/15 text-amber-400"
+                                                }`}>
+                                                    {mdblistTestStatus === "success" ? (
+                                                        <Wifi size={18} />
+                                                    ) : (
+                                                        <WifiOff size={18} />
+                                                    )}
+                                                </span>
+                                                <div className="space-y-0.5">
+                                                    <p className="text-sm font-semibold text-white">Test MDBList connection</p>
+                                                    <p className="text-xs text-slate-400">
+                                                        Run a dry connection test without restarting the service.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={saveMdblistSettings}
+                                                    disabled={savingMdblist || loadingMdblist}
+                                                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                                >
+                                                    {savingMdblist ? "Saving…" : "Save Settings"}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleMdblistTestConnection}
+                                                    disabled={mdblistTestStatus === "testing"}
+                                                    className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
+                                                >
+                                                    {mdblistTestStatus === "testing" ? "Testing…" : mdblistTestStatus === "success" ? "Retest" : "Test connection"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* MDBList Lists Management */}
+                        <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-6 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold text-slate-100">MDBList Lists</h3>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        Add or remove MDBList list sources that sync into Plex collections.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addMdblistSource}
+                                    disabled={savingMdblistSource || loadingMdblistSources || !newMdblistSource.name || !newMdblistSource.url || !newMdblistSource.plex_library}
+                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {savingMdblistSource ? "Adding…" : "Add List"}
+                                </button>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <input
+                                    type="text"
+                                    placeholder="Friendly name"
+                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    value={newMdblistSource.name}
+                                    onChange={(e) => setNewMdblistSource((prev) => ({ ...prev, name: e.target.value }))}
+                                    disabled={savingMdblistSource || loadingMdblistSources}
+                                />
+                                <input
+                                    type="url"
+                                    placeholder="https://mdblist.com/lists/username/listname"
+                                    className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                    value={newMdblistSource.url}
+                                    onChange={(e) => setNewMdblistSource((prev) => ({ ...prev, url: e.target.value }))}
+                                    disabled={savingMdblistSource || loadingMdblistSources}
+                                />
+                                <Listbox
+                                    value={newMdblistSource.plex_library}
+                                    onChange={(value) => setNewMdblistSource((prev) => ({ ...prev, plex_library: value }))}
+                                    disabled={savingMdblistSource || loadingMdblistSources}
+                                >
+                                    <div className="relative">
+                                        <Listbox.Button className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 flex items-center justify-between">
+                                            <span className={newMdblistSource.plex_library ? "text-slate-100" : "text-slate-500"}>
+                                                {newMdblistSource.plex_library || "Select Plex library"}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                                            {plexSettings.libraries.filter((lib) => lib.enabled).length === 0 ? (
+                                                <div className="px-3 py-2 text-xs text-slate-500">No enabled Plex libraries configured.</div>
+                                            ) : (
+                                                plexSettings.libraries
+                                                    .filter((lib) => lib.enabled)
+                                                    .map((lib) => (
+                                                        <Listbox.Option
+                                                            key={lib.name}
+                                                            value={lib.name}
+                                                            className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 data-[selected]:bg-primary/20 data-[selected]:font-semibold flex items-center justify-between"
+                                                        >
+                                                            {({ selected }) => (
+                                                                <>
+                                                                    <span>{lib.name}</span>
+                                                                    {selected && <Check className="h-4 w-4 text-primary" />}
+                                                                </>
+                                                            )}
+                                                        </Listbox.Option>
+                                                    ))
+                                            )}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
+                            </div>
+
+                            <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3">
+                                <p className="text-xs text-amber-200">
+                                    <strong>Note:</strong> MDBList provides rich metadata including IMDb, TMDb, and Trakt IDs for accurate matching.
+                                    Free tier includes 1,000 API requests per day.
+                                </p>
+                            </div>
+
+                            {mdblistSourcesMessage ? (
+                                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
+                                    {mdblistSourcesMessage}
+                                </div>
+                            ) : null}
+
+                            {mdblistSourcesError ? (
+                                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
+                                    {mdblistSourcesError}
+                                </div>
+                            ) : null}
+
+                            <div className="space-y-3">
+                                {loadingMdblistSources ? (
+                                    <p className="text-xs text-slate-400">Loading sources…</p>
+                                ) : mdblistSources.length === 0 ? (
+                                    <p className="text-xs text-slate-400">No MDBList lists added yet. Use the form above to add your first list.</p>
+                                ) : (
+                                    mdblistSources.map((source, idx) => {
+                                        const status = mdblistStatuses.get(idx);
+                                        const missingItems = mdblistMissingItems.get(idx);
+                                        const isExpanded = expandedMdblistMissingItems.has(idx);
+                                        const isLoadingMissing = loadingMdblistMissing.has(idx);
+
+                                        return (
+                                            <div key={`${source.name}-${idx}`} className="rounded-lg border border-slate-800 bg-slate-950/50 overflow-hidden">
+                                                <div className="p-4 space-y-3">
+                                                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                                        <div className="space-y-1 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-sm font-semibold text-slate-100">{source.name}</p>
+                                                                {status && getMdblistSyncStatusBadge(status)}
+                                                            </div>
+                                                            <p className="text-xs text-slate-400 break-all">{source.url}</p>
+                                                            <p className="text-xs text-slate-500">
+                                                                Plex library: {source.plex_library || "(none)"}
+                                                            </p>
+                                                            {status && status.last_sync_time && (
+                                                                <p className="text-xs text-slate-500">
+                                                                    Last synced: {formatDate(status.last_sync_time)}
+                                                                </p>
+                                                            )}
+                                                            {status && status.sync_status !== "never_synced" && (
+                                                                <p className="text-xs text-slate-500">
+                                                                    Matched {status.items_matched} of {status.items_total} items
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => syncMdblistSource(idx)}
+                                                                disabled={syncingMdblistSource === idx}
+                                                                className="rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 flex items-center gap-1"
+                                                            >
+                                                                <RefreshCw className={`h-3 w-3 ${syncingMdblistSource === idx ? "animate-spin" : ""}`} />
+                                                                {syncingMdblistSource === idx ? "Syncing…" : "Sync Now"}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeMdblistSource(idx)}
+                                                                disabled={deletingMdblistSource === idx}
+                                                                className="rounded-lg border border-rose-800 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/40 disabled:opacity-60"
+                                                            >
+                                                                {deletingMdblistSource === idx ? "Removing…" : "Remove"}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Missing Items Section */}
+                                                    <div className="pt-3 border-t border-slate-800">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => loadMdblistMissingItems(idx)}
+                                                            disabled={isLoadingMissing}
+                                                            className="flex items-center gap-2 text-xs font-medium text-slate-300 hover:text-slate-100 transition disabled:opacity-50"
+                                                        >
+                                                            <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
+                                                            Missing items
+                                                        </button>
+
+                                                        {isExpanded && (
+                                                            <div className="mt-2 rounded-lg border border-slate-800/60 bg-slate-900/30 p-3">
+                                                                {isLoadingMissing ? (
+                                                                    <p className="text-xs text-slate-400">Loading missing items…</p>
+                                                                ) : missingItems && missingItems.length > 0 ? (
+                                                                    (() => {
+                                                                        const itemsPerPage = 10;
+                                                                        const currentPage = mdblistMissingItemsPage.get(idx) || 0;
+                                                                        const totalPages = Math.ceil(missingItems.length / itemsPerPage);
+                                                                        const start = currentPage * itemsPerPage;
+                                                                        const end = start + itemsPerPage;
+                                                                        const paginatedItems = missingItems.slice(start, end);
+
+                                                                        return (
+                                                                            <div className="space-y-2">
+                                                                                <div className="flex items-center justify-between mb-2">
+                                                                                    <p className="text-xs text-slate-400">
+                                                                                        {missingItems.length} {missingItems.length === 1 ? "item" : "items"} not found in Plex
+                                                                                    </p>
+                                                                                </div>
+                                                                                <div className="space-y-1.5">
+                                                                                    {paginatedItems.map((item, i) => (
+                                                                                        <div
+                                                                                            key={`${item.imdb_id || item.tmdb_id || item.title}-${i}`}
+                                                                                            className="flex items-start justify-between gap-3 rounded-md border border-slate-800/40 bg-slate-950/40 px-3 py-2"
+                                                                                        >
+                                                                                            <div className="flex-1 min-w-0">
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <p className="text-xs font-medium text-slate-200 truncate">
+                                                                                                        {item.title}
+                                                                                                        {item.year ? ` (${item.year})` : ""}
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                                <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                                                                                                    {item.imdb_id && <span className="font-mono">IMDb: {item.imdb_id}</span>}
+                                                                                                    {item.tmdb_id && <span className="font-mono">TMDb: {item.tmdb_id}</span>}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+                                                                                                <span>Seen {item.times_seen}x</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                                {totalPages > 1 && (
+                                                                                    <div className="flex items-center justify-center gap-3 pt-2">
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                setMdblistMissingItemsPage(prev => {
+                                                                                                    const newMap = new Map(prev);
+                                                                                                    newMap.set(idx, Math.max(0, currentPage - 1));
+                                                                                                    return newMap;
+                                                                                                });
+                                                                                            }}
+                                                                                            disabled={currentPage === 0}
+                                                                                            className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition"
+                                                                                            aria-label="Previous page"
+                                                                                        >
+                                                                                            <ChevronLeft size={16} />
+                                                                                        </button>
+                                                                                        <span className="text-xs text-slate-400">
+                                                                                            Page {currentPage + 1} of {totalPages}
+                                                                                        </span>
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                setMdblistMissingItemsPage(prev => {
                                                                                                     const newMap = new Map(prev);
                                                                                                     newMap.set(idx, Math.min(totalPages - 1, currentPage + 1));
                                                                                                     return newMap;

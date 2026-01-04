@@ -103,6 +103,9 @@ def _check_mdblist(config: Any) -> HealthComponent:
         mdblist_client = get_mdblist_client(config)
 
         if mdblist_client is None:
+            # Check if MDBList is enabled - if so, this is an error (missing API key)
+            if config.mdblist and config.mdblist.enabled:
+                return HealthComponent(ok=False, error="MDBList enabled but API key not configured")
             return HealthComponent(ok=True, error="MDBList disabled or not configured")
 
         m_ok, m_error = mdblist_client.ping()
