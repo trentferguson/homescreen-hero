@@ -11,6 +11,7 @@ from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.db import init_db
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 from homescreen_hero.core.integrations.trakt_client import get_trakt_client
+from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
 from homescreen_hero.core.logging_config import level_from_name, setup_logging
 from homescreen_hero.core.config.schema import HealthComponent, HealthResponse
 
@@ -96,6 +97,57 @@ def _check_trakt(config: Any) -> HealthComponent:
         )
 
 
+# Helper function for MDBList health check
+def _check_mdblist(config: Any) -> HealthComponent:
+    try:
+        mdblist_client = get_mdblist_client(config)
+
+        if mdblist_client is None:
+            return HealthComponent(ok=True, error="MDBList disabled or not configured")
+
+        m_ok, m_error = mdblist_client.ping()
+        issues: list[str] = []
+
+        if not m_ok:
+            issues.append(f"MDBList ping failed: {m_error or 'unknown error'}")
+
+        try:
+            server = get_plex_server(config)
+
+            if config.mdblist and config.mdblist.sources:
+                for src in config.mdblist.sources:
+                    if not src.plex_library:
+                        issues.append(f"Source '{src.name}' has no plex_library set")
+                        continue
+
+                    try:
+                        server.library.section(src.plex_library)
+                    except NotFound:
+                        issues.append(
+                            f"Source '{src.name}' uses unknown Plex library "
+                            f"'{src.plex_library}'"
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        issues.append(
+                            f"Source '{src.name}' failed library check "
+                            f"'{src.plex_library}': {exc}"
+                        )
+        except Exception as exc:  # pragma: no cover - defensive
+            issues.append(f"Failed to validate MDBList sources against Plex: {exc}")
+
+        return (
+            HealthComponent(ok=False, error="; ".join(issues))
+            if issues
+            else HealthComponent(ok=True)
+        )
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("MDBList health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in MDBList health check: {exc}"
+        )
+
+
 # Helper function for Plex health check
 def _check_plex(config: Any) -> HealthComponent:
     try:
@@ -164,6 +216,16 @@ def health_trakt() -> HealthComponent:
     return _check_trakt(config)
 
 
+# Validate MDBList connectivity and configured Plex library references
+@router.get("/health/mdblist", response_model=HealthComponent)
+def health_mdblist() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_mdblist(config)
+
+
 # Validate Plex connectivity and configured library is accessible
 @router.get("/health/plex", response_model=HealthComponent)
 def health_plex() -> HealthComponent:
@@ -191,6 +253,7 @@ def health_check() -> HealthResponse:
         return HealthResponse(ok=False, components=components)
 
     components["trakt"] = _check_trakt(config)
+    components["mdblist"] = _check_mdblist(config)
     components["plex"] = _check_plex(config)
 
     overall_ok = all(component.ok for component in components.values())

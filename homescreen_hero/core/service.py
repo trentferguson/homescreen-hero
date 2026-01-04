@@ -9,7 +9,7 @@ from .integrations import (
     get_plex_server,
     sync_all_trakt_sources,
     sync_all_letterboxd_sources,
-    sync_all_letterboxd_sources,
+    sync_all_mdblist_sources,
     apply_home_screen_selection,
 )
 
@@ -90,10 +90,11 @@ def run_rotation_once(
 
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
-        # Sync all Trakt and Letterboxd sources
-        logger.info("Syncing all Trakt and Letterboxd sources")
+        # Sync all Trakt, Letterboxd, and MDBList sources
+        logger.info("Syncing all Trakt, Letterboxd, and MDBList sources")
         sync_all_trakt_sources(server, config)
         sync_all_letterboxd_sources(server, config)
+        sync_all_mdblist_sources(server, config)
     else:
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")
@@ -208,6 +209,7 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     # Sync all sources
     sync_all_trakt_sources(server, config)
     sync_all_letterboxd_sources(server, config)
+    sync_all_mdblist_sources(server, config)
 
     logger.info("Manual sync complete")
 
