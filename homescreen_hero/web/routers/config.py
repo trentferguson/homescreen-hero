@@ -1505,7 +1505,19 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
                     )
                 )
 
-        return CollectionSourcesResponse(plex=plex_sources, trakt=trakt_sources, letterboxd=letterboxd_sources)
+        mdblist_sources: list[CollectionSourcesResponse.CollectionSource] = []
+        mdblist_cfg: Optional[MDBListSettings] = getattr(config, "mdblist", None)
+        if mdblist_cfg and getattr(mdblist_cfg, "sources", None):
+            for src in mdblist_cfg.sources:
+                mdblist_sources.append(
+                    CollectionSourcesResponse.CollectionSource(
+                        name=src.name,
+                        source="mdblist",
+                        detail=src.plex_library or src.url,
+                    )
+                )
+
+        return CollectionSourcesResponse(plex=plex_sources, trakt=trakt_sources, letterboxd=letterboxd_sources, mdblist=mdblist_sources)
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
