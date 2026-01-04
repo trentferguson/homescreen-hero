@@ -15,6 +15,7 @@ services:
       HSH_AUTH_PASSWORD: ${HSH_AUTH_PASSWORD:-}
       HSH_AUTH_SECRET_KEY: ${HSH_AUTH_SECRET_KEY:-}
       HSH_TRAKT_CLIENT_ID: ${HSH_TRAKT_CLIENT_ID:-}
+      HSH_MDBLIST_API_KEY: ${HSH_MDBLIST_API_KEY:-}
     volumes:
       - ./data:/data
     restart: unless-stopped
