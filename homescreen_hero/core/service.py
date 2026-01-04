@@ -12,6 +12,7 @@ from .integrations import (
     sync_all_mdblist_sources,
     apply_home_screen_selection,
 )
+from .integrations.plex_client import cleanup_deleted_integration_sources
 
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
@@ -34,18 +35,16 @@ def _sync_selected_collections(
     config: AppConfig,
     selected_collections: List[str],
 ) -> None:
-    """
-    Sync only the collections that were selected for rotation.
-
-    This checks if each selected collection corresponds to a Trakt or Letterboxd
-    source and syncs only those sources.
-    """
+    # Sync only the collections that were selected for rotation.
+    # Checks if each selected collection corresponds to a Trakt, Letterboxd, or MDBList source and syncs only those sources.
     from .integrations.trakt_sync import sync_single_trakt_source
     from .integrations.letterboxd_sync import sync_single_letterboxd_source
+    from .integrations.mdblist_sync import sync_single_mdblist_source
 
     # Build a map of collection name -> source for quick lookup
     trakt_sources = {}
     letterboxd_sources = {}
+    mdblist_sources = {}
 
     if config.trakt and config.trakt.enabled:
         for source in config.trakt.sources:
@@ -55,6 +54,10 @@ def _sync_selected_collections(
         for source in config.letterboxd.sources:
             letterboxd_sources[source.name] = source
 
+    if config.mdblist and config.mdblist.enabled:
+        for source in config.mdblist.sources:
+            mdblist_sources[source.name] = source
+
     # Sync only the selected collections
     for collection_name in selected_collections:
         if collection_name in trakt_sources:
@@ -63,8 +66,11 @@ def _sync_selected_collections(
         elif collection_name in letterboxd_sources:
             logger.info(f"Syncing selected Letterboxd collection: {collection_name}")
             sync_single_letterboxd_source(server, config, letterboxd_sources[collection_name])
+        elif collection_name in mdblist_sources:
+            logger.info(f"Syncing selected MDBList collection: {collection_name}")
+            sync_single_mdblist_source(server, config, mdblist_sources[collection_name])
         else:
-            logger.debug(f"Collection '{collection_name}' is not a Trakt or Letterboxd source, skipping sync")
+            logger.debug(f"Collection '{collection_name}' is not a Trakt, Letterboxd, or MDBList source, skipping sync")
 
 
 def run_rotation_once(
@@ -87,6 +93,11 @@ def run_rotation_once(
 
     # Connect to Plex
     server = get_plex_server(config)
+
+    # Clean up deleted integration sources (removes collections from Plex)
+    cleanup_result = cleanup_deleted_integration_sources(server, config)
+    if cleanup_result['deleted_from_plex']:
+        logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
@@ -189,12 +200,7 @@ def simulate_rotation_once(
 
 # Take a previously simulated rotation and actually apply it to Plex
 def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
-    """
-    Sync all Trakt and Letterboxd sources without running a rotation.
-
-    Returns:
-        Dictionary with sync statistics
-    """
+    # Sync all Trakt, Letterboxd, and MDBList sources without running a rotation.
     if config is None:
         config = load_config()
 
@@ -206,6 +212,11 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     # Connect to Plex
     server = get_plex_server(config)
 
+    # Clean up deleted integration sources first
+    cleanup_result = cleanup_deleted_integration_sources(server, config)
+    if cleanup_result['deleted_from_plex']:
+        logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
+
     # Sync all sources
     sync_all_trakt_sources(server, config)
     sync_all_letterboxd_sources(server, config)
@@ -213,7 +224,10 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
 
     logger.info("Manual sync complete")
 
-    return {"status": "success"}
+    return {
+        "status": "success",
+        "cleanup": cleanup_result,
+    }
 
 
 def apply_simulation(

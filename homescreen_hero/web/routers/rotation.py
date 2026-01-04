@@ -139,7 +139,7 @@ class SyncResponse(BaseModel):
 
 @router.post("/sync-all", response_model=SyncResponse)
 def sync_all(current_user: str = Depends(get_current_user)) -> SyncResponse:
-    """Manually sync all Trakt and Letterboxd sources without running a rotation."""
+    """Manually sync all Trakt, Letterboxd, and MDBList sources without running a rotation."""
     try:
         logger.info("Handling /sync-all request")
         sync_all_sources()
@@ -147,7 +147,7 @@ def sync_all(current_user: str = Depends(get_current_user)) -> SyncResponse:
         invalidate_collections_cache()
         return SyncResponse(
             status="success",
-            message="All Trakt and Letterboxd sources have been synced successfully"
+            message="All Trakt, Letterboxd, and MDBList sources have been synced successfully"
         )
     except Exception as exc:
         logger.exception("Manual sync failed")
