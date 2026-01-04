@@ -35,7 +35,7 @@ This app is very much a **WORK IN PROGRESS**. This started as a simple Python sc
 -   **Intuitive Web Dashboard:** A modern React-based UI for easy configuration and monitoring of your Plex homescreen.
 -   **Manage all your Collections in One Place:** Whether it be your already existing Plex collections, or collections created from 3rd Party lists, you can create, edit, and delete them all inside the homescreen-hero UI!
 -   **Built Specifically for Plex:** Seamlessly connects with your Plex server to fetch libraries and manage collections. Pulls data directly from your Plex server for use (creating collection groups, displaying posters, etc.)
--   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt & Letterboxd lists (IMDb, TMDb, TVDb, and more coming soon!)
+-   **3rd Party Integrations:** Easily connect to third party applications to automatically create and feature collections based off Trakt, Letterboxd, and MDBList (IMDb, TMDb, TVDb, and more coming soon!)
 -   **Flexible Configuration:** Utilize either the Web UI, the Setup Wizard, or the YAML-based configuration file for detailed control over application settings and Plex interactions
 -   **Containerized Deployment:** Easily deploy and manage the entire application using Docker and Docker Compose.
 
@@ -80,6 +80,7 @@ This project is designed for easy deployment using Docker and Docker Compose.
 -   A running [Plex Media Server](https://www.plex.tv/media-server-downloads/)
 -   A Plex authentication token ([how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/))
 -   (Optional) A Trakt API Key for third-party list integration ([how to get it](https://trakt.tv/oauth/applications))
+-   (Optional) An MDBList API Key for third-party list integration ([how to get it](https://mdblist.com/preferences/))
 
 ### Installation
 
@@ -113,6 +114,7 @@ The easiest way to get started! The setup wizard guides you through configuratio
       - Library selection
       - Authentication (optional but recommended)
       - Trakt integration (optional)
+      - MDBList integration (optional)
       - Automatic rotation settings
 
 That's it! The wizard will create your `config.yaml` automatically.
@@ -137,6 +139,7 @@ For users who prefer direct control or want to use environment variables for sec
     - `HSH_AUTH_PASSWORD`: Your desired admin password (if enabling auth)
     - `HSH_AUTH_SECRET_KEY`: Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
     - `HSH_TRAKT_CLIENT_ID`: Your Trakt API client ID (if using Trakt)
+    - `HSH_MDBLIST_API_KEY`: Your MDBList API key (if using MDBList)
 
 3.  **Create configuration file**
     ```bash
@@ -201,6 +204,7 @@ For enhanced security, sensitive values (tokens, passwords, API keys) can be sto
 - `HSH_AUTH_PASSWORD` - Authentication password (when auth is enabled)
 - `HSH_AUTH_SECRET_KEY` - JWT secret key (when auth is enabled)
 - `HSH_TRAKT_CLIENT_ID` - Trakt API client ID (when Trakt is enabled)
+- `HSH_MDBLIST_API_KEY` - MDBList API key (when MDBList is enabled)
 
 **Setup:**
 1. Copy [.env.example](.env.example) to `.env`
@@ -239,14 +243,18 @@ rotation:
 trakt:
   enabled: false
   client_id: "YOUR_TRAKT_CLIENT_ID"
-  client_id: "YOUR_TRAKT_CLIENT_ID"
   base_url: https://api.trakt.tv
   sources:
   - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
     url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
     plex_library: "YOUR_PLEX_LIBRARY_NAME"
-  - name: "TRAKT_COLLECTION_NAME" # This is the name that will show up in Plex
-    url: "LINK_TO_TRAKT_COLLECTION_OR_LIST" # e.g., https://trakt.tv/users/username/collections/movies
+mdblist:
+  enabled: false
+  api_key: "YOUR_MDBLIST_API_KEY" # Or use HSH_MDBLIST_API_KEY environment variable
+  base_url: https://api.mdblist.com
+  sources:
+  - name: "MDBLIST_LIST_NAME" # This is the name that will show up in Plex
+    url: "LINK_TO_MDBLIST_LIST" # e.g., https://mdblist.com/lists/username/listname
     plex_library: "YOUR_PLEX_LIBRARY_NAME"
 logging:
   level: INFO
@@ -265,12 +273,10 @@ groups:
 
 Key sections:
 - **plex** – Server URL, token, and library name to target.
-- **plex** – Server URL, token, and library name to target.
 - **rotation** – Enable/disable scheduling, interval hours, max collections, strategy, and repeat rules.
 - **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
 - **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
-- **groups** – Named pools of collections with min/max picks, weights, gaps between uses, and optional date windows.
-- **trakt** – Enable Trakt, set the client ID, base URL, and list sources to sync into Plex collections.
+- **mdblist** – Enable MDBList, set the API key, base URL, and list sources to sync into Plex collections.
 - **logging** – Log level for both CLI and API processes.
 
 ## Docker
