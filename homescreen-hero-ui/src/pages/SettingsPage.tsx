@@ -439,6 +439,7 @@ export default function SettingsPage() {
                     >
                         <FieldRow
                             label="Application name"
+                            description="Placeholder WIP"
                             hint="Shown in the dashboard header and outgoing notifications."
                         >
                             <input
@@ -450,7 +451,7 @@ export default function SettingsPage() {
 
                         <FieldRow
                             label="Base URL"
-                            description="Used to build links in notifications and integrations."
+                            description="Placeholder WIP"
                             hint="Example: https://hero.example.com"
                         >
                             <input
@@ -460,7 +461,7 @@ export default function SettingsPage() {
                             />
                         </FieldRow>
 
-                        <FieldRow label="Default theme" hint="Applied across dashboards and the homepage.">
+                        <FieldRow label="Default theme" description="Placeholder WIP" hint="Applied across dashboards and the homepage.">
                             <Listbox value={defaultTheme} onChange={setDefaultTheme}>
                                 <div className="relative">
                                     <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
@@ -593,7 +594,7 @@ export default function SettingsPage() {
                             </Switch>
                         </FieldRow>
 
-                        <FieldRow label="Sync all lists on rotation" hint="When enabled, all Trakt/Letterboxd lists sync on every rotation. When disabled, only selected collections sync.">
+                        <FieldRow label="Sync all lists on rotation" hint="When enabled, all third-party lists sync on every rotation. When disabled, only selected collections sync.">
                             <Switch
                                 checked={rotationSettings.sync_all_on_rotation}
                                 onChange={() => {

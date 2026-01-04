@@ -416,14 +416,13 @@ export default function GroupDetailPage() {
                 >
                     <FieldRow
                         label="Group name"
-                        hint="Required. The label shown across dashboards and logs."
                     >
                         <input
                             type="text"
                             value={form.name}
                             onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                            placeholder="Holiday Movies"
+                            placeholder="Holiday Movies (Required)"
                         />
                     </FieldRow>
 
@@ -559,7 +558,7 @@ export default function GroupDetailPage() {
 
             <FormSection
                 title="Content sources"
-                description="Pull collections from Plex, Trakt, and Letterboxd. Use the quick-add buttons or type names manually."
+                description="Pull collections from Plex or any enabled third-party sources. Use the quick-add buttons or type names manually."
                 actions={
                             <button
                                 type="button"
@@ -572,7 +571,7 @@ export default function GroupDetailPage() {
                             </button>
                         }
                     >
-                        <FieldRow label="Selected collections" hint="Click a chip to remove it from the group.">
+                        <FieldRow label="Selected collections" description="Click the × to remove it from the group.">
                             {form.collections.length ? (
                                 <div className="flex flex-wrap gap-2">
                                     {form.collections.map((collection) => (
