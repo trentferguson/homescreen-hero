@@ -141,7 +141,6 @@ export default function CollectionsPage() {
                 const versionResponse = await fetchWithAuth("/api/collections/cache-version");
                 const versionData = await versionResponse.json();
                 if (parsedCache.version !== versionData.version) {
-                    console.log("Cache invalidated by server (version mismatch)");
                     localStorage.removeItem(COLLECTIONS_CACHE_KEY);
                     return null;
                 }
@@ -180,7 +179,6 @@ export default function CollectionsPage() {
             if (!forceRefresh) {
                 const cached = await loadFromCache();
                 if (cached) {
-                    console.log("Loading collections from cache");
                     setCollections(cached.data);
                     setLastCacheCheck(cached.timestamp);
                     setLoading(false);
@@ -188,7 +186,6 @@ export default function CollectionsPage() {
                 }
             }
 
-            console.log("Fetching collections from API");
             setLoading(true);
             const response = await fetchWithAuth("/api/collections/all");
             const data = await response.json();
@@ -223,7 +220,6 @@ export default function CollectionsPage() {
                 ...(query && { query }),
             });
 
-            console.log(`Searching library: "${library}" with query: "${query}"`);
             const response = await fetchWithAuth(
                 `/api/collections/${encodeURIComponent(library)}/search?${params}`
             );
@@ -238,10 +234,6 @@ export default function CollectionsPage() {
             }
 
             const data = await response.json();
-            console.log(`Received ${data.items.length} items from library "${library}"`);
-            if (data.items.length > 0) {
-                console.log(`First item: ${data.items[0].title} (type: ${data.items[0].type})`);
-            }
             setMovieSearchResults(data.items);
         } catch (err) {
             console.error("Search failed:", err);
