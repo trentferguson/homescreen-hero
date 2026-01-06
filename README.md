@@ -386,6 +386,36 @@ For local development, you will typically run the frontend and backend services 
     ```
     The backend API will be available at `http://localhost:8000`. Access the auto-generated API documentation at `http://localhost:8000/docs` or `http://localhost:8000/redoc`.
 
+### Running Tests
+
+HomeScreen Hero includes test suites for both backend and frontend. See [TESTING.md](TESTING.md) for detailed testing documentation.
+
+**Backend Tests:**
+```bash
+# Install test dependencies
+pip install -r homescreen_hero/requirements-dev.txt
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=homescreen_hero --cov-report=html
+```
+
+**Frontend Tests:**
+```bash
+cd homescreen-hero-ui
+
+# Run tests in watch mode
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run with UI
+npm run test:ui
+```
+
 ## API Reference
 
 The FastAPI backend automatically generates interactive API documentation.
