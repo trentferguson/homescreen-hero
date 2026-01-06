@@ -40,10 +40,13 @@ build/
 dist/
 *.egg-info/
 
-# --- Coverage / test artifacts ---
-.coverage
+# Test artifacts
 htmlcov/
-pytest_cache/
+.coverage
+.pytest_cache/
+*.pyc
+__pycache__/
+.vitest/
 
 # --- Other ---
 scripts
