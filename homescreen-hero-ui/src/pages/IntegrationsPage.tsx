@@ -1086,8 +1086,8 @@ export default function IntegrationsPage() {
 
                                         <FieldRow label="Client ID" description="Found in your Trakt application settings.">
                                             <input
-                                                type="text"
-                                                placeholder="Trakt client ID"
+                                                type="password"
+                                                placeholder="••••••••"
                                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
                                                 value={traktSettings.client_id}
                                                 onChange={(e) =>
@@ -1766,7 +1766,7 @@ export default function IntegrationsPage() {
                                             </div>
                                         </FieldRow>
 
-                                        <FieldRow label="API Key" description="Your MDBList API key (or set via HSH_MDBLIST_API_KEY environment variable).">
+                                        <FieldRow label="API Key" description="Your MDBList API key.">
                                             <input
                                                 type="password"
                                                 placeholder="MDBList API key"
