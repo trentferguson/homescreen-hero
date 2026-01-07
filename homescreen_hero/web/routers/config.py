@@ -234,6 +234,7 @@ class EnvVarsResponse(BaseModel):
     auth_password_from_env: bool
     auth_secret_from_env: bool
     trakt_client_id_from_env: bool
+    mdblist_api_key_from_env: bool
 
 
 # Incoming payload for quick start setup.
@@ -243,6 +244,9 @@ class QuickStartRequest(BaseModel):
     trakt_enabled: bool = False
     trakt_client_id: Optional[str] = None
     trakt_base_url: str = "https://api.trakt.tv"
+    mdblist_enabled: bool = False
+    mdblist_api_key: Optional[str] = None
+    mdblist_base_url: str = "https://api.mdblist.com"
     libraries: List[str] = []
     auth_enabled: bool = False
     auth_username: Optional[str] = None
@@ -1613,6 +1617,7 @@ def check_env_vars() -> EnvVarsResponse:
         auth_password_from_env=bool(os.getenv("HSH_AUTH_PASSWORD")),
         auth_secret_from_env=bool(os.getenv("HSH_AUTH_SECRET_KEY")),
         trakt_client_id_from_env=bool(os.getenv("HSH_TRAKT_CLIENT_ID")),
+        mdblist_api_key_from_env=bool(os.getenv("HSH_MDBLIST_API_KEY")),
     )
 
 
@@ -1687,6 +1692,27 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
             minimal_config["trakt"] = {
                 "enabled": False,
                 "base_url": payload.trakt_base_url,
+                "sources": []
+            }
+
+        # Add MDBList if enabled
+        # Use environment variable if payload value is empty
+        mdblist_api_key = payload.mdblist_api_key or os.getenv("HSH_MDBLIST_API_KEY", "")
+        mdblist_api_key_from_env = os.getenv("HSH_MDBLIST_API_KEY")
+
+        if payload.mdblist_enabled and mdblist_api_key:
+            minimal_config["mdblist"] = {
+                "enabled": True,
+                "base_url": payload.mdblist_base_url,
+                "sources": []
+            }
+            # Only write api_key to config if not from environment variable
+            if not mdblist_api_key_from_env:
+                minimal_config["mdblist"]["api_key"] = mdblist_api_key
+        else:
+            minimal_config["mdblist"] = {
+                "enabled": False,
+                "base_url": payload.mdblist_base_url,
                 "sources": []
             }
 
