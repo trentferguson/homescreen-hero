@@ -1013,10 +1013,10 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                             <Listbox
                                 value={wizardData.rotationStrategy}
                                 onChange={(val) =>
-                                    setWizardData((prev) => ({
-                                        ...prev,
+                                    setWizardData({
+                                        ...wizardData,
                                         rotationStrategy: val,
-                                    }))
+                                    })
                                 }
                             >
                                 <div className="relative">
