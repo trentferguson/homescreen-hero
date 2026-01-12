@@ -135,14 +135,20 @@ class TautulliClient:
             logger.error("Failed to get collections for section %s: %s", section_id, exc)
             return []
 
-    def get_collection_stats(self, rating_key: int) -> Dict[str, Any]:
+    def get_collection_stats(self, rating_key: int, query_days: int = 30) -> Dict[str, Any]:
         """
         Get watch statistics for a specific collection by rating_key.
+
+        Args:
+            rating_key: Plex rating key for the item
+            query_days: Number of days to query (default: 30)
+
         Returns dict with total_plays, total_duration, etc.
         """
         try:
             params = {
                 "rating_key": str(rating_key),
+                "query_days": str(query_days),
             }
             data = self._request("get_item_watch_time_stats", params=params)
 

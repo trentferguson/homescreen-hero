@@ -140,11 +140,31 @@ def run_rotation_once(
         dry_run=dry_run,  # controls whether Plex is actually changed
     )
 
-    record_rotation(
+    rotation_id = record_rotation(
         rotation_result.selected_collections,
         success=True,
         error_message=None,
     )
+
+    # Collect analytics after rotation if Tautulli is enabled
+    if not dry_run and config.tautulli and config.tautulli.enabled:
+        if config.tautulli.collect_on_rotation:
+            try:
+                from .integrations.tautulli_analytics import collect_analytics_for_collections
+                logger.info("Collecting analytics after rotation %d", rotation_id)
+                analytics_result = collect_analytics_for_collections(
+                    config=config,
+                    collection_names=rotation_result.selected_collections,
+                    rotation_id=rotation_id,
+                )
+                logger.info(
+                    "Analytics collection complete: %d succeeded, %d failed",
+                    len(analytics_result.get("collected", [])),
+                    len(analytics_result.get("failed", [])),
+                )
+            except Exception as e:
+                logger.error("Failed to collect analytics after rotation: %s", e, exc_info=True)
+                # Don't fail the rotation if analytics collection fails
 
     execution = RotationExecution(
         rotation=rotation_result,
@@ -155,7 +175,7 @@ def run_rotation_once(
     logger.info("Selected collections: %s", rotation_result.selected_collections)
     logger.info("Applied collections: %s", applied)
     logger.info("Rotation complete (dry_run=%s)", dry_run)
-    
+
     return execution
 
 

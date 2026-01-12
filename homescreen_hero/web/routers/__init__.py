@@ -7,6 +7,7 @@ from .history import router as history_router
 from .logs import router as logs_router
 from .collections import router as collections_router
 from .auth import router as auth_router
+from .analytics import router as analytics_router
 
 __all__ = [
     "health_router",
@@ -16,4 +17,5 @@ __all__ = [
     "logs_router",
     "collections_router",
     "auth_router",
+    "analytics_router",
 ]
