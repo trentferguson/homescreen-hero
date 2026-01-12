@@ -151,6 +151,33 @@ def _check_mdblist(config: Any) -> HealthComponent:
         )
 
 
+# Helper function for Tautulli health check
+def _check_tautulli(config: Any) -> HealthComponent:
+    try:
+        from homescreen_hero.core.integrations.tautulli_client import get_tautulli_client
+
+        tautulli_client = get_tautulli_client(config)
+
+        if tautulli_client is None:
+            # Check if Tautulli is enabled - if so, this is an error (missing API key)
+            if config.tautulli and config.tautulli.enabled:
+                return HealthComponent(ok=False, error="Tautulli enabled but API key not configured")
+            return HealthComponent(ok=True, error="Tautulli disabled or not configured")
+
+        t_ok, t_error = tautulli_client.ping()
+
+        if not t_ok:
+            return HealthComponent(ok=False, error=f"Tautulli ping failed: {t_error}")
+
+        return HealthComponent(ok=True)
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("Tautulli health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in Tautulli health check: {exc}"
+        )
+
+
 # Helper function for Plex health check
 def _check_plex(config: Any) -> HealthComponent:
     try:
@@ -229,6 +256,16 @@ def health_mdblist() -> HealthComponent:
     return _check_mdblist(config)
 
 
+# Validate Tautulli connectivity
+@router.get("/health/tautulli", response_model=HealthComponent)
+def health_tautulli() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_tautulli(config)
+
+
 # Validate Plex connectivity and configured library is accessible
 @router.get("/health/plex", response_model=HealthComponent)
 def health_plex() -> HealthComponent:
@@ -257,6 +294,7 @@ def health_check() -> HealthResponse:
 
     components["trakt"] = _check_trakt(config)
     components["mdblist"] = _check_mdblist(config)
+    components["tautulli"] = _check_tautulli(config)
     components["plex"] = _check_plex(config)
 
     overall_ok = all(component.ok for component in components.values())
