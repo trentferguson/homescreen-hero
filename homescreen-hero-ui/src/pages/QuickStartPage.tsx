@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
-import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, L>ist } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, List } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
