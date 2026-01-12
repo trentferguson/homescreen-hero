@@ -20,7 +20,7 @@ def record_collection_analytics(
     total_duration_seconds: Optional[int] = None,
     unique_users: Optional[int] = None,
     rotation_id: Optional[int] = None,
-    metadata: Optional[Dict[str, Any]] = None,
+    extra_data: Optional[Dict[str, Any]] = None,
 ) -> CollectionAnalytics:
     """
     Record a new analytics snapshot for a collection.
@@ -33,7 +33,7 @@ def record_collection_analytics(
         total_duration_seconds: Total watch duration in seconds
         unique_users: Number of unique users who watched
         rotation_id: Optional rotation ID this snapshot is associated with
-        metadata: Optional additional metadata (JSON)
+        extra_data: Optional additional data (JSON)
 
     Returns:
         The created CollectionAnalytics record
@@ -48,7 +48,7 @@ def record_collection_analytics(
             unique_users=unique_users,
             rotation_id=rotation_id,
             collected_at=datetime.utcnow(),
-            metadata=metadata,
+            extra_data=extra_data,
         )
         session.add(record)
         session.commit()

@@ -58,6 +58,15 @@ mdblist:
     url: "LINK_TO_MDBLIST_LIST"  # e.g., https://mdblist.com/lists/username/listname
     plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
 
+# Optional: Tautulli integration for analytics
+tautulli:
+  enabled: false
+  # api_key: "YOUR_TAUTULLI_API_KEY"  # RECOMMENDED: Use HSH_TAUTULLI_API_KEY environment variable instead
+  # Get your API key from: Tautulli Settings → Web Interface → API → API Key
+  base_url: "http://localhost:8181"  # Your Tautulli instance URL
+  collect_on_rotation: true  # Automatically collect analytics after each rotation
+  collect_interval_hours: 24  # How often to collect analytics snapshots (in hours)
+
 logging:
   level: INFO
 

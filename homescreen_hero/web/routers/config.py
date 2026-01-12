@@ -28,6 +28,7 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSource,
     MDBListSettings,
     MDBListSource,
+    TautulliSettings,
     CollectionGroupConfig,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
@@ -95,6 +96,11 @@ class MDBListConfigSaveRequest(MDBListSettings):
 
 # Incoming payload for MDBList source create/update operations.
 class MDBListSourcePayload(MDBListSource):
+    pass
+
+
+# Incoming payload for Tautulli settings updates.
+class TautulliConfigSaveRequest(TautulliSettings):
     pass
 
 
@@ -1355,6 +1361,80 @@ def validate_config_groups(current_user: str = Depends(get_current_user)) -> Lis
 
     return results
 
+
+# ========================================================================
+# TAUTULLI CONFIGURATION ENDPOINTS
+# ========================================================================
+
+# Return the currently configured Tautulli settings
+@router.get("/tautulli", response_model=TautulliSettings)
+def get_tautulli_settings(current_user: str = Depends(get_current_user)) -> TautulliSettings:
+    try:
+        config = load_config()
+        if config.tautulli is None:
+            return TautulliSettings(
+                enabled=False,
+                api_key=None,
+                base_url="http://localhost:8181",
+                collect_on_rotation=True,
+                collect_interval_hours=24,
+            )
+        return config.tautulli
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Update only Tautulli settings in config.yaml while preserving other keys
+@router.post("/tautulli", response_model=ConfigSaveResponse)
+def save_tautulli_settings(
+    payload: TautulliConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    try:
+        data = _load_config_mapping()
+
+        tautulli_section = data.get("tautulli") if isinstance(data.get("tautulli"), dict) else {}
+        tautulli_section = dict(tautulli_section)
+
+        # Only save api_key to config if it's not coming from environment variable
+        api_key_from_env = os.getenv("HSH_TAUTULLI_API_KEY")
+        if api_key_from_env:
+            # Don't write api_key to config if it's set in environment
+            tautulli_section.pop("api_key", None)
+        else:
+            # Write api_key to config only if not using env var
+            tautulli_section["api_key"] = payload.api_key
+
+        tautulli_section.update(
+            enabled=payload.enabled,
+            base_url=payload.base_url,
+            collect_on_rotation=payload.collect_on_rotation,
+            collect_interval_hours=payload.collect_interval_hours,
+        )
+
+        data["tautulli"] = tautulli_section
+        _save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Tautulli settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# COLLECTION GROUPS CONFIGURATION ENDPOINTS
+# ========================================================================
 
 # Return list of all configured collection groups
 @router.get("/groups", response_model=list[CollectionGroupConfig])

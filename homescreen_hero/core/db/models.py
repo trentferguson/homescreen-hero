@@ -178,5 +178,5 @@ class CollectionAnalytics(Base):
     # Timestamps
     collected_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
-    # Optional metadata (JSON for flexibility - can store additional stats)
-    metadata = Column(JSON, nullable=True)
+    # Optional extra data (JSON for flexibility - can store additional stats)
+    extra_data = Column(JSON, nullable=True)
