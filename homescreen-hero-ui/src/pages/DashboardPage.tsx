@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
+import AnalyticsCard from "../components/AnalyticsCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
@@ -596,6 +597,11 @@ export default function Dashboard() {
                     {/* Active Collections */}
                     <div className="col-span-full w-full">
                         <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
+                    </div>
+
+                    {/* Analytics */}
+                    <div className="col-span-full w-full">
+                        <AnalyticsCard loading={healthLoading} />
                     </div>
                 </div>
 
