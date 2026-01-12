@@ -20,6 +20,9 @@ class ActiveCollectionOut(BaseModel):
     title: str
     library: Optional[str] = None
     poster_url: Optional[str] = None
+    promoted_to_own_home: bool = False
+    promoted_to_shared: bool = False
+    promoted_to_recommended: bool = False
 
 
 class ActiveCollectionsResponse(BaseModel):
@@ -184,8 +187,14 @@ def get_active_collections() -> ActiveCollectionsResponse:
                     # Get the visibility/hub settings for this collection
                     hub = col.visibility()
 
-                    # Check if this collection is visible on the home screen
-                    if getattr(hub, "promotedToOwnHome", False):
+                    # Get all three visibility flags
+                    # Note: The correct attribute name is "promotedToSharedHome" not "promotedToShared"
+                    promoted_own = getattr(hub, "promotedToOwnHome", False)
+                    promoted_shared = getattr(hub, "promotedToSharedHome", False)
+                    promoted_recommended = getattr(hub, "promotedToRecommended", False)
+
+                    # Include if ANY visibility is enabled
+                    if promoted_own or promoted_shared or promoted_recommended:
                         poster_url = None
                         if getattr(col, "thumb", None):
                             try:
@@ -206,6 +215,9 @@ def get_active_collections() -> ActiveCollectionsResponse:
                                 title=col.title,
                                 poster_url=poster_url,
                                 library=section.title,
+                                promoted_to_own_home=promoted_own,
+                                promoted_to_shared=promoted_shared,
+                                promoted_to_recommended=promoted_recommended,
                             )
                         )
                 except Exception as e:
