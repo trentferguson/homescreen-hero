@@ -43,7 +43,7 @@ class RotationSettings(BaseModel):
     )
     strategy: str = Field(
         default="random",
-        description="Selection strategy: 'random', 'weighted', etc.",
+        description="Selection strategy: 'random' (process groups in config order) or 'weighted' (process groups by weight, highest first)",
     )
     allow_repeats: bool = Field(
         default=False,
@@ -71,7 +71,7 @@ class CollectionGroupConfig(BaseModel):
     weight: int = Field(
         default=1,
         ge=1,
-        description="Relative priority of this group vs other groups (future use)",
+        description="Relative priority of this group vs other groups (used when strategy='weighted'). Higher weight = higher priority.",
     )
     min_gap_rotations: int = Field(
         default=0,

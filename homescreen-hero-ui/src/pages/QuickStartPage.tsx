@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
-import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock } from "lucide-react";
-import { Switch } from "@headlessui/react";
+import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown } from "lucide-react";
+import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
 
@@ -793,11 +793,45 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                             <label htmlFor="strategy" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 Strategy
                             </label>
-                            <div className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white">
-                                Random
-                            </div>
+                            <Listbox
+                                value={wizardData.rotationStrategy}
+                                onChange={(val) =>
+                                    setWizardData((prev) => ({
+                                        ...prev,
+                                        rotationStrategy: val,
+                                    }))
+                                }
+                            >
+                                <div className="relative">
+                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
+                                        <span>{wizardData.rotationStrategy === "weighted" ? "Weighted" : "Random"}</span>
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </Listbox.Button>
+
+                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
+                                        <Listbox.Option
+                                            value="random"
+                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                        >
+                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
+                                                <span className="data-[selected]:font-medium">Random</span>
+                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                            </div>
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="weighted"
+                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                        >
+                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
+                                                <span className="data-[selected]:font-medium">Weighted</span>
+                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                            </div>
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
                             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Random is currently the only supported strategy
+                                Choose how groups are prioritized during rotation
                             </p>
                         </div>
 

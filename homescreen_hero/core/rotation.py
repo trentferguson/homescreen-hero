@@ -16,6 +16,33 @@ from .db import CollectionUsage
 
 logger = logging.getLogger(__name__)
 
+
+def _get_ordered_groups(
+    groups: List[CollectionGroupConfig],
+    strategy: str,
+    rng: random.Random,
+) -> List[CollectionGroupConfig]:
+    """
+    Order groups based on the selection strategy.
+
+    Args:
+        groups: List of all groups from config
+        strategy: Selection strategy ('random' or 'weighted')
+        rng: Random number generator for reproducibility
+
+    Returns:
+        Ordered list of groups to process
+    """
+    if strategy == "weighted":
+        # Sort groups by weight (descending), then by config order for ties
+        # Higher weight = processed first = higher priority
+        logger.debug("Using weighted strategy: sorting groups by weight")
+        return sorted(groups, key=lambda g: (-g.weight, groups.index(g)))
+    else:
+        # Default 'random' strategy: keep original config order
+        logger.debug("Using random strategy: keeping original group order")
+        return list(groups)
+
 def _parse_month_day(value: str) -> Tuple[int, int]:
     try:
         month_str, day_str = value.split("-", 1)
@@ -107,7 +134,10 @@ def run_rotation_with_history(
         "Starting rotation with history: %d max rotations observed", max_rotation_id
     )
 
-    for group in config.groups:
+    # Order groups based on strategy
+    ordered_groups = _get_ordered_groups(config.groups, config.rotation.strategy, rng)
+
+    for group in ordered_groups:
         is_active = _group_is_active(group, today)
 
         result = GroupSelectionResult(
@@ -227,9 +257,13 @@ def run_rotation_dry(
     selected_set: Set[str] = set()
     group_results: List[GroupSelectionResult] = []
 
-    # Groups are considered in the order they appear in config.yaml
+    # Groups are ordered based on strategy (weighted or random/config order)
     logger.info("Starting dry rotation for %d groups", len(config.groups))
-    for group in config.groups:
+
+    # Order groups based on strategy
+    ordered_groups = _get_ordered_groups(config.groups, config.rotation.strategy, rng)
+
+    for group in ordered_groups:
         is_active = _group_is_active(group, today)
 
         result = GroupSelectionResult(

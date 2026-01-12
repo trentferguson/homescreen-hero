@@ -9,6 +9,7 @@ from homescreen_hero.core.rotation import (
     _is_date_in_range,
     _group_is_active,
     _passes_gap_rule,
+    _get_ordered_groups,
 )
 from homescreen_hero.core.config.schema import CollectionGroupConfig, DateRange
 
@@ -184,3 +185,137 @@ class TestPassesGapRule:
         }
         # Current rotation is 10, last used at 7, gap is exactly 3
         assert _passes_gap_rule("Test Collection", group, max_rotation_id=10, usage_map=usage_map) is True
+
+
+class TestGetOrderedGroups:
+    """Tests for _get_ordered_groups function"""
+
+    def test_random_strategy_preserves_order(self):
+        """Random strategy should preserve original config order"""
+        groups = [
+            CollectionGroupConfig(
+                name="Group A",
+                enabled=True,
+                weight=5,
+                collections=["Collection A"]
+            ),
+            CollectionGroupConfig(
+                name="Group B",
+                enabled=True,
+                weight=10,
+                collections=["Collection B"]
+            ),
+            CollectionGroupConfig(
+                name="Group C",
+                enabled=True,
+                weight=1,
+                collections=["Collection C"]
+            ),
+        ]
+        rng = random.Random(42)
+        ordered = _get_ordered_groups(groups, "random", rng)
+
+        # Order should be preserved
+        assert ordered[0].name == "Group A"
+        assert ordered[1].name == "Group B"
+        assert ordered[2].name == "Group C"
+
+    def test_weighted_strategy_sorts_by_weight(self):
+        """Weighted strategy should sort groups by weight (descending)"""
+        groups = [
+            CollectionGroupConfig(
+                name="Group A",
+                enabled=True,
+                weight=5,
+                collections=["Collection A"]
+            ),
+            CollectionGroupConfig(
+                name="Group B",
+                enabled=True,
+                weight=10,
+                collections=["Collection B"]
+            ),
+            CollectionGroupConfig(
+                name="Group C",
+                enabled=True,
+                weight=1,
+                collections=["Collection C"]
+            ),
+        ]
+        rng = random.Random(42)
+        ordered = _get_ordered_groups(groups, "weighted", rng)
+
+        # Should be sorted by weight descending: B(10), A(5), C(1)
+        assert ordered[0].name == "Group B"
+        assert ordered[0].weight == 10
+        assert ordered[1].name == "Group A"
+        assert ordered[1].weight == 5
+        assert ordered[2].name == "Group C"
+        assert ordered[2].weight == 1
+
+    def test_weighted_strategy_with_equal_weights(self):
+        """Weighted strategy should preserve config order for groups with same weight"""
+        groups = [
+            CollectionGroupConfig(
+                name="Group A",
+                enabled=True,
+                weight=5,
+                collections=["Collection A"]
+            ),
+            CollectionGroupConfig(
+                name="Group B",
+                enabled=True,
+                weight=5,
+                collections=["Collection B"]
+            ),
+            CollectionGroupConfig(
+                name="Group C",
+                enabled=True,
+                weight=5,
+                collections=["Collection C"]
+            ),
+        ]
+        rng = random.Random(42)
+        ordered = _get_ordered_groups(groups, "weighted", rng)
+
+        # All have same weight, should preserve original order
+        assert ordered[0].name == "Group A"
+        assert ordered[1].name == "Group B"
+        assert ordered[2].name == "Group C"
+
+    def test_weighted_strategy_mixed_weights(self):
+        """Weighted strategy with mixed weights including duplicates"""
+        groups = [
+            CollectionGroupConfig(
+                name="Group A",
+                enabled=True,
+                weight=3,
+                collections=["Collection A"]
+            ),
+            CollectionGroupConfig(
+                name="Group B",
+                enabled=True,
+                weight=10,
+                collections=["Collection B"]
+            ),
+            CollectionGroupConfig(
+                name="Group C",
+                enabled=True,
+                weight=3,
+                collections=["Collection C"]
+            ),
+            CollectionGroupConfig(
+                name="Group D",
+                enabled=True,
+                weight=7,
+                collections=["Collection D"]
+            ),
+        ]
+        rng = random.Random(42)
+        ordered = _get_ordered_groups(groups, "weighted", rng)
+
+        # Should be: B(10), D(7), A(3), C(3) - A before C due to config order
+        assert ordered[0].name == "Group B"
+        assert ordered[1].name == "Group D"
+        assert ordered[2].name == "Group A"
+        assert ordered[3].name == "Group C"
