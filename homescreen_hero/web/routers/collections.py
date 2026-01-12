@@ -189,8 +189,10 @@ def get_active_collections() -> ActiveCollectionsResponse:
                         poster_url = None
                         if getattr(col, "thumb", None):
                             try:
+                                # Use full URL for the source image to ensure authentication works
+                                full_thumb_url = server.url(col.thumb, includeToken=True)
                                 poster_url = server.transcodeImage(
-                                    col.thumb,
+                                    full_thumb_url,
                                     height=450,
                                     width=300,
                                     minSize=1
@@ -240,8 +242,10 @@ def get_all_collections() -> AllCollectionsResponse:
                 poster_url = None
                 if getattr(col, "thumb", None):
                     try:
+                        # Use full URL for the source image to ensure authentication works
+                        full_thumb_url = server.url(col.thumb, includeToken=True)
                         poster_url = server.transcodeImage(
-                            col.thumb,
+                            full_thumb_url,
                             height=450,
                             width=300,
                             minSize=1
@@ -489,8 +493,10 @@ def get_collection_details(
         poster_url = None
         if hasattr(collection, "thumb") and collection.thumb:
             try:
+                # Use full URL for the source image to ensure authentication works
+                full_thumb_url = server.url(collection.thumb, includeToken=True)
                 poster_url = server.transcodeImage(
-                    collection.thumb,
+                    full_thumb_url,
                     height=600,
                     width=400,
                     minSize=1
