@@ -10,6 +10,7 @@ from homescreen_hero.core.rotation import (
     _group_is_active,
     _passes_gap_rule,
     _get_ordered_groups,
+    _select_collections_from_group,
 )
 from homescreen_hero.core.config.schema import CollectionGroupConfig, DateRange
 
@@ -319,3 +320,80 @@ class TestGetOrderedGroups:
         assert ordered[1].name == "Group D"
         assert ordered[2].name == "Group A"
         assert ordered[3].name == "Group C"
+
+
+class TestSelectCollectionsFromGroup:
+    """Tests for _select_collections_from_group function"""
+
+    def test_random_strategy_uses_random_sample(self):
+        """Random strategy should use random sampling"""
+        available = ["Collection A", "Collection B", "Collection C", "Collection D"]
+        usage_map = {}
+        rng = random.Random(42)
+
+        chosen = _select_collections_from_group(available, 2, "random", usage_map, rng)
+
+        assert len(chosen) == 2
+        assert all(c in available for c in chosen)
+
+    def test_lru_strategy_prioritizes_never_used(self):
+        """LRU strategy should prioritize collections never used"""
+        available = ["Never Used", "Used Recently", "Used Long Ago"]
+        usage_map = {
+            "Used Recently": MockCollectionUsage("Used Recently", 10),
+            "Used Long Ago": MockCollectionUsage("Used Long Ago", 5),
+            # "Never Used" not in usage_map
+        }
+        rng = random.Random(42)
+
+        chosen = _select_collections_from_group(available, 2, "lru", usage_map, rng)
+
+        # Should pick "Never Used" first, then "Used Long Ago" (older rotation ID)
+        assert chosen[0] == "Never Used"
+        assert chosen[1] == "Used Long Ago"
+
+    def test_lru_strategy_orders_by_rotation_id(self):
+        """LRU strategy should order by last_rotation_id ascending"""
+        available = ["Recent 1", "Old 1", "Recent 2", "Old 2"]
+        usage_map = {
+            "Recent 1": MockCollectionUsage("Recent 1", 20),
+            "Old 1": MockCollectionUsage("Old 1", 5),
+            "Recent 2": MockCollectionUsage("Recent 2", 15),
+            "Old 2": MockCollectionUsage("Old 2", 8),
+        }
+        rng = random.Random(42)
+
+        chosen = _select_collections_from_group(available, 3, "lru", usage_map, rng)
+
+        # Should be ordered by rotation ID: Old 1 (5), Old 2 (8), Recent 2 (15)
+        assert chosen == ["Old 1", "Old 2", "Recent 2"]
+
+    def test_lru_strategy_all_never_used(self):
+        """LRU strategy with all collections never used"""
+        available = ["A", "B", "C", "D"]
+        usage_map = {}
+        rng = random.Random(42)
+
+        chosen = _select_collections_from_group(available, 2, "lru", usage_map, rng)
+
+        # All have same priority (never used), should take first k from sorted
+        assert len(chosen) == 2
+        assert all(c in available for c in chosen)
+
+    def test_lru_strategy_respects_k_parameter(self):
+        """LRU strategy should respect the k parameter"""
+        available = ["A", "B", "C", "D", "E"]
+        usage_map = {
+            "A": MockCollectionUsage("A", 1),
+            "B": MockCollectionUsage("B", 2),
+            "C": MockCollectionUsage("C", 3),
+            "D": MockCollectionUsage("D", 4),
+            "E": MockCollectionUsage("E", 5),
+        }
+        rng = random.Random(42)
+
+        # Request only 3 collections
+        chosen = _select_collections_from_group(available, 3, "lru", usage_map, rng)
+
+        # Should get oldest 3: A(1), B(2), C(3)
+        assert chosen == ["A", "B", "C"]

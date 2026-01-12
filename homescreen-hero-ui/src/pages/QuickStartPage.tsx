@@ -804,7 +804,11 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                             >
                                 <div className="relative">
                                     <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
-                                        <span>{wizardData.rotationStrategy === "weighted" ? "Weighted" : "Random"}</span>
+                                        <span>
+                                            {wizardData.rotationStrategy === "weighted" ? "Weighted" :
+                                             wizardData.rotationStrategy === "lru" ? "Least Recently Used" :
+                                             "Random"}
+                                        </span>
                                         <ChevronDown size={16} className="text-slate-400" />
                                     </Listbox.Button>
 
@@ -824,6 +828,15 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                                         >
                                             <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
                                                 <span className="data-[selected]:font-medium">Weighted</span>
+                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                            </div>
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="lru"
+                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
+                                        >
+                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
+                                                <span className="data-[selected]:font-medium">Least Recently Used</span>
                                                 <Check size={14} className="text-primary invisible data-[selected]:visible" />
                                             </div>
                                         </Listbox.Option>

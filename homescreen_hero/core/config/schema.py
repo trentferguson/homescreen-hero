@@ -43,7 +43,7 @@ class RotationSettings(BaseModel):
     )
     strategy: str = Field(
         default="random",
-        description="Selection strategy: 'random' (process groups in config order) or 'weighted' (process groups by weight, highest first)",
+        description="Selection strategy: 'random' (random selection), 'weighted' (sort groups by weight), or 'lru' (pick least recently used collections)",
     )
     allow_repeats: bool = Field(
         default=False,

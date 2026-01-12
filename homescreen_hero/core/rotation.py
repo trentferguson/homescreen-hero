@@ -27,7 +27,7 @@ def _get_ordered_groups(
 
     Args:
         groups: List of all groups from config
-        strategy: Selection strategy ('random' or 'weighted')
+        strategy: Selection strategy ('random', 'weighted', or 'lru')
         rng: Random number generator for reproducibility
 
     Returns:
@@ -39,9 +39,50 @@ def _get_ordered_groups(
         logger.debug("Using weighted strategy: sorting groups by weight")
         return sorted(groups, key=lambda g: (-g.weight, groups.index(g)))
     else:
-        # Default 'random' strategy: keep original config order
-        logger.debug("Using random strategy: keeping original group order")
+        # Default 'random' and 'lru' strategies: keep original config order
+        # LRU strategy affects collection selection within groups, not group order
+        logger.debug(f"Using {strategy} strategy: keeping original group order")
         return list(groups)
+
+
+def _select_collections_from_group(
+    available: List[str],
+    k: int,
+    strategy: str,
+    usage_map: Dict[str, CollectionUsage],
+    rng: random.Random,
+) -> List[str]:
+    """
+    Select k collections from the available list based on strategy.
+
+    Args:
+        available: List of collection names to choose from
+        k: Number of collections to select
+        strategy: Selection strategy ('random', 'weighted', or 'lru')
+        usage_map: Mapping of collection names to usage data
+        rng: Random number generator for reproducibility
+
+    Returns:
+        List of selected collection names
+    """
+    if strategy == "lru":
+        # Sort by last_rotation_id (ascending), prioritizing least recently used
+        # Collections never used (None) are sorted first
+        def sort_key(collection_name: str) -> Tuple[int, int]:
+            usage = usage_map.get(collection_name)
+            if usage is None or usage.last_rotation_id is None:
+                # Never used - highest priority (sort first)
+                return (0, 0)
+            else:
+                # Used before - sort by rotation ID (older = higher priority)
+                # Secondary sort by times_used (less used = higher priority)
+                return (1, usage.last_rotation_id)
+
+        sorted_collections = sorted(available, key=sort_key)
+        return sorted_collections[:k]
+    else:
+        # Default random selection
+        return rng.sample(available, k=k)
 
 def _parse_month_day(value: str) -> Tuple[int, int]:
     try:
@@ -206,7 +247,10 @@ def run_rotation_with_history(
             group_results.append(result)
             continue
 
-        chosen = rng.sample(available, k=k)
+        # Select collections based on strategy
+        chosen = _select_collections_from_group(
+            available, k, config.rotation.strategy, usage_map, rng
+        )
 
         selected.extend(chosen)
         selected_set.update(chosen)
@@ -262,6 +306,9 @@ def run_rotation_dry(
 
     # Order groups based on strategy
     ordered_groups = _get_ordered_groups(config.groups, config.rotation.strategy, rng)
+
+    # For dry run, we don't have usage history, so use empty map
+    usage_map: Dict[str, CollectionUsage] = {}
 
     for group in ordered_groups:
         is_active = _group_is_active(group, today)
@@ -327,7 +374,10 @@ def run_rotation_dry(
             group_results.append(result)
             continue
 
-        chosen = rng.sample(available, k=k)
+        # Select collections based on strategy
+        chosen = _select_collections_from_group(
+            available, k, config.rotation.strategy, usage_map, rng
+        )
 
         selected.extend(chosen)
         selected_set.update(chosen)
