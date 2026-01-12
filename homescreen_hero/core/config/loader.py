@@ -145,6 +145,23 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             logger.info("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
             config.mdblist.api_key = mdblist_api_key
 
+    # Tautulli API key override (if Tautulli is enabled)
+    if config.tautulli and config.tautulli.enabled:
+        tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
+        if tautulli_api_key:
+            logger.info("Using Tautulli API key from HSH_TAUTULLI_API_KEY environment variable")
+            config.tautulli.api_key = tautulli_api_key
+        elif not config.tautulli.api_key:
+            raise ValueError(
+                "Tautulli API key is required when Tautulli is enabled. Set it in config.yaml or via HSH_TAUTULLI_API_KEY environment variable"
+            )
+
+        # Tautulli base URL override (optional)
+        tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
+        if tautulli_base_url:
+            logger.info("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
+            config.tautulli.base_url = tautulli_base_url
+
     return config
 
 

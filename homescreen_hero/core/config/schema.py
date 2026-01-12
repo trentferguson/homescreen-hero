@@ -193,6 +193,31 @@ class MDBListSettings(BaseModel):
     sources: List[MDBListSource] = Field(default_factory=list)
 
 
+class TautulliSettings(BaseModel):
+    # Tautulli connection details for analytics.
+    enabled: bool = Field(
+        default=False,
+        description="Whether Tautulli analytics integration is enabled",
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Tautulli API key (can be set via HSH_TAUTULLI_API_KEY env var)",
+    )
+    base_url: str = Field(
+        "http://localhost:8181",
+        description="Base URL for Tautulli instance",
+    )
+    collect_on_rotation: bool = Field(
+        default=True,
+        description="Automatically collect analytics after each rotation",
+    )
+    collect_interval_hours: int = Field(
+        default=24,
+        ge=1,
+        description="How often to collect analytics snapshots (in hours)",
+    )
+
+
 class AppConfig(BaseModel):
     # Root application configuration, loaded from config.yaml.
     plex: PlexSettings
@@ -201,6 +226,7 @@ class AppConfig(BaseModel):
     trakt: Optional[TraktSettings] = None
     letterboxd: Optional[LetterboxdSettings] = None
     mdblist: Optional[MDBListSettings] = None
+    tautulli: Optional[TautulliSettings] = None
     logging: LoggingSettings = LoggingSettings()
     auth: Optional[AuthSettings] = None
 

@@ -154,3 +154,29 @@ class MDBListMissingItem(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class CollectionAnalytics(Base):
+    # Analytics snapshots for collection watch statistics from Tautulli
+    __tablename__ = "collection_analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Collection identification
+    collection_name = Column(String, nullable=False, index=True)
+    plex_library = Column(String, nullable=False)
+    rating_key = Column(Integer, nullable=True)
+
+    # Analytics data from Tautulli
+    total_plays = Column(Integer, nullable=False, default=0)
+    total_duration_seconds = Column(Integer, nullable=True)
+    unique_users = Column(Integer, nullable=True)
+
+    # Link to rotation (for "after rotation" snapshots)
+    rotation_id = Column(Integer, nullable=True, index=True)
+
+    # Timestamps
+    collected_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    # Optional metadata (JSON for flexibility - can store additional stats)
+    metadata = Column(JSON, nullable=True)
