@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
-import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, L>ist } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
@@ -12,6 +12,7 @@ type EnvVars = {
     auth_password_from_env: boolean;
     auth_secret_from_env: boolean;
     trakt_client_id_from_env: boolean;
+    mdblist_api_key_from_env: boolean;
 };
 
 type Library = {
@@ -29,6 +30,9 @@ type WizardData = {
     traktEnabled: boolean;
     traktClientId: string;
     traktBaseUrl: string;
+    mdblistEnabled: boolean;
+    mdblistApiKey: string;
+    mdblistBaseUrl: string;
     rotationEnabled: boolean;
     rotationIntervalHours: number;
     rotationMaxCollections: number;
@@ -47,6 +51,9 @@ export default function QuickStartPage() {
         traktEnabled: false,
         traktClientId: "",
         traktBaseUrl: "https://api.trakt.tv",
+        mdblistEnabled: false,
+        mdblistApiKey: "",
+        mdblistBaseUrl: "https://api.mdblist.com",
         rotationEnabled: false,
         rotationIntervalHours: 12,
         rotationMaxCollections: 5,
@@ -60,6 +67,7 @@ export default function QuickStartPage() {
         auth_password_from_env: false,
         auth_secret_from_env: false,
         trakt_client_id_from_env: false,
+        mdblist_api_key_from_env: false,
     });
 
     useEffect(() => {
@@ -84,6 +92,7 @@ export default function QuickStartPage() {
                         <AuthStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <PlexStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <TraktStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
+                        <MDBListStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <RotationStep wizardData={wizardData} setWizardData={setWizardData} />
                         <CompleteStep wizardData={wizardData} />
                     </Wizard>
@@ -112,7 +121,7 @@ function WelcomeStep() {
                     Welcome to HomeScreen Hero
                 </h1>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Let's get you set up in just a few quick steps. We'll configure your Plex connection, select your libraries, and optionally set up authentication and Trakt integration.
+                    Let's get you set up in just a few quick steps. We'll configure your Plex connection, select your libraries, and optionally set up authentication, Trakt, and MDBList integrations.
                 </p>
             </div>
 
@@ -705,6 +714,214 @@ function TraktStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
     );
 }
 
+function MDBListStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
+    const { nextStep, previousStep } = useWizard();
+    const [localMDBListEnabled, setLocalMDBListEnabled] = useState(wizardData.mdblistEnabled);
+    const [localMDBListApiKey, setLocalMDBListApiKey] = useState(wizardData.mdblistApiKey);
+    const [localMDBListBaseUrl, setLocalMDBListBaseUrl] = useState(wizardData.mdblistBaseUrl);
+    const [testingMDBList, setTestingMDBList] = useState(false);
+    const [mdblistTestSuccess, setMDBListTestSuccess] = useState(false);
+    const [error, setError] = useState("");
+
+    const handleTestMDBList = async () => {
+        if ((!localMDBListApiKey && !envVars.mdblist_api_key_from_env) || !localMDBListBaseUrl) {
+            setError("Please enter both MDBList API Key and Base URL before testing");
+            return;
+        }
+
+        try {
+            setTestingMDBList(true);
+            setError("");
+            setMDBListTestSuccess(false);
+
+            // Test MDBList connection
+            const response = await fetch("/api/health/mdblist");
+            if (!response.ok) {
+                throw new Error("MDBList connection test failed");
+            }
+
+            const healthData = await response.json();
+            if (!healthData.ok) {
+                throw new Error(healthData.error || "MDBList connection test failed");
+            }
+
+            setMDBListTestSuccess(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "MDBList connection test failed");
+            setMDBListTestSuccess(false);
+        } finally {
+            setTestingMDBList(false);
+        }
+    };
+
+    const handleNext = () => {
+        setWizardData({
+            ...wizardData,
+            mdblistEnabled: localMDBListEnabled,
+            mdblistApiKey: localMDBListApiKey,
+            mdblistBaseUrl: localMDBListBaseUrl,
+        });
+        nextStep();
+    };
+
+    const handleSkip = () => {
+        setWizardData({
+            ...wizardData,
+            mdblistEnabled: false,
+            mdblistApiKey: "",
+            mdblistBaseUrl: "https://api.mdblist.com",
+        });
+        nextStep();
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="text-center space-y-2">
+                <List className="h-12 w-12 text-primary mx-auto" />
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">MDBList Integration</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Optionally sync MDBList collections with your Plex libraries
+                </p>
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <input
+                        id="mdblistEnabled"
+                        type="checkbox"
+                        checked={localMDBListEnabled}
+                        onChange={(e) => setLocalMDBListEnabled(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                    />
+                    <label htmlFor="mdblistEnabled" className="flex-1 cursor-pointer">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                            Enable MDBList integration
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                            Sync MDBList collections to create Plex collections automatically
+                        </div>
+                    </label>
+                </div>
+
+                {localMDBListEnabled && (
+                    <div className="space-y-4 pl-4 border-l-2 border-primary">
+                        <div>
+                            <label htmlFor="mdblistApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                MDBList API Key
+                            </label>
+                            {envVars.mdblist_api_key_from_env ? (
+                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                                        ✓ MDBList API Key configured via environment variable (HSH_MDBLIST_API_KEY)
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        id="mdblistApiKey"
+                                        type="password"
+                                        value={localMDBListApiKey}
+                                        onChange={(e) => setLocalMDBListApiKey(e.target.value)}
+                                        required={localMDBListEnabled}
+                                        placeholder="Your MDBList API key"
+                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                    />
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                        <a
+                                            href="https://mdblist.com/preferences/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline inline-flex items-center gap-1"
+                                        >
+                                            Get your API key from MDBList
+                                            <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                    </p>
+                                </>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="mdblistBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                MDBList API Base URL
+                            </label>
+                            <input
+                                id="mdblistBaseUrl"
+                                type="text"
+                                value={localMDBListBaseUrl}
+                                onChange={(e) => setLocalMDBListBaseUrl(e.target.value)}
+                                required={localMDBListEnabled}
+                                placeholder="https://api.mdblist.com"
+                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            />
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Default is fine for most users. Only change if using a custom MDBList instance.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleTestMDBList}
+                            disabled={testingMDBList || (!localMDBListApiKey && !envVars.mdblist_api_key_from_env) || !localMDBListBaseUrl}
+                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {testingMDBList ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Testing connection...
+                                </>
+                            ) : mdblistTestSuccess ? (
+                                <>
+                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                    Connection successful!
+                                </>
+                            ) : (
+                                "Test MDBList Connection"
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
+                        {error}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3">
+                <button
+                    onClick={() => previousStep()}
+                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                    Back
+                </button>
+                {!localMDBListEnabled && (
+                    <button
+                        onClick={handleSkip}
+                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                        Skip
+                        <ArrowRight className="h-5 w-5" />
+                    </button>
+                )}
+                <button
+                    onClick={handleNext}
+                    disabled={localMDBListEnabled && !localMDBListApiKey && !envVars.mdblist_api_key_from_env}
+                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    Next
+                    <ArrowRight className="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; setWizardData: (data: WizardData) => void }) {
     const { nextStep, previousStep } = useWizard();
     const [localRotationEnabled, setLocalRotationEnabled] = useState(wizardData.rotationEnabled);
@@ -908,6 +1125,9 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                     trakt_enabled: wizardData.traktEnabled,
                     trakt_client_id: wizardData.traktEnabled ? wizardData.traktClientId : null,
                     trakt_base_url: wizardData.traktBaseUrl,
+                    mdblist_enabled: wizardData.mdblistEnabled,
+                    mdblist_api_key: wizardData.mdblistEnabled ? wizardData.mdblistApiKey : null,
+                    mdblist_base_url: wizardData.mdblistBaseUrl,
                     libraries: wizardData.selectedLibraries,
                     auth_enabled: wizardData.authEnabled,
                     auth_username: wizardData.authUsername,
@@ -964,6 +1184,12 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Trakt</span>
                     <span className="text-sm text-slate-900 dark:text-white">
                         {wizardData.traktEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">MDBList</span>
+                    <span className="text-sm text-slate-900 dark:text-white">
+                        {wizardData.mdblistEnabled ? "Enabled" : "Disabled"}
                     </span>
                 </div>
                 <div className="flex justify-between items-center">

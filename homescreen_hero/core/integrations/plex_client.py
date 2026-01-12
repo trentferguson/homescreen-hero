@@ -71,25 +71,28 @@ def cleanup_deleted_integration_sources(
     auto_update_config: bool = True,
 ) -> Dict[str, List[str]]:
     """
-    Automatically detect and clean up collections from deleted integration sources.
+    Automatically detect and clean up collections that have been removed from config.
 
     This function:
-    1. Identifies collections that were previously managed by Trakt/Letterboxd/MDBList
-       but whose sources have been removed from config
+    1. Identifies collections that were previously rotated but are no longer in:
+       - Integration sources (Trakt/Letterboxd/MDBList)
+       - Groups (manual collections or integration-backed collections)
     2. Deletes those collections from Plex
-    3. Optionally removes orphaned references from groups in config.yaml
+
+    IMPORTANT: Collections that are still in groups will NEVER be deleted, even if
+    they have no integration source. This preserves manually created Plex collections
+    that users have added to their groups.
 
     Args:
         server: PlexServer instance
         config: Application configuration
-        auto_update_config: If True, automatically updates config.yaml to remove
-                           orphaned collection references from groups (default: True)
+        auto_update_config: Deprecated, no longer used (kept for API compatibility)
 
     Returns:
         Dict with keys:
             - 'deleted_from_plex': List of collection names deleted from Plex
-            - 'orphaned_in_groups': List of collection names that were in groups
-            - 'config_updated': Boolean indicating if config.yaml was updated
+            - 'orphaned_in_groups': List of collection names (always empty now)
+            - 'config_updated': Boolean (always False now)
     """
     from ..db.history import get_rotation_history_context
     from ..config.loader import load_config_text, save_config_text, get_config_path
@@ -121,8 +124,18 @@ def cleanup_deleted_integration_sources(
             group_collections.add(name)
 
     # Find collections that were from integration sources but have been deleted
-    # We want to delete these even if they're still referenced in groups
-    deleted_sources = previously_rotated - current_integration_sources
+    # CRITICAL: Only delete collections if they meet ALL criteria:
+    # 1. Previously rotated (in history)
+    # 2. NOT in current integration sources (source was removed)
+    # 3. NOT in current groups (not a manual collection)
+    #
+    # If a collection is still in a group, it's either:
+    # - A manual Plex collection that should be preserved
+    # - An integration source that will be synced later
+    # Either way, we should NEVER delete it.
+
+    # Collections that were rotated but are no longer in integration sources OR groups
+    deleted_sources = previously_rotated - current_integration_sources - group_collections
 
     deleted_from_plex = []
     orphaned_in_groups = []
@@ -136,13 +149,7 @@ def cleanup_deleted_integration_sources(
         logger.info(f"Found {len(deleted_sources)} deleted integration sources to clean up")
 
         for collection_name in sorted(deleted_sources):
-            # Check if this collection is still in a group (orphaned reference)
-            if collection_name in group_collections:
-                orphaned_in_groups.append(collection_name)
-                logger.warning(
-                    f"Collection '{collection_name}' integration source was deleted but it's still "
-                    f"referenced in a group. Deleting from Plex and you should remove from group config."
-                )
+            # These collections are no longer in config at all, safe to delete
 
             # Try to find and delete this collection from Plex
             deleted = False
@@ -152,7 +159,7 @@ def cleanup_deleted_integration_sources(
                     # Check if collection exists
                     for coll in library.collections():
                         if coll.title == collection_name:
-                            logger.info(f"Deleting collection '{collection_name}' from Plex library '{library_name}' (integration source removed)")
+                            logger.info(f"Deleting collection '{collection_name}' from Plex library '{library_name}' (removed from config)")
                             coll.delete()
                             deleted = True
                             deleted_from_plex.append(collection_name)
@@ -165,48 +172,11 @@ def cleanup_deleted_integration_sources(
     else:
         logger.info("No deleted integration sources found - all previously managed collections are still in config")
 
-    # Auto-update config.yaml to remove orphaned references from groups
+    # Since we now preserve collections that are in groups (manual collections),
+    # we no longer need to auto-update the config to remove orphaned references.
+    # Collections are only deleted if they're completely removed from both
+    # integration sources AND groups.
     config_updated = False
-    if auto_update_config and orphaned_in_groups:
-        try:
-            logger.info(f"Auto-updating config.yaml to remove {len(orphaned_in_groups)} orphaned collection(s) from groups")
-
-            # Load the config file as text
-            config_path = get_config_path()
-            config_text = load_config_text(config_path)
-
-            # Parse YAML
-            config_data = yaml.safe_load(config_text)
-
-            # Track if we made any changes
-            changes_made = False
-            orphaned_set = set(orphaned_in_groups)
-
-            # Remove orphaned collections from groups
-            if 'groups' in config_data:
-                for group in config_data['groups']:
-                    if 'collections' in group and group['collections']:
-                        original_count = len(group['collections'])
-                        # Filter out orphaned collections
-                        group['collections'] = [
-                            c for c in group['collections']
-                            if c not in orphaned_set
-                        ]
-                        removed_count = original_count - len(group['collections'])
-                        if removed_count > 0:
-                            logger.info(f"Removed {removed_count} orphaned collection(s) from group '{group.get('name', 'unknown')}'")
-                            changes_made = True
-
-            # Save the updated config if changes were made
-            if changes_made:
-                updated_yaml = yaml.dump(config_data, default_flow_style=False, sort_keys=False, allow_unicode=True)
-                save_config_text(updated_yaml, config_path)
-                config_updated = True
-                logger.info("Config.yaml updated successfully - orphaned references removed from groups")
-
-        except Exception as e:
-            logger.error(f"Failed to auto-update config.yaml: {e}")
-            logger.warning("You will need to manually remove orphaned collections from groups in config.yaml")
 
     return {
         'deleted_from_plex': deleted_from_plex,

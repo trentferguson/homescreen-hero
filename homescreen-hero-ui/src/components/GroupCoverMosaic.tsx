@@ -8,6 +8,8 @@ interface GroupCoverMosaicProps {
 export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps) {
     const [posters, setPosters] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [imagesLoaded, setImagesLoaded] = useState(false);
+    const [isFirstLoad, setIsFirstLoad] = useState(false);
 
     useEffect(() => {
         const fetchPosters = async () => {
@@ -16,12 +18,45 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
                 return;
             }
 
+            const collectionNames = collections.join(',');
+            const cacheKey = `group-posters-${collectionNames}`;
+
+            // Check sessionStorage for cached posters
+            const cachedData = sessionStorage.getItem(cacheKey);
+            if (cachedData) {
+                try {
+                    const cached = JSON.parse(cachedData);
+                    const posterUrls = cached.posters || [];
+
+                    // Preload images before showing them
+                    await preloadImages(posterUrls);
+
+                    setPosters(posterUrls);
+                    setIsFirstLoad(false);
+                    setImagesLoaded(true);
+                    setLoading(false);
+                    return;
+                } catch (error) {
+                    console.error("Failed to parse cached posters:", error);
+                }
+            }
+
+            // If no cache, fetch from API
             try {
-                const collectionNames = collections.join(',');
                 const response = await fetchWithAuth(`/api/collections/group-posters?collection_names=${encodeURIComponent(collectionNames)}`);
                 if (response.ok) {
                     const data = await response.json();
-                    setPosters(data.posters || []);
+                    const posterUrls = data.posters || [];
+
+                    // Cache the result
+                    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+
+                    // Preload images before showing them
+                    await preloadImages(posterUrls);
+
+                    setPosters(posterUrls);
+                    setIsFirstLoad(true);
+                    setImagesLoaded(true);
                 }
             } catch (error) {
                 console.error("Failed to fetch group posters:", error);
@@ -33,7 +68,28 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
         fetchPosters();
     }, [collections]);
 
-    if (loading || !posters || posters.length === 0) {
+    // Preload all images before rendering
+    const preloadImages = (imageUrls: string[]): Promise<void> => {
+        return new Promise((resolve) => {
+            if (!imageUrls || imageUrls.length === 0) {
+                resolve();
+                return;
+            }
+
+            const imagePromises = imageUrls.slice(0, 6).map((url) => {
+                return new Promise<void>((resolve) => {
+                    const img = new Image();
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // Resolve even on error to prevent hanging
+                    img.src = url;
+                });
+            });
+
+            Promise.all(imagePromises).then(() => resolve());
+        });
+    };
+
+    if (loading || !imagesLoaded || !posters || posters.length === 0) {
         // Return null to let the parent show the gradient fallback
         return null;
     }
@@ -45,10 +101,10 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
                 {posters.slice(0, 6).map((poster, index) => (
                     <div
                         key={index}
-                        className="flex-1 overflow-hidden opacity-40 animate-fade-in rounded-lg"
-                        style={{
+                        className={`flex-1 overflow-hidden opacity-40 rounded-lg ${isFirstLoad ? 'animate-fade-in' : ''}`}
+                        style={isFirstLoad ? {
                             animationDelay: `${index * 0.1}s`,
-                        }}
+                        } : undefined}
                     >
                         <img
                             src={poster}

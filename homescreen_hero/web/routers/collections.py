@@ -188,7 +188,18 @@ def get_active_collections() -> ActiveCollectionsResponse:
                     if getattr(hub, "promotedToOwnHome", False):
                         poster_url = None
                         if getattr(col, "thumb", None):
-                            poster_url = server.url(col.thumb, includeToken=True)
+                            try:
+                                # Use full URL for the source image to ensure authentication works
+                                full_thumb_url = server.url(col.thumb, includeToken=True)
+                                poster_url = server.transcodeImage(
+                                    full_thumb_url,
+                                    height=450,
+                                    width=300,
+                                    minSize=1
+                                )
+                            except Exception:
+                                # Fallback if transcode fails
+                                poster_url = server.url(col.thumb, includeToken=True)
 
                         out.append(
                             ActiveCollectionOut(
@@ -230,13 +241,23 @@ def get_all_collections() -> AllCollectionsResponse:
             for col in section.collections():
                 poster_url = None
                 if getattr(col, "thumb", None):
-                    poster_url = server.url(col.thumb, includeToken=True)
+                    try:
+                        # Use full URL for the source image to ensure authentication works
+                        full_thumb_url = server.url(col.thumb, includeToken=True)
+                        poster_url = server.transcodeImage(
+                            full_thumb_url,
+                            height=450,
+                            width=300,
+                            minSize=1
+                        )
+                    except Exception:
+                        poster_url = server.url(col.thumb, includeToken=True)
 
-                item_count = 0
-                try:
-                    item_count = len(col.items())
-                except Exception as e:
-                    logger.warning(f"Could not get item count for collection {col.title}: {e}")
+                # Use metadata attribute for O(1) count instead of fetching all items
+                item_count = getattr(col, "childCount", 0)
+                # Some older PMS versions might use leafCount
+                if not item_count:
+                    item_count = getattr(col, "leafCount", 0)
 
                 collections.append(
                     CollectionOut(
@@ -471,7 +492,17 @@ def get_collection_details(
         # Get poster URL
         poster_url = None
         if hasattr(collection, "thumb") and collection.thumb:
-            poster_url = server.url(collection.thumb, includeToken=True)
+            try:
+                # Use full URL for the source image to ensure authentication works
+                full_thumb_url = server.url(collection.thumb, includeToken=True)
+                poster_url = server.transcodeImage(
+                    full_thumb_url,
+                    height=600,
+                    width=400,
+                    minSize=1
+                )
+            except Exception:
+                poster_url = server.url(collection.thumb, includeToken=True)
 
         # Get additional metadata
         sort_title = getattr(collection, "titleSort", None)
