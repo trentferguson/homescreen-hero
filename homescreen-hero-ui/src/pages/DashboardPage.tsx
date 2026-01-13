@@ -3,6 +3,7 @@ import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import AnalyticsCard from "../components/AnalyticsCard";
 import MostActiveUsersCard from "../components/MostActiveUsersCard";
+import ActiveStreamsCard from "../components/ActiveStreamsCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
@@ -556,20 +557,7 @@ export default function Dashboard() {
                         }
                     />
 
-                    <HealthCard
-                        title="SQL Database"
-                        ok={db?.ok}
-                        loading={!db && healthLoading}
-                        subtitleOk="Ready"
-                        subtitleBad="Error"
-                        detail={
-                            !db && healthLoading
-                                ? "Checking health…"
-                                : db?.ok
-                                    ? "DB OK"
-                                    : db?.error ?? "Database unavailable"
-                        }
-                    />
+                    <ActiveStreamsCard loading={healthLoading} />
 
                     <HealthCard
                         title="Trakt"

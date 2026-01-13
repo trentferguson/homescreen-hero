@@ -20,6 +20,7 @@ from ...core.db.analytics import (
 )
 from ...core.integrations.tautulli_analytics import collect_analytics_for_all_active
 from ...core.integrations.tautulli_client import get_tautulli_client
+from ...core.integrations.plex_client import get_plex_server
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,23 @@ class ActiveUserOut(BaseModel):
     username: str
     total_plays: int
     total_duration: int
+
+
+class ActiveStreamOut(BaseModel):
+    """Response model for currently active streams"""
+
+    user: str
+    state: str  # playing, paused, buffering
+    title: str
+    media_type: str  # movie, episode, etc
+    progress_percent: Optional[int] = None
+
+
+class CurrentActivityOut(BaseModel):
+    """Response model for current Plex activity"""
+
+    stream_count: int
+    streams: List[ActiveStreamOut]
 
 
 # Endpoints
@@ -370,4 +388,101 @@ def get_most_active_users(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get user statistics: {str(e)}",
+        )
+
+
+@router.get("/activity/current", response_model=CurrentActivityOut)
+def get_current_activity(
+    current_user: str = Depends(get_current_user),
+) -> CurrentActivityOut:
+    """
+    Get current active streams on Plex server.
+
+    Returns real-time information about who is currently watching content.
+    Uses Plex API directly to fetch session data.
+
+    Args:
+        current_user: Authenticated user from dependency
+
+    Returns:
+        Current activity with stream count and details
+    """
+    try:
+        config = load_config()
+
+        # Get Plex server connection
+        try:
+            server = get_plex_server(config)
+        except Exception as e:
+            logger.error(f"Failed to connect to Plex server: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to connect to Plex server: {str(e)}",
+            )
+
+        # Get current sessions from Plex
+        sessions = server.sessions()
+
+        # Parse sessions into streams
+        streams = []
+        for session in sessions:
+            # Extract user info
+            user = "Unknown"
+            if hasattr(session, 'usernames') and session.usernames:
+                user = session.usernames[0]
+            elif hasattr(session, 'username') and session.username:
+                user = session.username
+
+            # Get player state
+            state = "unknown"
+            if hasattr(session, 'players') and session.players:
+                player = session.players[0]
+                if hasattr(player, 'state'):
+                    state = player.state
+
+            # Get title
+            title = getattr(session, 'title', 'Unknown')
+
+            # Determine media type
+            media_type = getattr(session, 'type', 'unknown')
+            if media_type == "episode":
+                # For TV shows, include show name
+                grandparent_title = getattr(session, 'grandparentTitle', '')
+                if grandparent_title:
+                    title = f"{grandparent_title} - {title}"
+
+            # Calculate progress percentage
+            progress_percent = None
+            view_offset = getattr(session, 'viewOffset', None)
+            duration = getattr(session, 'duration', None)
+            if view_offset is not None and duration:
+                try:
+                    if duration > 0:
+                        progress_percent = int((view_offset / duration) * 100)
+                except (ValueError, TypeError, ZeroDivisionError):
+                    # If conversion fails, just skip progress calculation
+                    pass
+
+            streams.append(
+                ActiveStreamOut(
+                    user=user,
+                    state=state,
+                    title=title,
+                    media_type=media_type,
+                    progress_percent=progress_percent,
+                )
+            )
+
+        return CurrentActivityOut(
+            stream_count=len(streams),
+            streams=streams,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get current activity: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get current activity: {str(e)}",
         )
