@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import AnalyticsCard from "../components/AnalyticsCard";
+import MostActiveUsersCard from "../components/MostActiveUsersCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
@@ -601,6 +602,7 @@ export default function Dashboard() {
 
                     {/* Analytics */}
                     <AnalyticsCard loading={healthLoading} />
+                    <MostActiveUsersCard loading={healthLoading} />
                 </div>
 
                 <RecentRotationsCard

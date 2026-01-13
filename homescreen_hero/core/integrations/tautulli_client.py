@@ -197,6 +197,129 @@ class TautulliClient:
             logger.error("Failed to get history for rating_key %s: %s", rating_key, exc)
             return []
 
+    def get_user_watch_time_stats(
+        self,
+        query_days: int = 30,
+        grouping: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get watch time statistics for all users.
+
+        Args:
+            query_days: Number of days to query (default: 30)
+            grouping: Grouping type (0 = None, default)
+
+        Returns:
+            List of user stats with username, total_plays, total_time (seconds), etc.
+        """
+        try:
+            params = {
+                "query_days": str(query_days),
+                "grouping": str(grouping),
+            }
+            logger.info(f"Requesting user watch time stats with params: {params}")
+            data = self._request("get_user_watch_time_stats", params=params)
+
+            logger.info(f"Received user stats raw data: {data}")
+            logger.info(f"Received user stats data type: {type(data)}, length: {len(data) if isinstance(data, list) else 'N/A'}")
+
+            if not isinstance(data, list):
+                logger.warning(f"Unexpected response format for user watch time stats: {type(data)}")
+                # If it's a dict with a 'data' key, try to extract it
+                if isinstance(data, dict) and "data" in data:
+                    logger.info("Extracting data from dict wrapper")
+                    data = data["data"]
+                    if not isinstance(data, list):
+                        return []
+                else:
+                    return []
+
+            if len(data) > 0:
+                logger.info(f"First user entry: {data[0]}")
+
+            return data
+        except Exception as exc:
+            logger.error("Failed to get user watch time stats: %s", exc, exc_info=True)
+            return []
+
+    def get_users_table(self, length: int = 25, order_column: str = "total_plays") -> List[Dict[str, Any]]:
+        """
+        Get users table with watch statistics.
+        Alternative method that uses get_users_table instead of get_user_watch_time_stats.
+
+        Args:
+            length: Number of users to return (default: 25)
+            order_column: Column to order by (default: total_plays)
+
+        Returns:
+            List of user data with stats
+        """
+        try:
+            params = {
+                "length": str(length),
+                "order_column": order_column,
+                "order_dir": "desc",
+            }
+            logger.info(f"Requesting users table with params: {params}")
+            data = self._request("get_users_table", params=params)
+
+            logger.info(f"Received users table raw data type: {type(data)}")
+
+            # get_users_table returns a dict with 'data' key containing the list
+            if isinstance(data, dict):
+                if "data" in data:
+                    users_list = data["data"]
+                    logger.info(f"Extracted {len(users_list) if isinstance(users_list, list) else 0} users from table")
+                    if users_list and len(users_list) > 0:
+                        logger.info(f"First user from table: {users_list[0]}")
+                    return users_list if isinstance(users_list, list) else []
+                else:
+                    logger.warning(f"get_users_table returned dict without 'data' key: {data.keys()}")
+                    return []
+            elif isinstance(data, list):
+                return data
+            else:
+                logger.warning(f"Unexpected response type from get_users_table: {type(data)}")
+                return []
+
+        except Exception as exc:
+            logger.error("Failed to get users table: %s", exc, exc_info=True)
+            return []
+
+    def get_home_stats(self, time_range: int = 30, stats_type: str = "plays"):
+        """
+        Get home statistics including user watch data.
+
+        Args:
+            time_range: Number of days to query (default: 30)
+            stats_type: Type of stats (plays, duration, etc.)
+
+        Returns:
+            Dict with various statistics including top users, or list of stats
+        """
+        try:
+            params = {
+                "time_range": str(time_range),
+                "stats_type": stats_type,
+            }
+            logger.info(f"Requesting home stats with params: {params}")
+            data = self._request("get_home_stats", params=params)
+
+            logger.info(f"Received home stats data type: {type(data)}")
+            if isinstance(data, dict):
+                logger.info(f"Home stats keys: {list(data.keys()) if hasattr(data, 'keys') else 'N/A'}")
+            elif isinstance(data, list):
+                logger.info(f"Home stats is a list with {len(data)} items")
+                if data and len(data) > 0:
+                    logger.info(f"First home stats item: {data[0]}")
+
+            # Return data as-is, whether it's a dict or list
+            return data
+
+        except Exception as exc:
+            logger.error("Failed to get home stats: %s", exc, exc_info=True)
+            return {}
+
 
 def get_tautulli_client(config: AppConfig) -> Optional[TautulliClient]:
     """

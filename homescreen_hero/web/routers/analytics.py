@@ -19,6 +19,7 @@ from ...core.db.analytics import (
     get_top_collections_by_plays,
 )
 from ...core.integrations.tautulli_analytics import collect_analytics_for_all_active
+from ...core.integrations.tautulli_client import get_tautulli_client
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,14 @@ class AnalyticsCollectionResponse(BaseModel):
     collected: List[Dict[str, Any]] = Field(default_factory=list)
     failed: List[Dict[str, Any]] = Field(default_factory=list)
     total_collections: int = 0
+
+
+class ActiveUserOut(BaseModel):
+    """Response model for active user statistics"""
+
+    username: str
+    total_plays: int
+    total_duration: int
 
 
 # Endpoints
@@ -243,4 +252,122 @@ def trigger_analytics_collection(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to trigger analytics collection: {str(e)}",
+        )
+
+
+@router.get("/users/top", response_model=List[ActiveUserOut])
+def get_most_active_users(
+    limit: int = 10,
+    query_days: int = 30,
+    current_user: str = Depends(get_current_user),
+) -> List[ActiveUserOut]:
+    """
+    Get most active users by watch time and play count.
+
+    Args:
+        limit: Maximum number of users to return (default: 10)
+        query_days: Number of days to query (default: 30)
+        current_user: Authenticated user from dependency
+
+    Returns:
+        List of active users with play counts and watch time
+    """
+    try:
+        config = load_config()
+
+        # Check if Tautulli is enabled
+        if not config.tautulli or not config.tautulli.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Tautulli is not enabled or configured",
+            )
+
+        # Get Tautulli client
+        tautulli = get_tautulli_client(config)
+        if not tautulli:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Tautulli client",
+            )
+
+        # Use get_home_stats to get actual watch statistics
+        home_stats = tautulli.get_home_stats(time_range=query_days, stats_type="plays")
+        user_stats = []
+
+        logger.info(f"Home stats type: {type(home_stats)}")
+
+        # Handle both dict and list responses
+        if isinstance(home_stats, dict):
+            logger.info(f"Home stats keys: {list(home_stats.keys())}")
+            # get_home_stats returns various top lists, look for top_users
+            if "top_users" in home_stats:
+                user_stats = home_stats["top_users"]
+                logger.info(f"Retrieved {len(user_stats)} users from home_stats top_users")
+                if user_stats and len(user_stats) > 0:
+                    logger.info(f"Sample user data: {user_stats[0]}")
+            else:
+                logger.warning(f"top_users not found in home_stats. Available keys: {list(home_stats.keys())}")
+        elif isinstance(home_stats, list):
+            # home_stats is a list of stat groups, each with stat_id and rows
+            logger.info(f"Home stats is a list with {len(home_stats)} stat groups")
+
+            # Find the stat group with stat_id == 'top_users'
+            for stat_group in home_stats:
+                if isinstance(stat_group, dict):
+                    stat_id = stat_group.get("stat_id")
+                    logger.info(f"Found stat group: {stat_id}")
+
+                    if stat_id == "top_users":
+                        # Extract the rows array which contains the actual user data
+                        user_stats = stat_group.get("rows", [])
+                        logger.info(f"Found top_users stat group with {len(user_stats)} users")
+                        if user_stats and len(user_stats) > 0:
+                            logger.info(f"First user in top_users: {user_stats[0]}")
+                        break
+
+            if not user_stats:
+                available_stats = [s.get("stat_id") for s in home_stats if isinstance(s, dict)]
+                logger.warning(f"top_users stat group not found. Available stat_ids: {available_stats}")
+
+        if not user_stats:
+            logger.warning("No user statistics available from Tautulli")
+            return []
+
+        # Sort by total plays (descending) and limit
+        # Note: get_home_stats top_users returns 'total_plays' and 'total_duration'
+        sorted_users = sorted(
+            user_stats,
+            key=lambda x: int(x.get("total_plays", x.get("plays", 0))),
+            reverse=True,
+        )[:limit]
+
+        # Filter out users with 0 plays
+        filtered_users = [
+            u for u in sorted_users
+            if int(u.get("total_plays", u.get("plays", 0))) > 0
+        ]
+
+        logger.info(f"After filtering users with 0 plays: {len(filtered_users)} users remain")
+
+        # Format response
+        # get_home_stats returns: total_plays, total_duration (seconds), friendly_name/user
+        result = [
+            ActiveUserOut(
+                username=user.get("friendly_name") or user.get("user") or user.get("username", "Unknown"),
+                total_plays=int(user.get("total_plays", user.get("plays", 0))),
+                total_duration=int(user.get("total_duration", user.get("total_time", user.get("duration", 0)))),
+            )
+            for user in filtered_users
+        ]
+
+        logger.info(f"Returning {len(result)} active users")
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get most active users: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get user statistics: {str(e)}",
         )
