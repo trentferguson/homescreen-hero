@@ -111,6 +111,7 @@ def get_analytics(
 def get_top_collections(
     limit: int = 10,
     since_rotation_id: Optional[int] = None,
+    media_type: Optional[str] = None,
     current_user: str = Depends(get_current_user),
 ) -> List[TopCollectionOut]:
     """
@@ -119,6 +120,7 @@ def get_top_collections(
     Args:
         limit: Maximum number of collections to return (default: 10)
         since_rotation_id: Optional filter for analytics since a specific rotation
+        media_type: Optional media type filter ("movie" or "show")
         current_user: Authenticated user from dependency
 
     Returns:
@@ -128,6 +130,7 @@ def get_top_collections(
         results = get_top_collections_by_plays(
             limit=limit,
             since_rotation_id=since_rotation_id,
+            media_type=media_type,
         )
 
         return [

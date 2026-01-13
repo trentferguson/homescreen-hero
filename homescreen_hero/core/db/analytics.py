@@ -92,6 +92,7 @@ def get_collection_analytics_history(
 def get_top_collections_by_plays(
     limit: int = 10,
     since_rotation_id: Optional[int] = None,
+    media_type: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Get top performing collections by play count.
@@ -99,6 +100,7 @@ def get_top_collections_by_plays(
     Args:
         limit: Maximum number of collections to return
         since_rotation_id: Optional rotation ID to filter records from
+        media_type: Optional media type filter ("movie" or "show")
 
     Returns:
         List of dicts with collection info and aggregated play counts
@@ -115,6 +117,11 @@ def get_top_collections_by_plays(
 
         if since_rotation_id:
             subquery = subquery.filter(CollectionAnalytics.rotation_id >= since_rotation_id)
+
+        if media_type:
+            # Map media_type to library name
+            library_name = "Movies" if media_type == "movie" else "TV Shows"
+            subquery = subquery.filter(CollectionAnalytics.plex_library == library_name)
 
         subquery = subquery.subquery()
 

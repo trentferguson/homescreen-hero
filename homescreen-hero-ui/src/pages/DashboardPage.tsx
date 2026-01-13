@@ -600,9 +600,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Analytics */}
-                    <div className="col-span-full w-full">
-                        <AnalyticsCard loading={healthLoading} />
-                    </div>
+                    <AnalyticsCard loading={healthLoading} />
                 </div>
 
                 <RecentRotationsCard
@@ -611,7 +609,6 @@ export default function Dashboard() {
                     loading={historyLoading}
                     formatTimeAgo={timeAgo}
                 />
-
 
                 {/* Footer */}
                 <div className="border-t border-slate-200 dark:border-slate-800 mt-4 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-500">

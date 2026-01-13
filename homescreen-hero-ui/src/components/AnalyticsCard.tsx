@@ -8,16 +8,19 @@ type TopCollection = {
     last_collected: string;
 };
 
+type MediaType = "movie" | "show";
+
 export default function AnalyticsCard({ loading }: { loading?: boolean }) {
     const [topCollections, setTopCollections] = useState<TopCollection[]>([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [tautulliEnabled, setTautulliEnabled] = useState(false);
     const [isCollecting, setIsCollecting] = useState(false);
+    const [mediaType, setMediaType] = useState<MediaType>("movie");
 
     useEffect(() => {
         loadAnalytics();
-    }, []);
+    }, [mediaType]);
 
     const loadAnalytics = async () => {
         setAnalyticsLoading(true);
@@ -39,8 +42,8 @@ export default function AnalyticsCard({ loading }: { loading?: boolean }) {
 
             setTautulliEnabled(true);
 
-            // Fetch top collections
-            const response = await fetchWithAuth("/api/admin/analytics/top?limit=5");
+            // Fetch top collections with media type filter
+            const response = await fetchWithAuth(`/api/admin/analytics/top?limit=5&media_type=${mediaType}`);
             if (!response.ok) {
                 throw new Error("Failed to load analytics");
             }
@@ -242,7 +245,7 @@ export default function AnalyticsCard({ loading }: { loading?: boolean }) {
                         Collection Analytics
                     </h3>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
-                        Top collections by plays (last 30 days)
+                        Top collections by plays (30 days)
                     </p>
                 </div>
                 <button
@@ -268,6 +271,30 @@ export default function AnalyticsCard({ loading }: { loading?: boolean }) {
                             />
                         </svg>
                     )}
+                </button>
+            </div>
+
+            {/* Media Type Filter */}
+            <div className="flex gap-2 mb-4">
+                <button
+                    onClick={() => setMediaType("movie")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        mediaType === "movie"
+                            ? "bg-primary text-white shadow-md"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                >
+                    Movies
+                </button>
+                <button
+                    onClick={() => setMediaType("show")}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        mediaType === "show"
+                            ? "bg-primary text-white shadow-md"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                >
+                    TV Shows
                 </button>
             </div>
 
