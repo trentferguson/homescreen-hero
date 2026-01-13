@@ -9,8 +9,8 @@ interface FieldRowProps {
 
 export default function FieldRow({ label, hint, description, children }: FieldRowProps) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-[280px,1fr] gap-3 md:gap-6 items-start">
-            <div className="space-y-1">
+        <div className="grid grid-cols-1 md:grid-cols-[280px,1fr] gap-3 md:gap-6 items-start mb-6">
+            <div className="space-y-0.5">
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</p>
                 {description ? (
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{description}</p>

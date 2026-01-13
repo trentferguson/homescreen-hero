@@ -69,6 +69,13 @@ type MDBListMissingItem = {
     last_seen: string;
     times_seen: number;
 };
+type TautulliSettings = {
+    enabled: boolean;
+    api_key: string;
+    base_url: string;
+    collect_on_rotation: boolean;
+    collect_interval_hours: number;
+};
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
 
@@ -77,6 +84,7 @@ export default function IntegrationsPage() {
     const [mdblistTestStatus, setMdblistTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
     const [isConfigExpanded, setIsConfigExpanded] = useState(false);
     const [isMdblistConfigExpanded, setIsMdblistConfigExpanded] = useState(false);
+    const [isTautulliConfigExpanded, setIsTautulliConfigExpanded] = useState(false);
 
     // Trakt settings state
     const [traktSettings, setTraktSettings] = useState<TraktSettings>({
@@ -143,6 +151,20 @@ export default function IntegrationsPage() {
     const [mdblistMessage, setMdblistMessage] = useState<string | null>(null);
     const [mdblistSourcesError, setMdblistSourcesError] = useState<string | null>(null);
     const [mdblistSourcesMessage, setMdblistSourcesMessage] = useState<string | null>(null);
+
+    // Tautulli settings state
+    const [tautulliSettings, setTautulliSettings] = useState<TautulliSettings>({
+        enabled: false,
+        api_key: "",
+        base_url: "http://localhost:8181",
+        collect_on_rotation: true,
+        collect_interval_hours: 24,
+    });
+    const [tautulliTestStatus, setTautulliTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+    const [loadingTautulli, setLoadingTautulli] = useState(true);
+    const [savingTautulli, setSavingTautulli] = useState(false);
+    const [tautulliError, setTautulliError] = useState<string | null>(null);
+    const [tautulliMessage, setTautulliMessage] = useState<string | null>(null);
 
     const [plexSettings, setPlexSettings] = useState<PlexSettings>({
         base_url: "",
@@ -416,6 +438,39 @@ export default function IntegrationsPage() {
             isMounted = false;
         };
     }, [loadingMdblistSources, mdblistSources.length]);
+
+    // Load Tautulli settings
+    useEffect(() => {
+        let isMounted = true;
+        fetchWithAuth("/api/admin/config/tautulli")
+            .then(async (r) => {
+                if (!r.ok) throw new Error(await r.text());
+                return r.json();
+            })
+            .then((data: TautulliSettings | null) => {
+                if (!isMounted) return;
+                if (!data) return;
+                setTautulliSettings({
+                    enabled: data.enabled ?? false,
+                    api_key: data.api_key ?? "",
+                    base_url: data.base_url || "http://localhost:8181",
+                    collect_on_rotation: data.collect_on_rotation ?? true,
+                    collect_interval_hours: data.collect_interval_hours ?? 24,
+                });
+            })
+            .catch((e) => {
+                if (!isMounted) return;
+                setTautulliError(String(e));
+            })
+            .finally(() => {
+                if (!isMounted) return;
+                setLoadingTautulli(false);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleTraktTestConnection = async () => {
         try {
@@ -968,6 +1023,52 @@ export default function IntegrationsPage() {
         }
     }
 
+    const handleTautulliTestConnection = async () => {
+        try {
+            setTautulliTestStatus("testing");
+
+            const r = await fetchWithAuth("/api/health/tautulli");
+            if (!r.ok) throw new Error(await r.text());
+
+            const data: HealthComponent = await r.json();
+            const ok = data?.ok === true;
+
+            if (ok) {
+                setTautulliError(null);
+                setTautulliTestStatus("success");
+            } else {
+                setTautulliTestStatus("error");
+                setTautulliError(data?.error || "Tautulli API health check failed.");
+            }
+        } catch (e) {
+            setTautulliTestStatus("error");
+            setTautulliError(String(e));
+        }
+    };
+
+    async function saveTautulliSettings() {
+        try {
+            setSavingTautulli(true);
+            setTautulliError(null);
+            setTautulliMessage(null);
+
+            const r = await fetchWithAuth("/api/admin/config/tautulli", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(tautulliSettings),
+            });
+
+            if (!r.ok) throw new Error(await r.text());
+
+            const data: ConfigSaveResponse = await r.json();
+            setTautulliMessage(data.message);
+        } catch (e) {
+            setTautulliError(String(e));
+        } finally {
+            setSavingTautulli(false);
+        }
+    }
+
     function getMdblistSyncStatusBadge(status: MDBListSourceStatus) {
         switch (status.sync_status) {
             case "success":
@@ -1023,6 +1124,9 @@ export default function IntegrationsPage() {
                     </Tab>
                     <Tab className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700 focus:outline-none">
                         MDBList
+                    </Tab>
+                    <Tab className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700 focus:outline-none">
+                        Tautulli
                     </Tab>
                     <Tab
                         disabled
@@ -2116,6 +2220,188 @@ export default function IntegrationsPage() {
                                         );
                                     })
                                 )}
+                            </div>
+                        </div>
+                    </Tab.Panel>
+
+                    {/* Tautulli Tab */}
+                    <Tab.Panel className="space-y-4 focus:outline-none">
+                        {/* Tautulli Configuration - Collapsible */}
+                        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 overflow-hidden shadow-lg shadow-primary/5">
+                            <button
+                                type="button"
+                                onClick={() => setIsTautulliConfigExpanded(!isTautulliConfigExpanded)}
+                                className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-800/30 transition"
+                            >
+                                <div className="text-left flex items-start gap-3">
+                                    <div className="rounded-lg bg-primary/10 p-2 border border-primary/20 mt-0.5">
+                                        <Wifi className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-slate-100">Tautulli Configuration</h3>
+                                        <p className="text-xs text-slate-400 mt-1">Configure your Tautulli API credentials and analytics settings.</p>
+                                    </div>
+                                </div>
+                                <ChevronRight className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isTautulliConfigExpanded ? "rotate-90" : ""}`} />
+                            </button>
+
+                            <div
+                                className={`grid transition-all duration-300 ease-in-out ${
+                                    isTautulliConfigExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                                }`}
+                            >
+                                <div className="overflow-hidden">
+                                    <div className="px-6 pb-6 space-y-4 border-t border-slate-800">
+                                        <div className="pt-4">
+                                            <FieldRow label="Enable Tautulli" description="Toggle analytics collection from Tautulli.">
+                                                <div className="flex justify-end">
+                                                    <Switch
+                                                        checked={tautulliSettings.enabled}
+                                                        onChange={() =>
+                                                            setTautulliSettings((prev) => ({
+                                                                ...prev,
+                                                                enabled: !prev.enabled,
+                                                            }))
+                                                        }
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                                                            tautulliSettings.enabled ? "bg-primary" : "bg-slate-600"
+                                                        }`}
+                                                    >
+                                                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                                                            tautulliSettings.enabled ? "translate-x-5" : "translate-x-0.5"
+                                                        }`} />
+                                                    </Switch>
+                                                </div>
+                                            </FieldRow>
+
+                                            <FieldRow label="Base URL" description="Your Tautulli instance URL (e.g., http://localhost:8181).">
+                                                <input
+                                                    type="text"
+                                                    placeholder="http://localhost:8181"
+                                                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                    value={tautulliSettings.base_url}
+                                                    onChange={(e) =>
+                                                        setTautulliSettings((prev) => ({
+                                                            ...prev,
+                                                            base_url: e.target.value,
+                                                        }))
+                                                    }
+                                                    disabled={loadingTautulli}
+                                                />
+                                            </FieldRow>
+
+                                            <FieldRow label="API Key" description="Found in Tautulli Settings → Web Interface → API.">
+                                                <input
+                                                    type="password"
+                                                    placeholder="••••••••"
+                                                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                    value={tautulliSettings.api_key}
+                                                    onChange={(e) =>
+                                                        setTautulliSettings((prev) => ({
+                                                            ...prev,
+                                                            api_key: e.target.value,
+                                                        }))
+                                                    }
+                                                    disabled={loadingTautulli}
+                                                />
+                                            </FieldRow>
+
+                                            <FieldRow label="Collect on Rotation" description="Automatically collect analytics after each rotation.">
+                                                <div className="flex justify-end">
+                                                    <Switch
+                                                        checked={tautulliSettings.collect_on_rotation}
+                                                        onChange={() =>
+                                                            setTautulliSettings((prev) => ({
+                                                                ...prev,
+                                                                collect_on_rotation: !prev.collect_on_rotation,
+                                                            }))
+                                                        }
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out ${
+                                                            tautulliSettings.collect_on_rotation ? "bg-primary" : "bg-slate-600"
+                                                        }`}
+                                                    >
+                                                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                                                            tautulliSettings.collect_on_rotation ? "translate-x-5" : "translate-x-0.5"
+                                                        }`} />
+                                                    </Switch>
+                                                </div>
+                                            </FieldRow>
+
+                                            <FieldRow label="Collection Interval (hours)" description="How often to collect analytics snapshots (in hours).">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    placeholder="24"
+                                                    className="w-32 rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                    value={tautulliSettings.collect_interval_hours}
+                                                    onChange={(e) =>
+                                                        setTautulliSettings((prev) => ({
+                                                            ...prev,
+                                                            collect_interval_hours: parseInt(e.target.value) || 24,
+                                                        }))
+                                                    }
+                                                    disabled={loadingTautulli}
+                                                />
+                                            </FieldRow>
+
+                                            {tautulliMessage ? (
+                                                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
+                                                    {tautulliMessage}
+                                                </div>
+                                            ) : null}
+
+                                            {tautulliError ? (
+                                                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
+                                                    {tautulliError}
+                                                </div>
+                                            ) : null}
+
+                                            <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 mt-6">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`rounded-full p-2 ${
+                                                        tautulliTestStatus === "success"
+                                                            ? "bg-emerald-500/15 text-emerald-400"
+                                                            : tautulliTestStatus === "error"
+                                                            ? "bg-rose-500/15 text-rose-400"
+                                                            : "bg-amber-500/15 text-amber-400"
+                                                    }`}>
+                                                        {tautulliTestStatus === "success" ? (
+                                                            <Wifi size={18} />
+                                                        ) : (
+                                                            <WifiOff size={18} />
+                                                        )}
+                                                    </span>
+                                                    <div className="space-y-0.5">
+                                                        <p className="text-sm font-semibold text-white">
+                                                            Test Tautulli connection
+                                                        </p>
+                                                        <p className="text-xs text-slate-400">
+                                                            Run a dry connection test to verify credentials
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingTautulli || loadingTautulli}
+                                                        onClick={saveTautulliSettings}
+                                                        className="rounded-lg bg-slate-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                                                    >
+                                                        {savingTautulli ? "Saving..." : "Save Settings"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={tautulliTestStatus === "testing" || !tautulliSettings.api_key || loadingTautulli}
+                                                        onClick={handleTautulliTestConnection}
+                                                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-40"
+                                                    >
+                                                        {tautulliTestStatus === "testing" ? "Testing..." : "Test connection"}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </Tab.Panel>
