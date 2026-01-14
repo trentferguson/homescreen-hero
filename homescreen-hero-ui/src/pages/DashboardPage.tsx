@@ -7,6 +7,7 @@ import ActiveStreamsCard from "../components/ActiveStreamsCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
+import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
@@ -84,8 +85,6 @@ export default function Dashboard() {
     const [currentTime, setCurrentTime] = useState(Date.now());
 
     const plex = health.plex;
-    const db = health.database;
-    const trakt = health.trakt;
 
     const plexServerName = plex?.details?.server_name ?? plex?.server_name ?? "Plex";
     const plexLibraries = plex?.details?.libraries;
@@ -168,14 +167,6 @@ export default function Dashboard() {
         setHealthLoading(false);
     };
 
-    // Treat trakt “disabled/not configured” as OK but show message
-    const traktDisabledMsg =
-        trakt?.error && trakt.error.toLowerCase().includes("disabled")
-            ? trakt.error
-            : null;
-
-    const traktOk = trakt?.ok ?? false;
-    const traktDisplayOk = traktDisabledMsg ? true : traktOk;
 
     const loadActiveCollections = async () => {
         setActiveLoading(true);
@@ -559,22 +550,7 @@ export default function Dashboard() {
 
                     <ActiveStreamsCard loading={healthLoading} />
 
-                    <HealthCard
-                        title="Trakt"
-                        ok={traktDisplayOk}
-                        loading={!trakt && healthLoading}
-                        subtitleOk={traktDisabledMsg ? "Disabled" : "Online"}
-                        subtitleBad="Error"
-                        detail={
-                            !trakt && healthLoading
-                                ? "Checking health…"
-                                : traktDisabledMsg
-                                    ? traktDisabledMsg
-                                    : traktOk
-                                        ? "Trakt OK"
-                                        : trakt?.error ?? "Trakt check failed"
-                        }
-                    />
+                    <IntegrationsHealthCard loading={healthLoading} />
 
                     <RotationStatusCard
                         enabled={schedulerStatus?.enabled ?? false}
