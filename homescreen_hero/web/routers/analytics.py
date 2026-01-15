@@ -111,6 +111,13 @@ class DailyConcurrentOut(BaseModel):
     peak_concurrent: int
 
 
+class HourlyConcurrentOut(BaseModel):
+    """Response model for peak concurrent viewers by hour"""
+
+    hour: int
+    peak_concurrent: int
+
+
 # Endpoints
 @router.get("/collections", response_model=List[CollectionAnalyticsOut])
 def get_analytics(
@@ -794,4 +801,126 @@ def get_concurrent_by_date(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get concurrent viewer statistics: {str(e)}",
+        )
+
+
+@router.get("/graph/concurrent-by-hour", response_model=List[HourlyConcurrentOut])
+def get_concurrent_by_hour(
+    current_user: str = Depends(get_current_user),
+) -> List[HourlyConcurrentOut]:
+    """
+    Get peak concurrent viewer counts by hour for the last 24 hours.
+
+    Uses watch history to calculate the maximum number of concurrent streams
+    for each hour of the last 24 hours.
+
+    Args:
+        current_user: Authenticated user from dependency
+
+    Returns:
+        List of peak concurrent viewer counts for each hour (0-23)
+    """
+    try:
+        config = load_config()
+
+        if not config.tautulli or not config.tautulli.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Tautulli is not enabled or configured",
+            )
+
+        tautulli = get_tautulli_client(config)
+        if not tautulli:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Tautulli client",
+            )
+
+        # Get history data for the last 24 hours
+        history = tautulli.get_history(length=1000)
+
+        if not history:
+            return [HourlyConcurrentOut(hour=h, peak_concurrent=0) for h in range(24)]
+
+        from datetime import datetime
+        import time
+
+        # Only look at the last 24 hours
+        cutoff_time = time.time() - (24 * 60 * 60)
+
+        # Collect all sessions within the last 24 hours
+        sessions: List[Dict[str, Any]] = []
+
+        for entry in history:
+            started = entry.get("started")
+            stopped = entry.get("stopped")
+
+            if not started:
+                continue
+
+            # Filter to last 24 hours
+            if started < cutoff_time:
+                continue
+
+            sessions.append({
+                "started": started,
+                "stopped": stopped or started + 3600,  # Default 1 hour if no stop time
+            })
+
+        if not sessions:
+            return [HourlyConcurrentOut(hour=h, peak_concurrent=0) for h in range(24)]
+
+        # For each hour, find the peak concurrent streams
+        result = []
+        now = time.time()
+
+        for hour in range(24):
+            # Calculate the time window for this hour (going back from now)
+            # Hour 0 = most recent hour, Hour 23 = 23 hours ago
+            # But we want to display it as actual clock hours, so we need to map differently
+
+            # Get sessions that overlap with this clock hour in the last 24 hours
+            hour_sessions = []
+            for s in sessions:
+                start_dt = datetime.fromtimestamp(s["started"])
+                stop_dt = datetime.fromtimestamp(s["stopped"])
+
+                # Check if session overlaps with this clock hour
+                session_start_hour = start_dt.hour
+                session_stop_hour = stop_dt.hour
+
+                # A session overlaps with hour H if it started before H ends and stopped after H starts
+                # For simplicity, include session if it was active during this hour
+                if session_start_hour <= hour <= session_stop_hour or session_start_hour == hour:
+                    hour_sessions.append(s)
+
+            if not hour_sessions:
+                result.append(HourlyConcurrentOut(hour=hour, peak_concurrent=0))
+                continue
+
+            # Calculate peak concurrent for this hour using event-based algorithm
+            events: List[tuple] = []
+            for s in hour_sessions:
+                events.append((s["started"], 1))
+                events.append((s["stopped"], -1))
+
+            events.sort(key=lambda x: (x[0], -x[1]))
+
+            current_concurrent = 0
+            peak = 0
+            for _, delta in events:
+                current_concurrent += delta
+                peak = max(peak, current_concurrent)
+
+            result.append(HourlyConcurrentOut(hour=hour, peak_concurrent=peak))
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get concurrent viewers by hour: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get hourly concurrent viewer statistics: {str(e)}",
         )
