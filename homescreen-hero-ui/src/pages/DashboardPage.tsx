@@ -4,6 +4,7 @@ import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import AnalyticsCard from "../components/AnalyticsCard";
 import MostActiveUsersCard from "../components/MostActiveUsersCard";
 import ActiveStreamsCard from "../components/ActiveStreamsCard";
+import GraphCarouselCard from "../components/GraphCarouselCard";
 import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
@@ -546,6 +547,12 @@ export default function Dashboard() {
                                     ? plexDetail
                                     : plex?.error ?? "Connection failed"
                         }
+                        icon={
+                            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="3" width="20" height="18" rx="2" />
+                                <path d="M9 8l6 4-6 4V8z" />
+                            </svg>
+                        }
                     />
 
                     <ActiveStreamsCard loading={healthLoading} />
@@ -567,14 +574,20 @@ export default function Dashboard() {
                     {/* Analytics */}
                     <AnalyticsCard loading={healthLoading} />
                     <MostActiveUsersCard loading={healthLoading} />
+                    <div className="sm:col-span-2">
+                        <GraphCarouselCard loading={healthLoading} />
+                    </div>
                 </div>
 
-                <RecentRotationsCard
-                    items={rotationItems}
-                    lastRun={lastRun}
-                    loading={historyLoading}
-                    formatTimeAgo={timeAgo}
-                />
+                {/* Recent Rotations - Half Width */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <RecentRotationsCard
+                        items={rotationItems}
+                        lastRun={lastRun}
+                        loading={historyLoading}
+                        formatTimeAgo={timeAgo}
+                    />
+                </div>
 
                 {/* Footer */}
                 <div className="border-t border-slate-200 dark:border-slate-800 mt-4 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-500">

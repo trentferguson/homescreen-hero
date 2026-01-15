@@ -31,9 +31,19 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
     const [error, setError] = useState<string | null>(null);
     const [tautulliEnabled, setTautulliEnabled] = useState(false);
     const [timeRange, setTimeRange] = useState<TimeRange>("year");
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     useEffect(() => {
-        loadActiveUsers();
+        // Only animate transition if we already have data (not initial load)
+        if (activeUsers.length > 0) {
+            setIsTransitioning(true);
+            const timer = setTimeout(() => {
+                loadActiveUsers();
+            }, 150);
+            return () => clearTimeout(timer);
+        } else {
+            loadActiveUsers();
+        }
     }, [timeRange]);
 
     const loadActiveUsers = async () => {
@@ -64,8 +74,11 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
             }
             const data = await response.json();
             setActiveUsers(data);
+            // Small delay to allow fade-in animation
+            setTimeout(() => setIsTransitioning(false), 50);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load user analytics");
+            setIsTransitioning(false);
         } finally {
             setAnalyticsLoading(false);
         }
@@ -81,10 +94,36 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
         return `${minutes}m`;
     };
 
-    // Loading state
-    if (loading || analyticsLoading) {
+    const getInitials = (username: string): string => {
+        return username.slice(0, 2).toUpperCase();
+    };
+
+    // Generate a consistent color based on username
+    const getAvatarColor = (username: string): string => {
+        const colors = [
+            "bg-blue-500",
+            "bg-emerald-500",
+            "bg-violet-500",
+            "bg-amber-500",
+            "bg-rose-500",
+            "bg-cyan-500",
+            "bg-indigo-500",
+            "bg-pink-500",
+        ];
+        let hash = 0;
+        for (let i = 0; i < username.length; i++) {
+            hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return colors[Math.abs(hash) % colors.length];
+    };
+
+    const cardClass = "rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300 h-[420px] flex flex-col";
+    const cardClassHover = "rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300 h-[420px] flex flex-col";
+
+    // Loading state - only show on initial load, not during transitions
+    if (loading || (analyticsLoading && activeUsers.length === 0 && !tautulliEnabled)) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
+            <div className={cardClass}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
@@ -95,7 +134,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center flex-1">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
             </div>
@@ -105,7 +144,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
     // Tautulli not enabled state
     if (!tautulliEnabled) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
+            <div className={cardClass}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
@@ -116,7 +155,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
                         </p>
                     </div>
                 </div>
-                <div className="text-center py-8">
+                <div className="text-center flex-1 flex flex-col items-center justify-center">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
                         <svg
                             className="w-6 h-6 text-slate-400 dark:text-slate-500"
@@ -149,7 +188,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
     // Error state
     if (error) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
+            <div className={cardClass}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
@@ -160,7 +199,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
                         </p>
                     </div>
                 </div>
-                <div className="text-center py-8">
+                <div className="text-center flex-1 flex flex-col items-center justify-center">
                     <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
                     <button
                         onClick={loadActiveUsers}
@@ -176,7 +215,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
     // No data state
     if (activeUsers.length === 0) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
+            <div className={cardClass}>
                 <div className="flex items-center justify-between mb-4">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
@@ -187,7 +226,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
                         </p>
                     </div>
                 </div>
-                <div className="text-center py-8">
+                <div className="text-center flex-1 flex flex-col items-center justify-center">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
                         <svg
                             className="w-6 h-6 text-slate-400 dark:text-slate-500"
@@ -213,8 +252,8 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
 
     // Display active users
     return (
-        <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
+        <div className={cardClassHover}>
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                         Most Active Users
@@ -245,10 +284,7 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
             </div>
 
             {/* Time Range Filter */}
-            <div className="mb-4">
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-                    Time Range
-                </label>
+            <div className="mb-4 flex-shrink-0">
                 <Listbox value={timeRange} onChange={setTimeRange}>
                     <div className="relative">
                         <Listbox.Button className="w-full px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 flex items-center justify-between">
@@ -277,33 +313,33 @@ export default function MostActiveUsersCard({ loading }: { loading?: boolean }) 
                 </Listbox>
             </div>
 
-            <div className="space-y-3">
+            <div className={`space-y-1.5 flex-1 overflow-y-auto scrollbar-hover-only transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
                 {activeUsers.map((user, index) => (
                     <div
                         key={`${user.username}-${index}`}
-                        className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                     >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 flex-shrink-0">
-                                <span className="text-sm font-bold text-primary dark:text-primary-light">
-                                    {index + 1}
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={`flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 ${getAvatarColor(user.username)}`}>
+                                <span className="text-[10px] font-bold text-white">
+                                    {getInitials(user.username)}
                                 </span>
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                                     {user.username}
                                 </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400">
                                     {formatDuration(user.total_duration)} watched
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="text-right">
-                                <p className="text-lg font-bold text-slate-900 dark:text-white">
+                                <p className="text-sm font-bold text-slate-900 dark:text-white">
                                     {user.total_plays.toLocaleString()}
                                 </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">plays</p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400">plays</p>
                             </div>
                         </div>
                     </div>

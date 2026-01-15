@@ -90,6 +90,20 @@ class CurrentActivityOut(BaseModel):
     streams: List[ActiveStreamOut]
 
 
+class HourlyPlaysOut(BaseModel):
+    """Response model for hourly play distribution"""
+
+    hour: int
+    plays: int
+
+
+class DailyPlaysOut(BaseModel):
+    """Response model for daily play counts"""
+
+    date: str
+    plays: int
+
+
 # Endpoints
 @router.get("/collections", response_model=List[CollectionAnalyticsOut])
 def get_analytics(
@@ -485,4 +499,178 @@ def get_current_activity(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get current activity: {str(e)}",
+        )
+
+
+@router.get("/graph/plays-by-hour", response_model=List[HourlyPlaysOut])
+def get_plays_by_hour(
+    query_days: int = 30,
+    current_user: str = Depends(get_current_user),
+) -> List[HourlyPlaysOut]:
+    """
+    Get play counts grouped by hour of day for graphing.
+
+    Args:
+        query_days: Number of days to query (default: 30)
+        current_user: Authenticated user from dependency
+
+    Returns:
+        List of hourly play counts (0-23 hours)
+    """
+    try:
+        config = load_config()
+
+        if not config.tautulli or not config.tautulli.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Tautulli is not enabled or configured",
+            )
+
+        tautulli = get_tautulli_client(config)
+        if not tautulli:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Tautulli client",
+            )
+
+        data = tautulli.get_plays_by_hourofday(time_range=query_days)
+
+        if not data:
+            # Return empty array for all 24 hours if no data
+            return [HourlyPlaysOut(hour=h, plays=0) for h in range(24)]
+
+        # Tautulli returns data in categories/series format
+        # We need to parse it into a simple hour -> plays mapping
+        result = []
+
+        # Handle different response formats from Tautulli
+        if isinstance(data, dict):
+            categories = data.get("categories", [])
+            series = data.get("series", [])
+
+            # Find the series with plays data
+            plays_data = []
+            for s in series:
+                if s.get("name") in ["Movies", "TV", "Plays", "plays"]:
+                    plays_data = s.get("data", [])
+                    break
+
+            # If we didn't find specific series, sum all series
+            if not plays_data and series:
+                # Sum all series data
+                total_by_hour = {}
+                for s in series:
+                    for i, val in enumerate(s.get("data", [])):
+                        total_by_hour[i] = total_by_hour.get(i, 0) + (val or 0)
+                plays_data = [total_by_hour.get(i, 0) for i in range(len(categories))]
+
+            for i, hour_label in enumerate(categories):
+                # Parse hour from label (e.g., "00", "01", "12")
+                try:
+                    hour = int(hour_label)
+                except ValueError:
+                    hour = i
+                plays = plays_data[i] if i < len(plays_data) else 0
+                result.append(HourlyPlaysOut(hour=hour, plays=plays or 0))
+        elif isinstance(data, list):
+            # Direct list format
+            for item in data:
+                if isinstance(item, dict):
+                    result.append(HourlyPlaysOut(
+                        hour=int(item.get("hour", 0)),
+                        plays=int(item.get("plays", item.get("total_plays", 0))),
+                    ))
+
+        # Ensure we have all 24 hours
+        if len(result) < 24:
+            existing_hours = {r.hour for r in result}
+            for h in range(24):
+                if h not in existing_hours:
+                    result.append(HourlyPlaysOut(hour=h, plays=0))
+
+        # Sort by hour
+        result.sort(key=lambda x: x.hour)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get plays by hour: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get hourly play statistics: {str(e)}",
+        )
+
+
+@router.get("/graph/plays-by-date", response_model=List[DailyPlaysOut])
+def get_plays_by_date(
+    query_days: int = 30,
+    current_user: str = Depends(get_current_user),
+) -> List[DailyPlaysOut]:
+    """
+    Get play counts grouped by date for graphing.
+
+    Args:
+        query_days: Number of days to query (default: 30)
+        current_user: Authenticated user from dependency
+
+    Returns:
+        List of daily play counts
+    """
+    try:
+        config = load_config()
+
+        if not config.tautulli or not config.tautulli.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Tautulli is not enabled or configured",
+            )
+
+        tautulli = get_tautulli_client(config)
+        if not tautulli:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Tautulli client",
+            )
+
+        data = tautulli.get_plays_by_date(time_range=query_days)
+
+        if not data:
+            return []
+
+        result = []
+
+        # Handle different response formats from Tautulli
+        if isinstance(data, dict):
+            categories = data.get("categories", [])
+            series = data.get("series", [])
+
+            # Sum all series data (Movies + TV, etc.)
+            total_by_date = {}
+            for s in series:
+                for i, val in enumerate(s.get("data", [])):
+                    total_by_date[i] = total_by_date.get(i, 0) + (val or 0)
+
+            for i, date_label in enumerate(categories):
+                plays = total_by_date.get(i, 0)
+                result.append(DailyPlaysOut(date=date_label, plays=plays))
+        elif isinstance(data, list):
+            # Direct list format
+            for item in data:
+                if isinstance(item, dict):
+                    result.append(DailyPlaysOut(
+                        date=item.get("date", ""),
+                        plays=int(item.get("plays", item.get("total_plays", 0))),
+                    ))
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get plays by date: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get daily play statistics: {str(e)}",
         )

@@ -320,6 +320,50 @@ class TautulliClient:
             logger.error("Failed to get home stats: %s", exc, exc_info=True)
             return {}
 
+    def get_plays_by_date(self, time_range: int = 30, y_axis: str = "plays") -> Any:
+        """
+        Get play counts grouped by date for graphing.
+
+        Args:
+            time_range: Number of days to query (default: 30)
+            y_axis: What to measure - "plays" or "duration"
+
+        Returns:
+            Dict with categories (dates) and series (play data per media type)
+        """
+        try:
+            params = {
+                "time_range": str(time_range),
+                "y_axis": y_axis,
+            }
+            logger.debug(f"Requesting plays by date with params: {params}")
+            return self._request("get_plays_by_date", params=params)
+        except Exception as exc:
+            logger.error("Failed to get plays by date: %s", exc, exc_info=True)
+            return {}
+
+    def get_plays_by_hourofday(self, time_range: int = 30, y_axis: str = "plays") -> Any:
+        """
+        Get play counts grouped by hour of day for graphing.
+
+        Args:
+            time_range: Number of days to query (default: 30)
+            y_axis: What to measure - "plays" or "duration"
+
+        Returns:
+            Dict with categories (hours 00-23) and series (play data per media type)
+        """
+        try:
+            params = {
+                "time_range": str(time_range),
+                "y_axis": y_axis,
+            }
+            logger.debug(f"Requesting plays by hour of day with params: {params}")
+            return self._request("get_plays_by_hourofday", params=params)
+        except Exception as exc:
+            logger.error("Failed to get plays by hour of day: %s", exc, exc_info=True)
+            return {}
+
 
 def get_tautulli_client(config: AppConfig) -> Optional[TautulliClient]:
     """
