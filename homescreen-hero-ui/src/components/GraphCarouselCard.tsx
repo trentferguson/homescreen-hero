@@ -24,6 +24,11 @@ type DailyData = {
     plays: number;
 };
 
+type ConcurrentData = {
+    date: string;
+    peak_concurrent: number;
+};
+
 type TimeRange = "day" | "week" | "month" | "year";
 
 const TIME_RANGE_DAYS: Record<TimeRange, number> = {
@@ -43,6 +48,7 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
 const GRAPHS = [
     { id: "hourly", title: "Peak Viewing Hours", subtitle: "Plays by hour of day" },
     { id: "daily", title: "Stream History", subtitle: "Plays over time" },
+    { id: "concurrent", title: "Peak Concurrent Viewers", subtitle: "Max simultaneous streams over time" },
 ] as const;
 
 type GraphId = (typeof GRAPHS)[number]["id"];
@@ -71,6 +77,7 @@ function formatDate(dateStr: string): string {
 export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
     const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
     const [dailyData, setDailyData] = useState<DailyData[]>([]);
+    const [concurrentData, setConcurrentData] = useState<ConcurrentData[]>([]);
     const [graphLoading, setGraphLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [tautulliEnabled, setTautulliEnabled] = useState(false);
@@ -103,10 +110,11 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
 
             const queryDays = TIME_RANGE_DAYS[timeRange];
 
-            // Fetch both datasets in parallel
-            const [hourlyResponse, dailyResponse] = await Promise.all([
+            // Fetch all datasets in parallel
+            const [hourlyResponse, dailyResponse, concurrentResponse] = await Promise.all([
                 fetchWithAuth(`/api/admin/analytics/graph/plays-by-hour?query_days=${queryDays}`),
                 fetchWithAuth(`/api/admin/analytics/graph/plays-by-date?query_days=${queryDays}`),
+                fetchWithAuth(`/api/admin/analytics/graph/concurrent-by-date?query_days=${queryDays}`),
             ]);
 
             if (!hourlyResponse.ok) {
@@ -115,12 +123,17 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
             if (!dailyResponse.ok) {
                 throw new Error("Failed to load daily data");
             }
+            if (!concurrentResponse.ok) {
+                throw new Error("Failed to load concurrent viewer data");
+            }
 
             const hourlyResult = await hourlyResponse.json();
             const dailyResult = await dailyResponse.json();
+            const concurrentResult = await concurrentResponse.json();
 
             setHourlyData(hourlyResult);
             setDailyData(dailyResult);
+            setConcurrentData(concurrentResult);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load graph data");
         } finally {
@@ -244,8 +257,14 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
         label: formatDate(d.date),
     }));
 
+    const concurrentChartData = concurrentData.map((d) => ({
+        ...d,
+        label: formatDate(d.date),
+    }));
+
     const hasHourlyData = hourlyData.some((d) => d.plays > 0);
     const hasDailyData = dailyData.some((d) => d.plays > 0);
+    const hasConcurrentData = concurrentData.some((d) => d.peak_concurrent > 0);
 
     return (
         <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300 h-[420px] flex flex-col">
@@ -398,6 +417,56 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                     ) : (
                         <div className="flex items-center justify-center h-full text-sm text-slate-500 dark:text-slate-400">
                             No viewing data available for this time range
+                        </div>
+                    )
+                )}
+
+                {activeGraph === "concurrent" && (
+                    hasConcurrentData ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={concurrentChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                <defs>
+                                    <linearGradient id="colorConcurrent" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fontSize: 10 }}
+                                    className="text-slate-600 dark:text-slate-400"
+                                    interval="preserveStartEnd"
+                                />
+                                <YAxis
+                                    tick={{ fontSize: 10 }}
+                                    className="text-slate-600 dark:text-slate-400"
+                                    allowDecimals={false}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "rgb(30, 41, 59)",
+                                        border: "1px solid rgb(51, 65, 85)",
+                                        borderRadius: "8px",
+                                        fontSize: "12px",
+                                    }}
+                                    labelStyle={{ color: "white", fontWeight: "bold" }}
+                                    itemStyle={{ color: "rgb(167, 139, 250)" }}
+                                    formatter={(value) => [`${value} viewers`, "Peak Concurrent"]}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="peak_concurrent"
+                                    stroke="#8b5cf6"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorConcurrent)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-sm text-slate-500 dark:text-slate-400">
+                            No concurrent viewing data available for this time range
                         </div>
                     )
                 )}

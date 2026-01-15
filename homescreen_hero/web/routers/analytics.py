@@ -104,6 +104,13 @@ class DailyPlaysOut(BaseModel):
     plays: int
 
 
+class DailyConcurrentOut(BaseModel):
+    """Response model for peak concurrent viewers by date"""
+
+    date: str
+    peak_concurrent: int
+
+
 # Endpoints
 @router.get("/collections", response_model=List[CollectionAnalyticsOut])
 def get_analytics(
@@ -673,4 +680,118 @@ def get_plays_by_date(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get daily play statistics: {str(e)}",
+        )
+
+
+@router.get("/graph/concurrent-by-date", response_model=List[DailyConcurrentOut])
+def get_concurrent_by_date(
+    query_days: int = 30,
+    current_user: str = Depends(get_current_user),
+) -> List[DailyConcurrentOut]:
+    """
+    Get peak concurrent viewer counts by date.
+
+    Uses watch history to calculate the maximum number of concurrent streams
+    for each day over the specified time period.
+
+    Args:
+        query_days: Number of days to query (default: 30)
+        current_user: Authenticated user from dependency
+
+    Returns:
+        List of peak concurrent viewer counts for each day
+    """
+    try:
+        config = load_config()
+
+        if not config.tautulli or not config.tautulli.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Tautulli is not enabled or configured",
+            )
+
+        tautulli = get_tautulli_client(config)
+        if not tautulli:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Tautulli client",
+            )
+
+        # Get history data to calculate concurrent viewers
+        # We need enough data to cover the time range
+        history = tautulli.get_history(length=10000)
+
+        if not history:
+            return []
+
+        # Filter by time range and calculate concurrent viewers by date
+        from datetime import datetime
+        import time
+
+        cutoff_time = time.time() - (query_days * 24 * 60 * 60)
+
+        # Collect all sessions within the time range
+        sessions: List[Dict[str, Any]] = []
+
+        for entry in history:
+            started = entry.get("started")
+            stopped = entry.get("stopped")
+
+            if not started:
+                continue
+
+            # Filter by time range
+            if started < cutoff_time:
+                continue
+
+            sessions.append({
+                "started": started,
+                "stopped": stopped or started + 3600,  # Default 1 hour if no stop time
+                "date": datetime.fromtimestamp(started).strftime("%Y-%m-%d"),
+            })
+
+        if not sessions:
+            return []
+
+        # Group sessions by date
+        sessions_by_date: Dict[str, List[Dict[str, Any]]] = {}
+        for session in sessions:
+            date = session["date"]
+            if date not in sessions_by_date:
+                sessions_by_date[date] = []
+            sessions_by_date[date].append(session)
+
+        # Calculate peak concurrent for each date
+        result = []
+        for date in sorted(sessions_by_date.keys()):
+            day_sessions = sessions_by_date[date]
+
+            # Find peak concurrent by checking at each session start and stop time
+            # Create a list of events (start = +1, stop = -1)
+            events: List[tuple] = []
+            for s in day_sessions:
+                events.append((s["started"], 1))  # Session starts
+                events.append((s["stopped"], -1))  # Session ends
+
+            # Sort events by time
+            events.sort(key=lambda x: (x[0], -x[1]))  # Process starts before stops at same time
+
+            # Calculate peak concurrent
+            current_concurrent = 0
+            peak = 0
+            for _, delta in events:
+                current_concurrent += delta
+                peak = max(peak, current_concurrent)
+
+            result.append(DailyConcurrentOut(date=date, peak_concurrent=peak))
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get concurrent viewers by date: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get concurrent viewer statistics: {str(e)}",
         )

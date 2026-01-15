@@ -364,6 +364,84 @@ class TautulliClient:
             logger.error("Failed to get plays by hour of day: %s", exc, exc_info=True)
             return {}
 
+    def get_stream_type_by_top_10_users(self, time_range: int = 30) -> Any:
+        """
+        Get stream type data by top 10 users.
+
+        Args:
+            time_range: Number of days to query (default: 30)
+
+        Returns:
+            Dict with categories (usernames) and series (stream type counts)
+        """
+        try:
+            params = {
+                "time_range": str(time_range),
+            }
+            logger.debug(f"Requesting stream type by top 10 users with params: {params}")
+            return self._request("get_stream_type_by_top_10_users", params=params)
+        except Exception as exc:
+            logger.error("Failed to get stream type by top 10 users: %s", exc, exc_info=True)
+            return {}
+
+    def get_plays_by_stream_type(self, time_range: int = 30, y_axis: str = "plays") -> Any:
+        """
+        Get play counts grouped by stream type (Direct Play, Direct Stream, Transcode) by date.
+
+        Args:
+            time_range: Number of days to query (default: 30)
+            y_axis: What to measure - "plays" or "duration"
+
+        Returns:
+            Dict with categories (dates) and series (stream type data including max concurrent)
+        """
+        try:
+            params = {
+                "time_range": str(time_range),
+                "y_axis": y_axis,
+            }
+            logger.debug(f"Requesting plays by stream type with params: {params}")
+            return self._request("get_plays_by_stream_type", params=params)
+        except Exception as exc:
+            logger.error("Failed to get plays by stream type: %s", exc, exc_info=True)
+            return {}
+
+    def get_history(
+        self,
+        length: int = 1000,
+        start: int = 0,
+        order_column: str = "date",
+        order_dir: str = "desc",
+    ) -> List[Dict[str, Any]]:
+        """
+        Get watch history with detailed timestamps for calculating concurrent viewers.
+
+        Args:
+            length: Number of history items to return (default: 1000)
+            start: Starting index (default: 0)
+            order_column: Column to order by (default: date)
+            order_dir: Order direction (default: desc)
+
+        Returns:
+            List of history entries with start/stop times
+        """
+        try:
+            params = {
+                "length": str(length),
+                "start": str(start),
+                "order_column": order_column,
+                "order_dir": order_dir,
+            }
+            logger.debug(f"Requesting history with params: {params}")
+            data = self._request("get_history", params=params)
+
+            if isinstance(data, dict) and "data" in data:
+                return data["data"]
+            return data if isinstance(data, list) else []
+        except Exception as exc:
+            logger.error("Failed to get history: %s", exc, exc_info=True)
+            return []
+
 
 def get_tautulli_client(config: AppConfig) -> Optional[TautulliClient]:
     """
