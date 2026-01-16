@@ -21,6 +21,7 @@ def record_collection_analytics(
     unique_users: Optional[int] = None,
     rotation_id: Optional[int] = None,
     extra_data: Optional[Dict[str, Any]] = None,
+    media_type: Optional[str] = None,
 ) -> CollectionAnalytics:
     """
     Record a new analytics snapshot for a collection.
@@ -34,6 +35,7 @@ def record_collection_analytics(
         unique_users: Number of unique users who watched
         rotation_id: Optional rotation ID this snapshot is associated with
         extra_data: Optional additional data (JSON)
+        media_type: Media type from Plex library ("movie" or "show")
 
     Returns:
         The created CollectionAnalytics record
@@ -49,6 +51,7 @@ def record_collection_analytics(
             rotation_id=rotation_id,
             collected_at=datetime.utcnow(),
             extra_data=extra_data,
+            media_type=media_type,
         )
         session.add(record)
         session.commit()
@@ -119,9 +122,8 @@ def get_top_collections_by_plays(
             subquery = subquery.filter(CollectionAnalytics.rotation_id >= since_rotation_id)
 
         if media_type:
-            # Map media_type to library name
-            library_name = "Movies" if media_type == "movie" else "TV Shows"
-            subquery = subquery.filter(CollectionAnalytics.plex_library == library_name)
+            # Filter by actual media_type column (derived from Plex library type)
+            subquery = subquery.filter(CollectionAnalytics.media_type == media_type)
 
         subquery = subquery.subquery()
 

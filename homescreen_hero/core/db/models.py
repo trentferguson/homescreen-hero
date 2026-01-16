@@ -167,6 +167,10 @@ class CollectionAnalytics(Base):
     plex_library = Column(String, nullable=False)
     rating_key = Column(Integer, nullable=True)
 
+    # Media type derived from Plex library type ("movie" or "show")
+    # This allows filtering by media type regardless of library naming
+    media_type = Column(String, nullable=True, index=True)
+
     # Analytics data from Tautulli
     total_plays = Column(Integer, nullable=False, default=0)
     total_duration_seconds = Column(Integer, nullable=True)

@@ -341,24 +341,25 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
             {/* Header */}
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-                        {currentGraphInfo.title}
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                            {currentGraphInfo.title}
+                        </h3>
+                        {/* Settings Button */}
+                        <button
+                            onClick={() => setSettingsOpen(true)}
+                            className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            title="Graph settings"
+                        >
+                            <Settings className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
                     <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
                         {currentGraphInfo.subtitle}
                     </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Settings Button */}
-                    <button
-                        onClick={() => setSettingsOpen(true)}
-                        className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                        title="Graph settings"
-                    >
-                        <Settings className="h-4 w-4" />
-                    </button>
-
                     {/* Time Range Selector */}
                     <Listbox value={timeRange} onChange={setTimeRange}>
                         <div className="relative">

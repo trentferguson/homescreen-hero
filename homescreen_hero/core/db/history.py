@@ -20,6 +20,31 @@ def init_db() -> None:
     logger.debug("Ensuring database schema is initialized")
     Base.metadata.create_all(bind=engine)
 
+    # Run schema migrations for existing tables
+    _migrate_collection_analytics(engine)
+
+
+def _migrate_collection_analytics(engine) -> None:
+    # Add media_type column to collection_analytics if it doesn't exist
+    # This handles the case where the table was created before the column was added
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    # Check if table exists
+    if "collection_analytics" not in inspector.get_table_names():
+        return
+
+    # Check if column already exists
+    columns = [col["name"] for col in inspector.get_columns("collection_analytics")]
+    if "media_type" in columns:
+        return
+
+    logger.info("Migrating collection_analytics: adding media_type column")
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE collection_analytics ADD COLUMN media_type VARCHAR"))
+        conn.commit()
+
 
 def record_rotation(
     featured_collections: Iterable[str],

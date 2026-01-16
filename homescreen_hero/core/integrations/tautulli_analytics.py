@@ -116,6 +116,10 @@ def collect_analytics_for_collections(
                 )
                 continue
 
+            # Get media_type from the library type (e.g., "movie" or "show")
+            # This is more reliable than matching on library name
+            media_type = getattr(library, "type", None)
+
             # Get the rating_key (Plex's internal ID)
             rating_key = collection_obj.ratingKey
             logger.debug(
@@ -176,6 +180,7 @@ def collect_analytics_for_collections(
                     "items_with_plays": items_with_plays,
                     "total_items": len(items) if 'items' in locals() else None,
                 },
+                media_type=media_type,
             )
 
             logger.info(

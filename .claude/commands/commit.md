@@ -10,8 +10,9 @@ Review all staged and unstaged changes, then create a well-formatted commit.
 4. Stage all relevant changes (ask me if unsure what to include)
 5. Write a concise commit message that:
    - Follows the existing commit style in this repo, with more specific style guide below in the 'Commit Style' section.
-6. Create the commit
-7. Show the result with `git status`
+6. You do not need to add tiny changes to commit messages. For example, if we moved and icon to a different part of card in the UI, that doesn't need to be noted at all.
+7. Create the commit
+8. Show the result with `git status`
 
 ### Commit Style
 1. Do not use bullet points or dashes simply separate points, simply separate different points with new lines.
