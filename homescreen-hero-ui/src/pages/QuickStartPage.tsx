@@ -524,15 +524,22 @@ function TraktStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
             setError("");
             setTraktTestSuccess(false);
 
-            // Test Trakt connection
-            const response = await fetch("/api/health/trakt");
+            // Test Trakt connection with provided credentials
+            const response = await fetch("/api/admin/config/test-trakt", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    client_id: localTraktClientId,
+                    base_url: localTraktBaseUrl,
+                }),
+            });
             if (!response.ok) {
                 throw new Error("Trakt connection test failed");
             }
 
-            const healthData = await response.json();
-            if (!healthData.ok) {
-                throw new Error(healthData.error || "Trakt connection test failed");
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(result.error || "Trakt connection test failed");
             }
 
             setTraktTestSuccess(true);
@@ -734,15 +741,22 @@ function MDBListStep({ wizardData, setWizardData, envVars }: { wizardData: Wizar
             setError("");
             setMDBListTestSuccess(false);
 
-            // Test MDBList connection
-            const response = await fetch("/api/health/mdblist");
+            // Test MDBList connection with provided credentials
+            const response = await fetch("/api/admin/config/test-mdblist", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    api_key: localMDBListApiKey,
+                    base_url: localMDBListBaseUrl,
+                }),
+            });
             if (!response.ok) {
                 throw new Error("MDBList connection test failed");
             }
 
-            const healthData = await response.json();
-            if (!healthData.ok) {
-                throw new Error(healthData.error || "MDBList connection test failed");
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(result.error || "MDBList connection test failed");
             }
 
             setMDBListTestSuccess(true);

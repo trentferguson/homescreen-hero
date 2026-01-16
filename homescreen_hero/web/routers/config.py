@@ -32,6 +32,8 @@ from homescreen_hero.core.config.schema import (
     CollectionGroupConfig,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
+from homescreen_hero.core.integrations.trakt_client import TraktClient, TraktConfig
+from homescreen_hero.core.integrations.mdblist_client import MDBListClient, MDBListConfig
 from homescreen_hero.core.scheduler import (
     update_rotation_schedule,
 )
@@ -241,6 +243,24 @@ class EnvVarsResponse(BaseModel):
     auth_secret_from_env: bool
     trakt_client_id_from_env: bool
     mdblist_api_key_from_env: bool
+
+
+# Request payload for testing Trakt connection with provided credentials.
+class TraktTestRequest(BaseModel):
+    client_id: Optional[str] = None  # Falls back to HSH_TRAKT_CLIENT_ID env var
+    base_url: str = "https://api.trakt.tv"
+
+
+# Request payload for testing MDBList connection with provided credentials.
+class MDBListTestRequest(BaseModel):
+    api_key: Optional[str] = None  # Falls back to HSH_MDBLIST_API_KEY env var
+    base_url: str = "https://api.mdblist.com"
+
+
+# Response for connection test endpoints.
+class ConnectionTestResponse(BaseModel):
+    ok: bool
+    error: Optional[str] = None
 
 
 # Incoming payload for quick start setup.
@@ -1699,6 +1719,48 @@ def check_env_vars() -> EnvVarsResponse:
         trakt_client_id_from_env=bool(os.getenv("HSH_TRAKT_CLIENT_ID")),
         mdblist_api_key_from_env=bool(os.getenv("HSH_MDBLIST_API_KEY")),
     )
+
+
+# Test Trakt connection with provided credentials (for quick-start wizard).
+@router.post("/test-trakt", response_model=ConnectionTestResponse)
+def test_trakt_connection(payload: TraktTestRequest) -> ConnectionTestResponse:
+    try:
+        # Use provided client_id or fall back to environment variable
+        client_id = payload.client_id or os.getenv("HSH_TRAKT_CLIENT_ID")
+        if not client_id:
+            return ConnectionTestResponse(ok=False, error="No Trakt Client ID provided")
+
+        cfg = TraktConfig(
+            client_id=client_id,
+            base_url=payload.base_url,
+        )
+        client = TraktClient(cfg)
+        ok, error = client.ping()
+        return ConnectionTestResponse(ok=ok, error=error)
+    except Exception as exc:
+        logger.exception("Trakt connection test failed")
+        return ConnectionTestResponse(ok=False, error=str(exc))
+
+
+# Test MDBList connection with provided credentials (for quick-start wizard).
+@router.post("/test-mdblist", response_model=ConnectionTestResponse)
+def test_mdblist_connection(payload: MDBListTestRequest) -> ConnectionTestResponse:
+    try:
+        # Use provided api_key or fall back to environment variable
+        api_key = payload.api_key or os.getenv("HSH_MDBLIST_API_KEY")
+        if not api_key:
+            return ConnectionTestResponse(ok=False, error="No MDBList API Key provided")
+
+        cfg = MDBListConfig(
+            api_key=api_key,
+            base_url=payload.base_url,
+        )
+        client = MDBListClient(cfg)
+        ok, error = client.ping()
+        return ConnectionTestResponse(ok=ok, error=error)
+    except Exception as exc:
+        logger.exception("MDBList connection test failed")
+        return ConnectionTestResponse(ok=False, error=str(exc))
 
 
 # Initialize config.yaml with minimal Plex and optional Trakt settings.
