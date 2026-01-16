@@ -77,6 +77,7 @@ export default function Dashboard() {
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
     const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
+    const [tautulliEnabled, setTautulliEnabled] = useState<boolean | null>(null);
     const [schedulerStatus, setSchedulerStatus] = useState<{
         enabled: boolean;
         interval_hours: number;
@@ -193,9 +194,25 @@ export default function Dashboard() {
         }
     };
 
+    const loadTautulliConfig = async () => {
+        try {
+            const response = await fetchWithAuth("/api/admin/config/tautulli");
+            if (response.ok) {
+                const config = await response.json();
+                setTautulliEnabled(config.enabled ?? false);
+            } else {
+                setTautulliEnabled(false);
+            }
+        } catch (e) {
+            console.error("Failed to load Tautulli config:", e);
+            setTautulliEnabled(false);
+        }
+    };
+
     useEffect(() => {
         void loadActiveCollections();
         void loadSchedulerStatus();
+        void loadTautulliConfig();
     }, []);
 
     // Update current time every second for live countdown
@@ -568,12 +585,16 @@ export default function Dashboard() {
                         <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
                     </div>
 
-                    {/* Analytics */}
-                    <AnalyticsCard loading={healthLoading} />
-                    <MostActiveUsersCard loading={healthLoading} />
-                    <div className="sm:col-span-2">
-                        <GraphCarouselCard loading={healthLoading} />
-                    </div>
+                    {/* Analytics - only show when Tautulli is enabled */}
+                    {tautulliEnabled && (
+                        <>
+                            <AnalyticsCard loading={healthLoading} />
+                            <MostActiveUsersCard loading={healthLoading} />
+                            <div className="sm:col-span-2">
+                                <GraphCarouselCard loading={healthLoading} />
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Recent Rotations - Half Width */}
