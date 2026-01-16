@@ -160,7 +160,7 @@ Sensitive values go in `.env` (not committed):
 - `HSH_TRAKT_CLIENT_ID` - Trakt API client ID
 - `HSH_MDBLIST_API_KEY` - MDBList API key
 - `HSH_TAUTULLI_API_KEY` - Tautulli API key
-- `HSH_TAUTULLI_URL` - Tautulli server URL
+- `HSH_TAUTULLI_BASE_URL` - Tautulli server URL
 
 ## Testing Notes
 

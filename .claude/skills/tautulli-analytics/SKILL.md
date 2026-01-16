@@ -39,7 +39,7 @@ The `TautulliClient` wraps the Tautulli API v2. It handles:
 
 Tautulli requires:
 - `HSH_TAUTULLI_API_KEY` environment variable (or in config.yaml)
-- `HSH_TAUTULLI_URL` environment variable (default: `http://localhost:8181`)
+- `HSH_TAUTULLI_BASE_URL` environment variable (default: `http://localhost:8181`)
 - `enabled: true` in config.yaml under `tautulli` section
 
 ## Analytics Module
