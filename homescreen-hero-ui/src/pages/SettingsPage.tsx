@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { Bell, Shield, SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Bell, Shield, SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, Clock } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
+import CollapsibleFormSection from "../components/CollapsibleFormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
 
 const tabs = [
     { id: "general", label: "General", icon: SlidersHorizontal },
-    { id: "integrations", label: "Integrations", icon: Shield },
-    { id: "notifications", label: "Notifications", icon: Bell },
     { id: "logs", label: "Logs", icon: FileText },
 ] as const;
 
@@ -85,9 +84,7 @@ function IconButton({
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [weeklySummary, setWeeklySummary] = useState(false);
-    const [defaultTheme, setDefaultTheme] = useState<"Dark" | "Light" | "Auto">("Dark");
     const [rotationSettings, setRotationSettings] = useState<RotationSettings>({
         enabled: true,
         interval_hours: 12,
@@ -125,10 +122,6 @@ export default function SettingsPage() {
         switch (activeTab) {
             case "general":
                 return "Control the basics without directly editing the YAML config.";
-            case "integrations":
-                return "Manage connected services like Plex with credential-safe forms.";
-            case "notifications":
-                return "Fine-tune how the app keeps you informed.";
             case "logs":
                 return "View and search application logs in real-time.";
             default:
@@ -433,64 +426,155 @@ export default function SettingsPage() {
 
             {activeTab === "general" ? (
                 <>
-                    <FormSection
-                        title="General settings (Work in Progress)"
-                        description="Placeholder for future general configuration options. These settings do not yet persist."
+                    <CollapsibleFormSection
+                        title="Plex"
+                        description="Provide credentials for the media server this dashboard references."
+                        icon={Server}
+                        actions={
+                            <div className="flex items-center gap-3 text-xs text-slate-400">
+                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
+                                <button
+                                    type="button"
+                                    onClick={savePlexSettings}
+                                    disabled={savingPlex || loadingPlex}
+                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
+                                >
+                                    {savingPlex ? "Saving…" : "Save Plex Settings"}
+                                </button>
+                            </div>
+                        }
                     >
                         <FieldRow
-                            label="Application name"
-                            description="Placeholder WIP"
-                            hint="Shown in the dashboard header and outgoing notifications."
+                            label="Server URL"
+                            description="Internal address the backend should use to reach Plex."
+                            hint="Example: http://localhost:32400"
                         >
                             <input
                                 type="text"
-                                defaultValue="HomeScreen Hero"
+                                placeholder="http://localhost:32400"
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                value={plexSettings.base_url}
+                                onChange={(e) =>
+                                    setPlexSettings((prev) => ({
+                                        ...prev,
+                                        base_url: e.target.value,
+                                    }))
+                                }
+                                disabled={loadingPlex}
                             />
                         </FieldRow>
 
                         <FieldRow
-                            label="Base URL"
-                            description="Placeholder WIP"
-                            hint="Example: https://hero.example.com"
+                            label="X-Plex-Token"
+                            description="Stored securely and not written to the config until you save."
                         >
                             <input
-                                type="url"
-                                placeholder="https://hero.example.com"
+                                type="password"
+                                placeholder="••••••••"
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                value={plexSettings.token}
+                                onChange={(e) =>
+                                    setPlexSettings((prev) => ({
+                                        ...prev,
+                                        token: e.target.value,
+                                    }))
+                                }
+                                disabled={loadingPlex}
                             />
                         </FieldRow>
 
-                        <FieldRow label="Default theme" description="Placeholder WIP" hint="Applied across dashboards and the homepage.">
-                            <Listbox value={defaultTheme} onChange={setDefaultTheme}>
-                                <div className="relative">
-                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
-                                        <span>{defaultTheme}</span>
-                                        <ChevronDown size={16} className="text-slate-400" />
-                                    </Listbox.Button>
+                        <FieldRow label="Libraries" hint="Select which Plex libraries to use for rotation.">
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={fetchAvailableLibraries}
+                                    disabled={loadingPlex || loadingLibraries}
+                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {loadingLibraries ? "Loading..." : "Fetch Available Libraries"}
+                                </button>
 
-                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
-                                        {["Dark", "Light", "Auto"].map((theme) => (
-                                            <Listbox.Option
-                                                key={theme}
-                                                value={theme}
-                                                className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
-                                            >
-                                                <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
-                                                    <span className="data-[selected]:font-medium">{theme}</span>
-                                                    <Check size={14} className="text-primary invisible data-[selected]:visible" />
+                                {availableLibraries.length > 0 && (
+                                    <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 space-y-2">
+                                        <div className="text-xs text-slate-400 mb-2">Available Libraries:</div>
+                                        {availableLibraries.map((lib) => {
+                                            const isSelected = plexSettings.libraries.some((l) => l.name === lib.title);
+                                            const isEnabled = plexSettings.libraries.find((l) => l.name === lib.title)?.enabled ?? true;
+                                            return (
+                                                <div key={lib.title} className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected && isEnabled}
+                                                            onChange={() => toggleLibrary(lib.title)}
+                                                            className="h-4 w-4 rounded border-slate-600 text-primary focus:ring-2 focus:ring-primary/70"
+                                                            disabled={loadingPlex}
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm text-slate-100">{lib.title}</div>
+                                                            <div className="text-xs text-slate-500">{lib.type}</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </Listbox.Option>
-                                        ))}
-                                    </Listbox.Options>
-                                </div>
-                            </Listbox>
-                        </FieldRow>
-                    </FormSection>
+                                            );
+                                        })}
+                                    </div>
+                                )}
 
-                    <FormSection
+                                {plexSettings.libraries.length > 0 && (
+                                    <div className="rounded-lg border border-emerald-700 bg-emerald-900/30 p-3">
+                                        <div className="text-xs text-emerald-300 mb-2">Selected Libraries:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {plexSettings.libraries.map((lib) => (
+                                                <div
+                                                    key={lib.name}
+                                                    className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs ${lib.enabled
+                                                            ? "bg-emerald-800/50 text-emerald-100"
+                                                            : "bg-slate-700/50 text-slate-400"
+                                                        }`}
+                                                >
+                                                    <span>{lib.name}</span>
+                                                    {!lib.enabled && <span className="text-xs">(disabled)</span>}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLibrary(lib.name)}
+                                                        className="text-emerald-200 hover:text-emerald-50"
+                                                        disabled={loadingPlex}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </FieldRow>
+
+                        {plexMessage ? (
+                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
+                                {plexMessage}
+                            </div>
+                        ) : null}
+
+                        {plexError ? (
+                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
+                                {plexError}
+                            </div>
+                        ) : null}
+
+                        <TestConnectionCta
+                            service="Plex"
+                            status={plexTestStatus}
+                            onTest={handleTestConnection}
+                            message="Run a dry connection test without restarting the service."
+                        />
+                    </CollapsibleFormSection>
+
+                    <CollapsibleFormSection
                         title="Rotation schedule"
                         description="Configure how often the scheduler rotates featured collections."
+                        icon={Clock}
                         actions={
                             <div className="flex items-center gap-3 text-xs text-slate-400">
                                 <span className="hidden sm:inline">Writes directly to config.yaml.</span>
@@ -643,217 +727,8 @@ export default function SettingsPage() {
                                 {rotationError}
                             </div>
                         ) : null}
-                    </FormSection>
+                    </CollapsibleFormSection>
                 </>
-            ) : null}
-
-            {activeTab === "integrations" ? (
-                <div className="space-y-4">
-                    <FormSection
-                        title="Plex"
-                        description="Provide credentials for the media server this dashboard references."
-                        actions={
-                            <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={savePlexSettings}
-                                    disabled={savingPlex || loadingPlex}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingPlex ? "Saving…" : "Save Plex Settings"}
-                                </button>
-                            </div>
-                        }
-                    >
-                        <FieldRow
-                            label="Server URL"
-                            description="Internal address the backend should use to reach Plex."
-                            hint="Example: http://localhost:32400"
-                        >
-                            <input
-                                type="text"
-                                placeholder="http://localhost:32400"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={plexSettings.base_url}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        base_url: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
-                            />
-                        </FieldRow>
-
-                        <FieldRow
-                            label="X-Plex-Token"
-                            description="Stored securely and not written to the config until you save."
-                        >
-                            <input
-                                type="password"
-                                placeholder="••••••••"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                value={plexSettings.token}
-                                onChange={(e) =>
-                                    setPlexSettings((prev) => ({
-                                        ...prev,
-                                        token: e.target.value,
-                                    }))
-                                }
-                                disabled={loadingPlex}
-                            />
-                        </FieldRow>
-
-                        <FieldRow label="Libraries" hint="Select which Plex libraries to use for rotation.">
-                            <div className="space-y-2">
-                                <button
-                                    type="button"
-                                    onClick={fetchAvailableLibraries}
-                                    disabled={loadingPlex || loadingLibraries}
-                                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
-                                >
-                                    {loadingLibraries ? "Loading..." : "Fetch Available Libraries"}
-                                </button>
-
-                                {availableLibraries.length > 0 && (
-                                    <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 space-y-2">
-                                        <div className="text-xs text-slate-400 mb-2">Available Libraries:</div>
-                                        {availableLibraries.map((lib) => {
-                                            const isSelected = plexSettings.libraries.some((l) => l.name === lib.title);
-                                            const isEnabled = plexSettings.libraries.find((l) => l.name === lib.title)?.enabled ?? true;
-                                            return (
-                                                <div key={lib.title} className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected && isEnabled}
-                                                            onChange={() => toggleLibrary(lib.title)}
-                                                            className="h-4 w-4 rounded border-slate-600 text-primary focus:ring-2 focus:ring-primary/70"
-                                                            disabled={loadingPlex}
-                                                        />
-                                                        <div>
-                                                            <div className="text-sm text-slate-100">{lib.title}</div>
-                                                            <div className="text-xs text-slate-500">{lib.type}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {plexSettings.libraries.length > 0 && (
-                                    <div className="rounded-lg border border-emerald-700 bg-emerald-900/30 p-3">
-                                        <div className="text-xs text-emerald-300 mb-2">Selected Libraries:</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {plexSettings.libraries.map((lib) => (
-                                                <div
-                                                    key={lib.name}
-                                                    className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs ${
-                                                        lib.enabled
-                                                            ? "bg-emerald-800/50 text-emerald-100"
-                                                            : "bg-slate-700/50 text-slate-400"
-                                                    }`}
-                                                >
-                                                    <span>{lib.name}</span>
-                                                    {!lib.enabled && <span className="text-xs">(disabled)</span>}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeLibrary(lib.name)}
-                                                        className="text-emerald-200 hover:text-emerald-50"
-                                                        disabled={loadingPlex}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </FieldRow>
-
-                        {plexMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {plexMessage}
-                            </div>
-                        ) : null}
-
-                        {plexError ? (
-                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                {plexError}
-                            </div>
-                        ) : null}
-
-                        <TestConnectionCta
-                            service="Plex"
-                            status={plexTestStatus}
-                            onTest={handleTestConnection}
-                            message="Run a dry connection test without restarting the service."
-                        />
-                    </FormSection>
-
-                    <FormSection
-                        title="Other integrations"
-                        description="Wire up optional services while keeping the configuration safe."
-                    >
-                        <FieldRow
-                            label="Webhook URL"
-                            hint="Triggered on successful rotations when enabled."
-                        >
-                            <input
-                                type="url"
-                                placeholder="https://hooks.example.com/rotate"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                            />
-                        </FieldRow>
-                    </FormSection>
-                </div>
-            ) : null}
-
-            {activeTab === "notifications" ? (
-                <div className="space-y-4">
-                    <FormSection
-                        title="Manage Notifications (Work in Progress)"
-                        description="Alerts are not yet implemented, but future settings can be configured here."
-                    >
-                        <FieldRow label="Send notifications">
-                            <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 px-3 py-2">
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Enable alerts</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">Covers successes, failures, and dry runs.</p>
-                                </div>
-                                <Switch
-                                    checked={notificationsEnabled}
-                                    onChange={() => setNotificationsEnabled((v) => !v)}
-                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
-                                >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${notificationsEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                                </Switch>
-                            </div>
-                        </FieldRow>
-
-                        <FieldRow label="Weekly digest" hint="Summary of successes and failures delivered every Monday.">
-                            <Switch
-                                checked={weeklySummary}
-                                onChange={() => setWeeklySummary((v) => !v)}
-                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
-                            >
-                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${weeklySummary ? 'translate-x-5' : 'translate-x-1'}`} />
-                            </Switch>
-                        </FieldRow>
-
-                        <FieldRow label="Email recipients" description="Comma-separated list of addresses to notify.">
-                            <input
-                                type="email"
-                                multiple
-                                placeholder="ops@example.com, admin@example.com"
-                                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                            />
-                        </FieldRow>
-                    </FormSection>
-                </div>
             ) : null}
 
             {activeTab === "logs" ? (
