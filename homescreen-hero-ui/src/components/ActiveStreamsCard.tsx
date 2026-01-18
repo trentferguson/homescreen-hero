@@ -75,8 +75,7 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
     // Loading state - match health card height
     if (loading || activityLoading) {
         return (
-            <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm p-5 h-32 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100/60 via-transparent to-transparent dark:from-white/5" />
+            <div className="group relative overflow-hidden rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 h-32 transition-all duration-300">
                 <div className="relative h-full flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
@@ -87,10 +86,9 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
     // Error state - match health card height
     if (error) {
         return (
-            <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm p-5 h-32 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300">
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100/60 via-transparent to-transparent dark:from-white/5" />
+            <div className="group relative overflow-hidden rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-red-500/5 p-5 h-32 transition-all duration-300">
                 <div className="relative h-full flex flex-col items-center justify-center text-center">
-                    <p className="text-xs text-red-600 dark:text-red-400 mb-2">{error}</p>
+                    <p className="text-xs text-red-400 mb-2">{error}</p>
                     <button
                         onClick={loadActivity}
                         className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition"
@@ -129,21 +127,33 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
             : "bg-slate-400 shadow-[0_0_16px_rgba(148,163,184,0.45)]",
     ].join(" ");
 
+    // Border color based on stream count (matching integrations page)
+    const borderColor = streamCount > 0
+        ? "border-emerald-500/30"
+        : "border-slate-700/50";
+
+    // Gradient background based on stream count
+    const gradientBg = streamCount > 0
+        ? "from-emerald-500/5 via-slate-900/50 to-slate-900/50"
+        : "from-slate-500/5 via-slate-900/50 to-slate-900/50";
+
+    // Shadow color based on stream count
+    const shadowColor = streamCount > 0
+        ? "shadow-emerald-500/5"
+        : "shadow-slate-500/5";
+
     // Main display state - compact health card style
     return (
         <>
             <div
-                className={`group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md p-5 h-32 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300 ${streamCount > 0 ? 'cursor-pointer' : ''}`}
+                className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColor} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30 ${streamCount > 0 ? 'cursor-pointer' : ''}`}
                 onClick={streamCount > 0 ? () => setShowModal(true) : undefined}
                 title={streamCount > 0 ? "Click to view details" : undefined}
             >
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100/60 via-transparent to-transparent dark:from-white/5" />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/40 dark:to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
                 {/* Click indicator - show subtle icon when there are active streams */}
                 {streamCount > 0 && (
                     <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none">
-                        <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
@@ -153,18 +163,18 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
                 <div className="relative h-full flex items-center justify-between pointer-events-none">
                     {/* text */}
                     <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                        <div className="text-sm font-medium text-slate-400 mb-1">
                             Active Streams
                         </div>
 
-                        <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-slate-900 dark:text-white transition-all duration-200">
+                        <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-white transition-all duration-200">
                             {streamCount === 0 ? "None" : streamCount}
                         </div>
 
                         <div
                             className={[
                                 "mt-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis",
-                                streamCount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"
+                                streamCount > 0 ? "text-emerald-400" : "text-slate-400"
                             ].join(" ")}
                             title={tooltipText}
                         >
@@ -178,7 +188,7 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
                             <div className={statusDotClass} />
                         </div>
 
-                        <div className="text-slate-600 dark:text-slate-200 transition-transform duration-200 group-hover:scale-110">
+                        <div className="text-slate-200 transition-transform duration-200 group-hover:scale-110">
                             <svg
                                 className="w-12 h-12"
                                 fill="none"

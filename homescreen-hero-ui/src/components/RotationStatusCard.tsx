@@ -66,19 +66,38 @@ export default function RotationStatusCard({
                 : "bg-amber-400 shadow-[0_0_16px_rgba(251,191,36,0.55)]",
     ].join(" ");
 
+    // Border color based on status (matching integrations page)
+    const borderColor = loading
+        ? "border-slate-700/50"
+        : enabled
+            ? "border-emerald-500/30"
+            : "border-amber-500/30";
+
+    // Gradient background based on status (matching integrations page)
+    const gradientBg = loading
+        ? "from-slate-500/5 via-slate-900/50 to-slate-900/50"
+        : enabled
+            ? "from-emerald-500/5 via-slate-900/50 to-slate-900/50"
+            : "from-amber-500/5 via-slate-900/50 to-slate-900/50";
+
+    // Shadow color based on status
+    const shadowColor = loading
+        ? "shadow-slate-500/5"
+        : enabled
+            ? "shadow-emerald-500/5"
+            : "shadow-amber-500/5";
+
     return (
-        <div className="group relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md p-5 h-32 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300">
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100/60 via-transparent to-transparent dark:from-white/5" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/40 dark:to-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColor} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30`}>
 
             <div className="relative h-full flex items-center justify-between">
                 {/* text */}
                 <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    <div className="text-sm font-medium text-slate-400 mb-1">
                         Auto Rotation
                     </div>
 
-                    <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-slate-900 dark:text-white transition-all duration-200">
+                    <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-white transition-all duration-200">
                         {statusLabel}
                     </div>
 
@@ -101,7 +120,7 @@ export default function RotationStatusCard({
                         <div className={statusDotClass + (loading ? " animate-pulse" : "")} />
                     </div>
 
-                    <div className="text-slate-600 dark:text-slate-200 transition-transform duration-200 group-hover:scale-110">
+                    <div className="text-slate-200 transition-transform duration-200 group-hover:scale-110">
                         {icon ?? <DefaultRotationIcon />}
                     </div>
                 </div>
