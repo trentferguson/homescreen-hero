@@ -16,6 +16,7 @@ import { Listbox } from "@headlessui/react";
 
 import FormSection from "../components/FormSection";
 import GroupCoverMosaic from "../components/GroupCoverMosaic";
+import { getGroupStatus, isGroupCurrentlyActive } from "../utils/dates";
 
 type DateRange = {
     start: string;
@@ -70,7 +71,7 @@ export default function GroupsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [message, setMessage] = useState<string | null>(null);
 
-    const activeCount = groups.filter((g) => g.enabled).length;
+    const activeCount = groups.filter((g) => isGroupCurrentlyActive(g)).length;
 
     const refreshGroups = async () => {
         setLoading(true);
@@ -308,9 +309,24 @@ export default function GroupsPage() {
                                 >
                                     <div className="relative">
                                         {renderCover(group, index)}
-                                        <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${group.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20'}`}>
-                                            {group.enabled ? "Active" : "Disabled"}
-                                        </div>
+                                        {(() => {
+                                            const status = getGroupStatus(group);
+                                            const statusStyles = {
+                                                active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
+                                                scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
+                                                disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
+                                            };
+                                            const statusLabels = {
+                                                active: 'Active',
+                                                scheduled: 'Scheduled',
+                                                disabled: 'Disabled',
+                                            };
+                                            return (
+                                                <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
+                                                    {statusLabels[status]}
+                                                </div>
+                                            );
+                                        })()}
                                         {(group.date_range?.start || group.date_range?.end) && (
                                             <div className="absolute right-3 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
                                                 {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 type RotationStatusCardProps = {
     enabled: boolean;
@@ -37,6 +38,12 @@ export default function RotationStatusCard({
     currentTime,
     icon,
 }: RotationStatusCardProps) {
+    const navigate = useNavigate();
+
+    const handleClick = () => {
+        navigate("/settings?section=rotation");
+    };
+
     const statusLabel = loading
         ? "Checking…"
         : enabled
@@ -88,7 +95,18 @@ export default function RotationStatusCard({
             : "shadow-amber-500/5";
 
     return (
-        <div className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColor} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30`}>
+        <div
+            onClick={handleClick}
+            className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColor} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30 cursor-pointer`}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleClick();
+                }
+            }}
+        >
 
             <div className="relative h-full flex items-center justify-between">
                 {/* text */}

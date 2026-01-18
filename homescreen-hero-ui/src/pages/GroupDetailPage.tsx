@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { CalendarRange, Check, Loader2, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import FieldRow from "../components/FieldRow";
 import FormSection from "../components/FormSection";
+import { getGroupStatus } from "../utils/dates";
 
 
 type DateRange = {
@@ -370,14 +371,24 @@ export default function GroupDetailPage() {
                                         <p className="text-sm font-semibold">{group.name || `Group ${idx + 1}`}</p>
                                         <p className="text-xs text-slate-400">{group.collections.length} collections</p>
                                     </div>
-                                    <span
-                                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${group.enabled
-                                            ? "bg-emerald-500/20 text-emerald-200"
-                                            : "bg-slate-800 text-slate-300"
-                                            }`}
-                                    >
-                                        {group.enabled ? "Enabled" : "Disabled"}
-                                    </span>
+                                    {(() => {
+                                        const status = getGroupStatus(group);
+                                        const statusStyles = {
+                                            active: "bg-emerald-500/20 text-emerald-200",
+                                            scheduled: "bg-amber-500/20 text-amber-200",
+                                            disabled: "bg-slate-800 text-slate-300",
+                                        };
+                                        const statusLabels = {
+                                            active: "Enabled",
+                                            scheduled: "Scheduled",
+                                            disabled: "Disabled",
+                                        };
+                                        return (
+                                            <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusStyles[status]}`}>
+                                                {statusLabels[status]}
+                                            </span>
+                                        );
+                                    })()}
                                 </button>
                             );
                         })}

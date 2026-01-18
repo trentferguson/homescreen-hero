@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { Bell, Shield, SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, Clock } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, Clock } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
-import FormSection from "../components/FormSection";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
 
@@ -82,9 +82,20 @@ function IconButton({
 }
 
 export default function SettingsPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState<TabId>("general");
     const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
-    const [weeklySummary, setWeeklySummary] = useState(false);
+
+    // Track which section should be expanded based on URL param
+    const sectionParam = searchParams.get("section");
+    const [rotationExpanded] = useState(sectionParam === "rotation");
+
+    // Clear the URL param after initial load to avoid re-expanding on tab switches
+    useEffect(() => {
+        if (sectionParam) {
+            setSearchParams({}, { replace: true });
+        }
+    }, []);
     const [rotationSettings, setRotationSettings] = useState<RotationSettings>({
         enabled: true,
         interval_hours: 12,
@@ -575,6 +586,7 @@ export default function SettingsPage() {
                         title="Rotation schedule"
                         description="Configure how often the scheduler rotates featured collections."
                         icon={Clock}
+                        expanded={rotationExpanded}
                         actions={
                             <div className="flex items-center gap-3 text-xs text-slate-400">
                                 <span className="hidden sm:inline">Writes directly to config.yaml.</span>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 
 interface CollapsibleFormSectionProps {
@@ -8,6 +8,7 @@ interface CollapsibleFormSectionProps {
     actions?: ReactNode;
     icon?: LucideIcon;
     defaultExpanded?: boolean;
+    expanded?: boolean; // controlled mode
 }
 
 export default function CollapsibleFormSection({
@@ -17,8 +18,16 @@ export default function CollapsibleFormSection({
     actions,
     icon: Icon,
     defaultExpanded = false,
+    expanded,
 }: CollapsibleFormSectionProps) {
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [isExpanded, setIsExpanded] = useState(expanded ?? defaultExpanded);
+
+    // Sync with controlled prop when it changes
+    useEffect(() => {
+        if (expanded !== undefined) {
+            setIsExpanded(expanded);
+        }
+    }, [expanded]);
 
     return (
         <section className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 overflow-hidden shadow-lg shadow-primary/5">
