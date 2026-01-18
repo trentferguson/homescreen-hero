@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { CalendarRange, Check, Loader2, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
-import FieldRow from "../components/FieldRow";
-import FormSection from "../components/FormSection";
+import { ArrowLeft, CalendarRange, Check, Loader2, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
 import { getGroupStatus } from "../utils/dates";
 
 
@@ -293,30 +291,43 @@ export default function GroupDetailPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Collections / Groups</p>
-                <div className="flex items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-3xl font-black tracking-tight text-white">Edit Collection Group</h1>
-                        <p className="text-slate-400 text-sm">
+            {/* Header */}
+            <div className="flex flex-col gap-4">
+                <button
+                    onClick={() => navigate("/groups")}
+                    className="flex items-center gap-2 text-slate-400 hover:text-white w-fit transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                    Back to Groups
+                </button>
+
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-black tracking-tight text-white">
+                            {selectedIndex === "new" ? "Create New Group" : form.name || "Edit Group"}
+                        </h1>
+                        <p className="text-slate-400 text-sm max-w-2xl">
                             Configure content sources, rotation schedules, and display rules for your homescreen.
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-3">
                         <button
                             type="button"
                             onClick={resetToNew}
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-600"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95"
                         >
-                            Start new group
+                            <Plus size={18} />
+                            New Group
                         </button>
                         <button
                             type="button"
                             onClick={saveGroup}
                             disabled={saving}
-                            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white shadow-lg shadow-primary/30 transition hover:bg-blue-600 disabled:opacity-60"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save changes
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            Save Changes
                         </button>
                     </div>
                 </div>
@@ -336,23 +347,26 @@ export default function GroupDetailPage() {
                 </div>
             ) : null}
 
-            <FormSection
-                title="Group overview"
-                description="Switch between groups or create a new one to manage its rotation behavior."
-                actions={
-                    selectedIndex !== "new" ? (
+            {/* Group Overview Section */}
+            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-bold text-white tracking-tight">Group Overview</h3>
+                        <p className="text-sm text-slate-400">Switch between groups or create a new one to manage its rotation behavior.</p>
+                    </div>
+                    {selectedIndex !== "new" && (
                         <button
                             type="button"
                             onClick={deleteGroup}
                             disabled={deleting}
-                            className="flex items-center gap-2 rounded-lg bg-red-900/60 px-3 py-2 text-sm font-semibold text-red-100 hover:bg-red-900/80 disabled:opacity-60"
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/60 text-red-100 text-sm font-semibold hover:bg-red-900/80 transition-all duration-200 active:scale-95 disabled:opacity-50"
                         >
                             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                             Delete
                         </button>
-                    ) : undefined
-                }
-            >
+                    )}
+                </div>
+
                 {groups.length ? (
                     <div className="flex gap-2 flex-wrap">
                         {groups.map((group, idx) => {
@@ -362,9 +376,9 @@ export default function GroupDetailPage() {
                                     key={group.name + idx}
                                     type="button"
                                     onClick={() => onSelectGroup(idx)}
-                                    className={`flex items-center gap-3 rounded-lg border px-4 py-2 text-left transition ${isActive
-                                        ? "border-primary/80 bg-primary/10 text-white shadow-sm"
-                                        : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-700"
+                                    className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 text-left transition-all duration-200 ${isActive
+                                        ? "border-primary/60 bg-primary/15 text-white shadow-md shadow-primary/10"
+                                        : "border-slate-800/60 bg-slate-900/50 text-slate-200 hover:border-slate-700 hover:bg-slate-800/50"
                                         }`}
                                 >
                                     <div>
@@ -374,9 +388,9 @@ export default function GroupDetailPage() {
                                     {(() => {
                                         const status = getGroupStatus(group);
                                         const statusStyles = {
-                                            active: "bg-emerald-500/20 text-emerald-200",
-                                            scheduled: "bg-amber-500/20 text-amber-200",
-                                            disabled: "bg-slate-800 text-slate-300",
+                                            active: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                                            scheduled: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                                            disabled: "bg-slate-800/60 text-slate-400 border-slate-700/50",
                                         };
                                         const statusLabels = {
                                             active: "Enabled",
@@ -384,7 +398,7 @@ export default function GroupDetailPage() {
                                             disabled: "Disabled",
                                         };
                                         return (
-                                            <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${statusStyles[status]}`}>
+                                            <span className={`rounded-full px-2 py-1 text-[11px] font-semibold border ${statusStyles[status]}`}>
                                                 {statusLabels[status]}
                                             </span>
                                         );
@@ -395,141 +409,150 @@ export default function GroupDetailPage() {
                         <button
                             type="button"
                             onClick={resetToNew}
-                            className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
+                            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:border-primary/40 hover:text-white transition-all duration-200"
                         >
                             <Plus className="h-4 w-4" /> New group
                         </button>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center gap-3">
+                    <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-8 text-center">
                         <p className="text-sm text-slate-400">No groups yet. Start by creating one.</p>
                         <button
                             type="button"
                             onClick={resetToNew}
-                            className="flex items-center gap-2 rounded-lg border border-dashed border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
+                            className="mt-4 text-primary hover:text-blue-400 font-medium transition-colors"
                         >
-                            <Plus className="h-4 w-4" /> New group
+                            Create your first group
                         </button>
                     </div>
                 )}
-            </FormSection>
+            </section>
 
             <div className="grid gap-6 lg:grid-cols-2">
-                <FormSection
-                    title="Group configuration"
-                    description="Name the group, toggle its status, and control rotation behavior."
-                    actions={
+                {/* Group Configuration Section */}
+                <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-bold text-white tracking-tight">Group Configuration</h3>
+                            <p className="text-sm text-slate-400">Name the group, toggle its status, and control rotation behavior.</p>
+                        </div>
                         <div className="flex items-center gap-2 text-sm text-slate-300">
-                            <span className="text-xs uppercase tracking-wide text-slate-500">Active status</span>
+                            <span className="text-xs uppercase tracking-wide text-slate-500">Active</span>
                             <Toggle checked={form.enabled} onChange={() => setForm((p) => ({ ...p, enabled: !p.enabled }))} />
                         </div>
-                    }
-                >
-                    <FieldRow
-                        label="Group name"
-                    >
-                        <input
-                            type="text"
-                            value={form.name}
-                            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                            placeholder="Holiday Movies (Required)"
-                        />
-                    </FieldRow>
+                    </div>
 
-                    <div className="pt-4 border-t border-slate-800">
-                        <p className="text-sm font-semibold text-slate-100 mb-4">Rotation rules</p>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                                <p className="text-sm font-semibold text-slate-100">Pick limits</p>
-                                <p className="text-xs text-slate-400">Min and max collections to include per rotation.</p>
-                                <div className="mt-3 grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-slate-400">Min picks</label>
-                                        <input
-                                            type="number"
-                                            value={form.min_picks}
-                                            onChange={(e) => handleNumberChange("min_picks", e.target.value)}
-                                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-slate-400">Max picks</label>
-                                        <input
-                                            type="number"
-                                            value={form.max_picks}
-                                            onChange={(e) => handleNumberChange("max_picks", e.target.value)}
-                                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
-                                <p className="text-sm font-semibold text-slate-100">Priority & spacing</p>
-                                <p className="text-xs text-slate-400">Higher weights are picked more often. Min gap prevents repeats.</p>
-                                <div className="mt-3 grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-slate-400">Weight</label>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            value={form.weight}
-                                            onChange={(e) => handleNumberChange("weight", e.target.value)}
-                                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-slate-400">Min gap (rotations)</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            value={form.min_gap_rotations}
-                                            onChange={(e) => handleNumberChange("min_gap_rotations", e.target.value)}
-                                            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                Group Name
+                            </label>
+                            <input
+                                type="text"
+                                value={form.name}
+                                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                                className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                placeholder="Holiday Movies (Required)"
+                            />
                         </div>
 
-                        <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4 mt-4">
-                            <div className="flex items-center gap-2 text-slate-100">
-                                <CalendarRange className="h-4 w-4" />
-                                <p className="text-sm font-semibold">Date range</p>
-                                <p className="text-xs text-slate-400">Optional activation window (MM-DD).</p>
-                            </div>
-                            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Start</label>
-                                    <input
-                                        type="text"
-                                        value={form.date_range?.start ?? ""}
-                                        onChange={(e) => handleDateChange("start", e.target.value)}
-                                        placeholder="11-20"
-                                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
+                        <div className="pt-4 border-t border-slate-800/60">
+                            <p className="text-sm font-semibold text-slate-100 mb-4">Rotation Rules</p>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
+                                    <p className="text-sm font-semibold text-slate-100">Pick Limits</p>
+                                    <p className="text-xs text-slate-400">Min and max collections to include per rotation.</p>
+                                    <div className="mt-3 grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-slate-400">Min picks</label>
+                                            <input
+                                                type="number"
+                                                value={form.min_picks}
+                                                onChange={(e) => handleNumberChange("min_picks", e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-slate-400">Max picks</label>
+                                            <input
+                                                type="number"
+                                                value={form.max_picks}
+                                                onChange={(e) => handleNumberChange("max_picks", e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">End</label>
-                                    <input
-                                        type="text"
-                                        value={form.date_range?.end ?? ""}
-                                        onChange={(e) => handleDateChange("end", e.target.value)}
-                                        placeholder="12-26"
-                                        className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
+
+                                <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
+                                    <p className="text-sm font-semibold text-slate-100">Priority & Spacing</p>
+                                    <p className="text-xs text-slate-400">Higher weights are picked more often. Min gap prevents repeats.</p>
+                                    <div className="mt-3 grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-slate-400">Weight</label>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                value={form.weight}
+                                                onChange={(e) => handleNumberChange("weight", e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs text-slate-400">Min gap (rotations)</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                value={form.min_gap_rotations}
+                                                onChange={(e) => handleNumberChange("min_gap_rotations", e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4 mt-4">
+                                <div className="flex items-center gap-2 text-slate-100">
+                                    <CalendarRange className="h-4 w-4" />
+                                    <p className="text-sm font-semibold">Date Range</p>
+                                    <p className="text-xs text-slate-400">Optional activation window (MM-DD).</p>
+                                </div>
+                                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-slate-400">Start</label>
+                                        <input
+                                            type="text"
+                                            value={form.date_range?.start ?? ""}
+                                            onChange={(e) => handleDateChange("start", e.target.value)}
+                                            placeholder="11-20"
+                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-slate-400">End</label>
+                                        <input
+                                            type="text"
+                                            value={form.date_range?.end ?? ""}
+                                            onChange={(e) => handleDateChange("end", e.target.value)}
+                                            placeholder="12-26"
+                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </FormSection>
+                </section>
 
-                <FormSection
-                    title="Visibility settings"
-                    description="Control where collections from this group appear on Plex homescreens."
-                >
-                    <div className="rounded-lg border border-slate-800 bg-slate-950/70 p-4">
+                {/* Visibility Settings Section */}
+                <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-bold text-white tracking-tight">Visibility Settings</h3>
+                        <p className="text-sm text-slate-400">Control where collections from this group appear on Plex homescreens.</p>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4">
                         <p className="text-sm font-semibold text-slate-100 mb-3">Promote collections to</p>
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -564,196 +587,214 @@ export default function GroupDetailPage() {
                             </div>
                         </div>
                     </div>
-                </FormSection>
+                </section>
             </div>
 
-            <FormSection
-                title="Content sources"
-                description="Pull collections from Plex or any enabled third-party sources. Use the quick-add buttons or type names manually."
-                actions={
+            {/* Content Sources Section */}
+            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-bold text-white tracking-tight">Content Sources</h3>
+                        <p className="text-sm text-slate-400">Pull collections from Plex or any enabled third-party sources. Use the quick-add buttons or type names manually.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setForm((prev) => ({ ...prev, collections: [] }));
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-xs font-semibold hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95"
+                    >
+                        <RefreshCcw className="h-3.5 w-3.5" /> Clear Selections
+                    </button>
+                </div>
+
+                {/* Selected Collections */}
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                            Selected Collections
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">Click the × to remove it from the group.</p>
+                    </div>
+                    {form.collections.length ? (
+                        <div className="flex flex-wrap gap-2">
+                            {form.collections.map((collection) => (
+                                <button
+                                    key={collection}
+                                    type="button"
+                                    onClick={() => removeCollection(collection)}
+                                    className="group inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/50 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:border-red-500/70 hover:text-red-100 transition-all duration-200"
+                                >
+                                    {collection}
+                                    <span className="text-slate-500 group-hover:text-red-300">×</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 p-4 text-center">
+                            <p className="text-xs text-slate-500">No collections selected.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Available Sources */}
+                <div className="space-y-3 pt-4 border-t border-slate-800/60">
+                    <div>
+                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                            Add From Available Sources
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">Choose from discovered Plex collections, configured Trakt lists, or Letterboxd lists.</p>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search collections..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                            />
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setForm((prev) => ({ ...prev, collections: [] }));
-                                }}
-                                className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-100 hover:border-slate-500"
+                                onClick={() => setSourceFilter("all")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "all"
+                                        ? "bg-primary text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
                             >
-                                <RefreshCcw className="h-3.5 w-3.5" /> Clear selections
+                                All
                             </button>
-                        }
-                    >
-                        <FieldRow label="Selected collections" description="Click the × to remove it from the group.">
-                            {form.collections.length ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {form.collections.map((collection) => (
+                            <button
+                                type="button"
+                                onClick={() => setSourceFilter("plex")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "plex"
+                                        ? "text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === "plex" ? { backgroundColor: "#b8860b" } : undefined}
+                            >
+                                Plex
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSourceFilter("trakt")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "trakt"
+                                        ? "text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === "trakt" ? { backgroundColor: "#8b2e82" } : undefined}
+                            >
+                                Trakt
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSourceFilter("letterboxd")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "letterboxd"
+                                        ? "text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === "letterboxd" ? { backgroundColor: "#00a63d" } : undefined}
+                            >
+                                Letterboxd
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSourceFilter("mdblist")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "mdblist"
+                                        ? "text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === "mdblist" ? { backgroundColor: "#4284c9" } : undefined}
+                            >
+                                MDBList
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {paginatedSources.map((source) => (
+                            <button
+                                key={`${source.source}-${source.name}`}
+                                type="button"
+                                onClick={() => addCollection(source.name)}
+                                className="flex flex-col gap-2 rounded-xl border border-slate-800/60 bg-slate-900/50 p-3 text-left text-sm text-slate-100 transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10"
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <p className="font-semibold text-sm leading-tight flex-1">{source.name}</p>
+                                    <span
+                                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 text-white"
+                                        style={{
+                                            backgroundColor: source.source === "plex"
+                                                ? "#e5a00d"
+                                                : source.source === "trakt"
+                                                ? "#af35a3"
+                                                : source.source === "letterboxd"
+                                                ? "#00a63d"
+                                                : "#4284c9"
+                                        }}
+                                    >
+                                        {source.source === "plex" ? "Plex" : source.source === "trakt" ? "Trakt" : source.source === "letterboxd" ? "Letterboxd" : "MDBList"}
+                                    </span>
+                                </div>
+                                {source.detail ? (
+                                    <p className="text-xs text-slate-400 line-clamp-2">{source.detail}</p>
+                                ) : null}
+                            </button>
+                        ))}
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/60">
+                            <p className="text-xs text-slate-400">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, availableSources.length)} of {availableSources.length}
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                >
+                                    Previous
+                                </button>
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                                         <button
-                                            key={collection}
+                                            key={page}
                                             type="button"
-                                            onClick={() => removeCollection(collection)}
-                                            className="group inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-100 hover:border-red-500/70 hover:text-red-100"
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                                currentPage === page
+                                                    ? "bg-primary text-white"
+                                                    : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                            }`}
                                         >
-                                            {collection}
-                                            <span className="text-slate-500 group-hover:text-red-200">×</span>
+                                            {page}
                                         </button>
                                     ))}
                                 </div>
-                            ) : (
-                                <p className="text-xs text-slate-500">No collections selected.</p>
-                            )}
-                        </FieldRow>
-
-                        <FieldRow
-                            label="Add from available sources"
-                            description="Choose from discovered Plex collections, configured Trakt lists, or Letterboxd lists."
-                        >
-                            <div className="flex flex-col gap-3 mb-3">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search collections..."
-                                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
-                                </div>
-                                <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => setSourceFilter("all")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                        sourceFilter === "all"
-                                            ? "bg-primary text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                    }`}
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                                 >
-                                    All
+                                    Next
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSourceFilter("plex")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                        sourceFilter === "plex"
-                                            ? "text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                    }`}
-                                    style={sourceFilter === "plex" ? { backgroundColor: "#b8860b" } : undefined}
-                                >
-                                    Plex
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSourceFilter("trakt")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                        sourceFilter === "trakt"
-                                            ? "text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                    }`}
-                                    style={sourceFilter === "trakt" ? { backgroundColor: "#8b2e82" } : undefined}
-                                >
-                                    Trakt
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSourceFilter("letterboxd")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                        sourceFilter === "letterboxd"
-                                            ? "text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                    }`}
-                                    style={sourceFilter === "letterboxd" ? { backgroundColor: "#00a63d" } : undefined}
-                                >
-                                    Letterboxd
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSourceFilter("mdblist")}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                        sourceFilter === "mdblist"
-                                            ? "text-white"
-                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                    }`}
-                                    style={sourceFilter === "mdblist" ? { backgroundColor: "#4284c9" } : undefined}
-                                >
-                                    MDBList
-                                </button>
-                                </div>
                             </div>
-                            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                {paginatedSources.map((source) => (
-                                    <button
-                                        key={`${source.source}-${source.name}`}
-                                        type="button"
-                                        onClick={() => addCollection(source.name)}
-                                        className="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-left text-sm text-slate-100 transition hover:border-primary/70 hover:text-white"
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <p className="font-semibold text-sm leading-tight flex-1">{source.name}</p>
-                                            <span
-                                                className="rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 text-white"
-                                                style={{
-                                                    backgroundColor: source.source === "plex"
-                                                        ? "#e5a00d"
-                                                        : source.source === "trakt"
-                                                        ? "#af35a3"
-                                                        : source.source === "letterboxd"
-                                                        ? "#00a63d"
-                                                        : "#4284c9"
-                                                }}
-                                            >
-                                                {source.source === "plex" ? "Plex" : source.source === "trakt" ? "Trakt" : source.source === "letterboxd" ? "Letterboxd" : "MDBList"}
-                                            </span>
-                                        </div>
-                                        {source.detail ? (
-                                            <p className="text-xs text-slate-400 line-clamp-2">{source.detail}</p>
-                                        ) : null}
-                                    </button>
-                                ))}
-                            </div>
-                            {totalPages > 1 && (
-                                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
-                                    <p className="text-xs text-slate-400">
-                                        Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, availableSources.length)} of {availableSources.length}
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                            disabled={currentPage === 1}
-                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                            Previous
-                                        </button>
-                                        <div className="flex items-center gap-1">
-                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                                <button
-                                                    key={page}
-                                                    type="button"
-                                                    onClick={() => setCurrentPage(page)}
-                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                                        currentPage === page
-                                                            ? "bg-primary text-white"
-                                                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                                                    }`}
-                                                >
-                                                    {page}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                            disabled={currentPage === totalPages}
-                                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </FieldRow>
-
-            </FormSection>
+                        </div>
+                    )}
+                </div>
+            </section>
         </div>
     );
 }

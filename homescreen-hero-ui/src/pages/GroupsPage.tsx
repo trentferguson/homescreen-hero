@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 
-import FormSection from "../components/FormSection";
 import GroupCoverMosaic from "../components/GroupCoverMosaic";
 import { getGroupStatus, isGroupCurrentlyActive } from "../utils/dates";
 
@@ -209,8 +208,8 @@ export default function GroupsPage() {
                     <div className="flex flex-col items-end gap-2 text-right">
                         <span className="text-xs uppercase tracking-wide text-slate-500">Overview</span>
                         <div className="flex items-center gap-3 text-sm text-slate-200">
-                            <span className="rounded-lg bg-slate-900 px-3 py-2">{groups.length} total groups</span>
-                            <span className="rounded-lg bg-emerald-900/50 px-3 py-2 text-emerald-100">
+                            <span className="rounded-lg border border-slate-800/60 bg-slate-900/60 px-3 py-2">{groups.length} total groups</span>
+                            <span className="rounded-lg border border-emerald-500/30 bg-emerald-900/40 px-3 py-2 text-emerald-100">
                                 {activeCount} active
                             </span>
                         </div>
@@ -232,71 +231,75 @@ export default function GroupsPage() {
                 </div>
             ) : null}
 
-            <FormSection
-                title="Groups"
-                description="Quickly edit names or jump into detailed configuration."
-                actions={
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                            <input
-                                type="search"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search groups"
-                                className="w-56 rounded-lg border border-slate-700 bg-slate-900 pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                            />
-                        </div>
-                        <Listbox value={sort} onChange={(value) => setSort(value as SortOption)}>
-                            <div className="relative">
-                                <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[180px]">
-                                    <span className="flex-1 text-left">
-                                        {sort === "recent" && "Recently updated"}
-                                        {sort === "name" && "Name A-Z"}
-                                        {sort === "size" && "Most collections"}
-                                    </span>
-                                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                                </Listbox.Button>
-                                <Listbox.Options className="absolute right-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
-                                    <Listbox.Option
-                                        value="recent"
-                                        className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                    >
-                                        {({ selected }) => (
-                                            <>
-                                                <span>Recently updated</span>
-                                                {selected && <Check className="h-4 w-4 text-white" />}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                    <Listbox.Option
-                                        value="name"
-                                        className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                    >
-                                        {({ selected }) => (
-                                            <>
-                                                <span>Name A-Z</span>
-                                                {selected && <Check className="h-4 w-4 text-white" />}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                    <Listbox.Option
-                                        value="size"
-                                        className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                    >
-                                        {({ selected }) => (
-                                            <>
-                                                <span>Most collections</span>
-                                                {selected && <Check className="h-4 w-4 text-white" />}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                </Listbox.Options>
-                            </div>
-                        </Listbox>
+            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-white">Groups</h3>
+                        <p className="text-sm text-slate-400">Quickly edit names or jump into detailed configuration.</p>
                     </div>
-                }
-            >
+                    <div className="shrink-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                                <input
+                                    type="search"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Search groups"
+                                    className="w-56 rounded-lg border border-slate-700 bg-slate-900 pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                />
+                            </div>
+                            <Listbox value={sort} onChange={(value) => setSort(value as SortOption)}>
+                                <div className="relative">
+                                    <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[180px]">
+                                        <span className="flex-1 text-left">
+                                            {sort === "recent" && "Recently updated"}
+                                            {sort === "name" && "Name A-Z"}
+                                            {sort === "size" && "Most collections"}
+                                        </span>
+                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    </Listbox.Button>
+                                    <Listbox.Options className="absolute right-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
+                                        <Listbox.Option
+                                            value="recent"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Recently updated</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="name"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Name A-Z</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="size"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Most collections</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
+                        </div>
+                    </div>
+                </div>
+                <div className="space-y-4">
                 {filteredGroups.length ? (
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {filteredGroups.map((group, index) => {
@@ -305,7 +308,7 @@ export default function GroupsPage() {
                             return (
                                 <div
                                     key={`${group.name}-${index}`}
-                                    className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
+                                    className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
                                 >
                                     <div className="relative">
                                         {renderCover(group, index)}
@@ -398,16 +401,17 @@ export default function GroupsPage() {
                         })}
                     </div>
                 ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center">
+                    <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-6 text-center">
                         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-900">
                             <SlidersHorizontal className="h-4 w-4 text-slate-400" />
                         </div>
                         <p className="mt-3 text-sm text-slate-300">No groups match your search.</p>
                     </div>
                 )}
-            </FormSection>
+                </div>
+            </section>
 
-            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-800 bg-slate-950/70 hover:border-slate-700 px-6 py-8 text-center transition-all duration-300">
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 hover:border-primary/50 px-6 py-8 text-center transition-all duration-300">
                 <button
                     type="button"
                     onClick={() => navigate('/groups/new')}

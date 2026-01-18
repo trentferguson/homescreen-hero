@@ -489,29 +489,47 @@ export default function CollectionsPage() {
 
     if (loading && collections.length === 0) {
         return (
-            <div className="p-8">
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="h-9 w-48 bg-gray-800 rounded animate-pulse"></div>
-                        <div className="h-10 w-40 bg-gray-800 rounded animate-pulse"></div>
+            <div className="space-y-6">
+                {/* Header Skeleton */}
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-2">
+                        <div className="h-9 w-48 bg-slate-800/60 rounded-lg animate-pulse"></div>
+                        <div className="h-4 w-96 bg-slate-800/60 rounded animate-pulse"></div>
                     </div>
-                    <div className="h-10 w-full max-w-md bg-gray-800 rounded animate-pulse"></div>
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-40 bg-slate-800/60 rounded-lg animate-pulse"></div>
+                        <div className="h-10 w-32 bg-slate-800/60 rounded-lg animate-pulse"></div>
+                    </div>
                 </div>
 
-                {/* Loading Skeleton Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {Array.from({ length: 15 }).map((_, i) => (
-                        <div key={i} className="bg-gray-800 rounded-lg overflow-hidden animate-pulse">
-                            {/* Poster skeleton */}
-                            <div className="aspect-[2/3] bg-gray-700"></div>
-                            {/* Info skeleton */}
-                            <div className="p-3 space-y-2">
-                                <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                                <div className="h-3 bg-gray-700 rounded w-1/2"></div>
-                                <div className="h-3 bg-gray-700 rounded w-2/3"></div>
-                            </div>
+                {/* Search Bar Skeleton */}
+                <div className="flex items-center gap-3">
+                    <div className="h-10 flex-1 max-w-md bg-slate-800/60 rounded-lg animate-pulse"></div>
+                    <div className="h-10 w-36 bg-slate-800/60 rounded-lg animate-pulse"></div>
+                    <div className="h-10 w-10 bg-slate-800/60 rounded-lg animate-pulse"></div>
+                </div>
+
+                {/* Collections Grid Skeleton */}
+                <div>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-2">
+                            <div className="h-6 w-40 bg-slate-800/60 rounded animate-pulse"></div>
+                            <div className="h-4 w-28 bg-slate-800/60 rounded animate-pulse"></div>
                         </div>
-                    ))}
+                    </div>
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {Array.from({ length: 18 }).map((_, i) => (
+                            <div key={i} className="rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 animate-pulse">
+                                {/* Poster skeleton */}
+                                <div className="aspect-[2/3] bg-slate-800/60"></div>
+                                {/* Info skeleton */}
+                                <div className="p-3 space-y-2">
+                                    <div className="h-4 bg-slate-800/60 rounded w-3/4 mx-auto"></div>
+                                    <div className="h-3 bg-slate-800/60 rounded w-1/2 mx-auto"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         );
@@ -533,191 +551,214 @@ export default function CollectionsPage() {
     }
 
     return (
-        <div className="p-8">
-            <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-3xl font-bold text-white">Collections</h1>
-
-                    <div className="flex items-center gap-3">
-                        {/* Create Collection Button */}
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                        >
-                            <Plus size={18} />
-                            Create Collection
-                        </button>
-
-                        {/* Refresh Button */}
-                        <button
-                            onClick={handleRefresh}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Refresh collections"
-                        >
-                            <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-                            <span className="text-sm">
-                                {loading ? "Refreshing..." : cacheAgeText ? `Updated ${cacheAgeText}` : "Refresh"}
-                            </span>
-                        </button>
-                    </div>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-black tracking-tight text-white">Collections</h1>
+                    <p className="text-slate-400 text-sm max-w-2xl">
+                        Browse and manage your Plex collections. Create new collections, edit metadata, and organize your media.
+                    </p>
                 </div>
 
-                {/* Search and Filter Bar */}
                 <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search collections..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
+                    {/* Create Collection Button */}
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
+                    >
+                        <Plus size={18} />
+                        Create Collection
+                    </button>
 
-                    {/* Library Filter Dropdown */}
-                    <Listbox value={selectedLibraryFilter} onChange={setSelectedLibraryFilter}>
-                        <div className="relative">
-                            <Listbox.Button className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors min-w-[140px]">
-                                <span className="flex-1 text-left text-sm">
-                                    {selectedLibraryFilter === "all" ? "All Libraries" : selectedLibraryFilter}
-                                </span>
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
-                            </Listbox.Button>
-                            <Listbox.Options className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                    {/* Refresh Button */}
+                    <button
+                        onClick={handleRefresh}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Refresh collections"
+                    >
+                        <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                        <span className="text-sm">
+                            {loading ? "Refreshing..." : cacheAgeText ? `Updated ${cacheAgeText}` : "Refresh"}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Search and Filter Bar */}
+            <div className="flex items-center gap-3">
+                <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                    <input
+                        type="text"
+                        placeholder="Search collections..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                    />
+                </div>
+
+                {/* Library Filter Dropdown */}
+                <Listbox value={selectedLibraryFilter} onChange={setSelectedLibraryFilter}>
+                    <div className="relative">
+                        <Listbox.Button className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[140px]">
+                            <span className="flex-1 text-left text-sm">
+                                {selectedLibraryFilter === "all" ? "All Libraries" : selectedLibraryFilter}
+                            </span>
+                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                        </Listbox.Button>
+                        <Listbox.Options className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none max-h-60 overflow-auto">
+                            <Listbox.Option
+                                value="all"
+                                className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                            >
+                                {({ selected }) => (
+                                    <>
+                                        <span>All Libraries</span>
+                                        {selected && <Check className="h-4 w-4 text-white" />}
+                                    </>
+                                )}
+                            </Listbox.Option>
+                            {uniqueLibraries.map((library) => (
                                 <Listbox.Option
-                                    value="all"
-                                    className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-gray-700 data-[selected]:bg-blue-600 data-[selected]:font-semibold flex items-center justify-between"
+                                    key={library}
+                                    value={library}
+                                    className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
                                 >
                                     {({ selected }) => (
                                         <>
-                                            <span>All Libraries</span>
+                                            <span>{library}</span>
                                             {selected && <Check className="h-4 w-4 text-white" />}
                                         </>
                                     )}
                                 </Listbox.Option>
-                                {uniqueLibraries.map((library) => (
-                                    <Listbox.Option
-                                        key={library}
-                                        value={library}
-                                        className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-gray-700 data-[selected]:bg-blue-600 data-[selected]:font-semibold flex items-center justify-between"
-                                    >
-                                        {({ selected }) => (
-                                            <>
-                                                <span>{library}</span>
-                                                {selected && <Check className="h-4 w-4 text-white" />}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                ))}
-                            </Listbox.Options>
-                        </div>
-                    </Listbox>
+                            ))}
+                        </Listbox.Options>
+                    </div>
+                </Listbox>
 
-                    {/* Sort Order Toggle */}
-                    <button
-                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                        title={sortOrder === "asc" ? "Sort Z-A" : "Sort A-Z"}
-                    >
-                        {sortOrder === "asc" ? (
-                            <ArrowUpAZ className="h-5 w-5" />
-                        ) : (
-                            <ArrowDownAZ className="h-5 w-5" />
-                        )}
-                    </button>
-                </div>
+                {/* Sort Order Toggle */}
+                <button
+                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors"
+                    title={sortOrder === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                >
+                    {sortOrder === "asc" ? (
+                        <ArrowUpAZ className="h-5 w-5" />
+                    ) : (
+                        <ArrowDownAZ className="h-5 w-5" />
+                    )}
+                </button>
             </div>
 
             {/* Collections Grid */}
-            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-2">
-                {filteredCollections.map((collection, index) => (
-                    <button
-                        key={`${collection.library}-${collection.title}`}
-                        onClick={() => handleCollectionClick(collection)}
-                        className="group relative bg-gray-800 rounded-lg overflow-visible hover:ring-2 hover:ring-blue-500 hover:-translate-y-1 hover:scale-105 hover:shadow-xl transition-all duration-200 animate-slide-up"
-                        style={{ animationDelay: `${index * 0.03}s` }}
-                    >
-                        {/* Poster Image */}
-                        <div className="aspect-[2/3] bg-gray-900 relative overflow-hidden rounded-t-lg">
-                            {collection.poster_url ? (
-                                <img
-                                    src={collection.poster_url}
-                                    alt={collection.title}
-                                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                                    loading="lazy"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-600">
-                                    No Poster
-                                </div>
-                            )}
-
-                            {/* Edit Button (shown on hover, top-left) */}
-                            <button
-                                onClick={(e) => openQuickEditModal(collection, e)}
-                                className="absolute top-2 left-2 p-2 bg-blue-600/70 hover:bg-blue-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                title="Edit collection"
-                            >
-                                <Edit size={16} />
-                            </button>
-
-                            {/* Item Count Badge Overlay */}
-                            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-900/60 text-gray-300 border border-gray-700/50 backdrop-blur-sm">
-                                    {collection.item_count} items
-                                </span>
-                            </div>
-
-                            {/* Active Badge Overlay */}
-                            {collection.is_active && (
-                                <div className="absolute bottom-2 left-2">
-                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-900/70 text-green-400 border border-green-800/50 backdrop-blur-sm">
-                                        Active
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Delete Button (shown on hover, top-right) */}
-                        <button
-                            onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
-                            className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-700/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                            title="Delete collection"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-
-                        {/* Collection Info */}
-                        <div className="p-2">
-                            <h3 className="text-white font-medium text-sm truncate text-center">
-                                {collection.title}
-                            </h3>
-                            <p className="text-gray-400 text-xs text-center mt-1">
-                                {collection.library}
-                            </p>
-                        </div>
-                    </button>
-                ))}
-            </div>
-
-            {filteredCollections.length === 0 && (
-                <div className="text-center text-gray-400 mt-12">
-                    {searchQuery ? "No collections found matching your search" : "No collections found"}
+            <div>
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight">All Collections</h3>
+                        <p className="text-sm text-slate-400 mt-0.5">
+                            {filteredCollections.length} collection{filteredCollections.length !== 1 ? 's' : ''} found
+                        </p>
+                    </div>
                 </div>
-            )}
+
+                {filteredCollections.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-8 text-center">
+                        <p className="text-slate-400">
+                            {searchQuery ? "No collections found matching your search" : "No collections found"}
+                        </p>
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="mt-4 text-primary hover:text-blue-400 font-medium transition-colors"
+                        >
+                            Create your first collection
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {filteredCollections.map((collection, index) => (
+                            <button
+                                key={`${collection.library}-${collection.title}`}
+                                onClick={() => handleCollectionClick(collection)}
+                                className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up"
+                                style={{ animationDelay: `${index * 0.03}s` }}
+                            >
+                                {/* Poster Image */}
+                                <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
+                                    {collection.poster_url ? (
+                                        <img
+                                            src={collection.poster_url}
+                                            alt={collection.title}
+                                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                            No Poster
+                                        </div>
+                                    )}
+
+                                    {/* Edit Button (shown on hover, top-left) */}
+                                    <button
+                                        onClick={(e) => openQuickEditModal(collection, e)}
+                                        className="absolute top-2 left-2 p-2 bg-primary/70 hover:bg-primary/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                        title="Edit collection"
+                                    >
+                                        <Edit size={16} />
+                                    </button>
+
+                                    {/* Item Count Badge Overlay */}
+                                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-900/60 text-slate-300 border border-slate-700/50 backdrop-blur-sm">
+                                            {collection.item_count} items
+                                        </span>
+                                    </div>
+
+                                    {/* Active Badge Overlay */}
+                                    {collection.is_active && (
+                                        <div className="absolute bottom-2 left-2">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-emerald-900/70 text-emerald-400 border border-emerald-800/50 backdrop-blur-sm">
+                                                Active
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Delete Button (shown on hover, top-right) */}
+                                <button
+                                    onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
+                                    className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    title="Delete collection"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+
+                                {/* Collection Info */}
+                                <div className="p-3">
+                                    <h3 className="text-white font-medium text-sm truncate text-center">
+                                        {collection.title}
+                                    </h3>
+                                    <p className="text-slate-400 text-xs text-center mt-1">
+                                        {collection.library}
+                                    </p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Quick Edit Modal */}
             {showQuickEditModal && editingCollection && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-[#1a1d29] rounded-lg max-w-3xl w-full">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-3xl w-full animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                            <h2 className="text-xl font-semibold text-white">Edit Collection Details</h2>
+                        <div className="flex items-center justify-between p-6 border-b border-slate-800/80">
+                            <h2 className="text-xl font-bold text-white">Edit Collection Details</h2>
                             <button
                                 onClick={closeQuickEditModal}
-                                className="text-gray-400 hover:text-white transition-colors"
+                                className="text-slate-400 hover:text-white transition-colors"
                             >
                                 <X size={20} />
                             </button>
@@ -728,12 +769,12 @@ export default function CollectionsPage() {
                             <div className="grid grid-cols-[200px_1fr] gap-6">
                                 {/* Left Column - Poster Preview */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
                                         Cover Poster
                                     </label>
 
                                     {/* Poster Preview */}
-                                    <div className="relative aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden border-2 border-dashed border-gray-700">
+                                    <div className="relative aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-700">
                                         {quickEditCurrentPosterUrl ? (
                                             <img
                                                 src={quickEditCurrentPosterUrl}
@@ -741,13 +782,13 @@ export default function CollectionsPage() {
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-600">
+                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
                                                 No Poster
                                             </div>
                                         )}
                                     </div>
 
-                                    <p className="text-xs text-gray-500 mt-2">
+                                    <p className="text-xs text-slate-500 mt-2">
                                         Recommended: 600×900px (JPG/PNG)
                                     </p>
                                 </div>
@@ -756,35 +797,35 @@ export default function CollectionsPage() {
                                 <div className="space-y-4">
                                     {/* Title */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                             Collection Name
                                         </label>
                                         <input
                                             type="text"
                                             value={quickEditTitle}
                                             onChange={(e) => setQuickEditTitle(e.target.value)}
-                                            className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             autoFocus
                                         />
                                     </div>
 
                                     {/* Summary */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                             Brief Summary
                                         </label>
                                         <textarea
                                             value={quickEditSummary}
                                             onChange={(e) => setQuickEditSummary(e.target.value)}
                                             rows={4}
-                                            className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                            className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 resize-none"
                                             placeholder="Enter a brief description of this collection..."
                                         />
                                     </div>
 
                                     {/* Poster Upload Options */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                             Update Poster
                                         </label>
 
@@ -796,10 +837,10 @@ export default function CollectionsPage() {
                                                     setQuickEditPosterMode("upload");
                                                     setQuickEditPosterUrl("");
                                                 }}
-                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                                                     quickEditPosterMode === "upload"
-                                                        ? "bg-blue-600 text-white"
-                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                        ? "bg-primary text-white"
+                                                        : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
                                                 }`}
                                             >
                                                 Upload File
@@ -810,10 +851,10 @@ export default function CollectionsPage() {
                                                     setQuickEditPosterMode("url");
                                                     setQuickEditPosterFile(null);
                                                 }}
-                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded transition-colors ${
+                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                                                     quickEditPosterMode === "url"
-                                                        ? "bg-blue-600 text-white"
-                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                        ? "bg-primary text-white"
+                                                        : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
                                                 }`}
                                             >
                                                 From URL
@@ -823,9 +864,9 @@ export default function CollectionsPage() {
                                         {/* Upload Mode */}
                                         {quickEditPosterMode === "upload" && (
                                             <label className="block cursor-pointer">
-                                                <div className="border-2 border-dashed border-gray-700 rounded-lg p-4 text-center hover:border-gray-600 transition-colors">
-                                                    <Image size={20} className="mx-auto mb-2 text-gray-400" />
-                                                    <span className="text-xs text-gray-400">
+                                                <div className="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center hover:border-slate-600 transition-colors">
+                                                    <Image size={20} className="mx-auto mb-2 text-slate-400" />
+                                                    <span className="text-xs text-slate-400">
                                                         {quickEditPosterFile ? quickEditPosterFile.name : "Click to select file"}
                                                     </span>
                                                 </div>
@@ -846,9 +887,9 @@ export default function CollectionsPage() {
                                                     value={quickEditPosterUrl}
                                                     onChange={(e) => setQuickEditPosterUrl(e.target.value)}
                                                     placeholder="https://example.com/poster.jpg"
-                                                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
                                                 />
-                                                <p className="text-xs text-gray-500 mt-2">
+                                                <p className="text-xs text-slate-500 mt-2">
                                                     e.g., from ThePosterDB.com
                                                 </p>
                                             </div>
@@ -859,20 +900,19 @@ export default function CollectionsPage() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-800">
+                        <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-800/80 bg-slate-950/50">
                             <button
                                 onClick={closeQuickEditModal}
                                 disabled={quickEditing}
-                                className="px-4 py-2 bg-transparent hover:bg-gray-800 text-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                                className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleQuickEditSubmit}
                                 disabled={quickEditing || !quickEditTitle.trim()}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <span className="text-lg">💾</span>
                                 {quickEditing ? "Saving..." : "Save Changes"}
                             </button>
                         </div>
@@ -882,24 +922,24 @@ export default function CollectionsPage() {
 
             {/* Create Collection Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col p-6">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-bold text-white">Create Collection</h2>
+                        <div className="flex items-center justify-between p-6 border-b border-slate-800/80">
+                            <h2 className="text-xl font-bold text-white">Create Collection</h2>
                             <button
                                 onClick={() => setShowCreateModal(false)}
-                                className="text-gray-400 hover:text-white transition-colors"
+                                className="text-slate-400 hover:text-white transition-colors"
                             >
-                                <X size={24} />
+                                <X size={20} />
                             </button>
                         </div>
 
                         {/* Form */}
-                        <div className="space-y-4 mb-4">
+                        <div className="p-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                         Collection Title *
                                     </label>
                                     <input
@@ -907,12 +947,12 @@ export default function CollectionsPage() {
                                         value={newCollectionTitle}
                                         onChange={(e) => setNewCollectionTitle(e.target.value)}
                                         placeholder="e.g., Best of 2024"
-                                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                         Library Name *
                                     </label>
                                     <Listbox
@@ -931,25 +971,25 @@ export default function CollectionsPage() {
                                         disabled={loadingLibraries}
                                     >
                                         <div className="relative">
-                                            <Listbox.Button className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-left flex items-center justify-between data-[disabled]:opacity-50">
-                                                <span className={newCollectionLibrary ? "" : "text-gray-400"}>
+                                            <Listbox.Button className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-50 text-left flex items-center justify-between data-[disabled]:opacity-50">
+                                                <span className={newCollectionLibrary ? "" : "text-slate-500"}>
                                                     {loadingLibraries
                                                         ? "Loading libraries..."
                                                         : newCollectionLibrary || "Select a library..."}
                                                 </span>
-                                                <ChevronDown size={16} className="text-gray-400" />
+                                                <ChevronDown size={16} className="text-slate-400" />
                                             </Listbox.Button>
 
-                                            <Listbox.Options className="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                            <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
                                                 {availableLibraries.map((library) => (
                                                     <Listbox.Option
                                                         key={library.title}
                                                         value={library.title}
-                                                        className="px-4 py-2 cursor-pointer transition-colors data-[focus]:bg-gray-700"
+                                                        className="px-4 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-700"
                                                     >
                                                         <div className="flex items-center justify-between text-white">
                                                             <span className="data-[selected]:font-medium">{library.title}</span>
-                                                            <Check size={16} className="text-blue-500 invisible data-[selected]:visible" />
+                                                            <Check size={16} className="text-primary invisible data-[selected]:visible" />
                                                         </div>
                                                     </Listbox.Option>
                                                 ))}
@@ -960,7 +1000,7 @@ export default function CollectionsPage() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                     Summary (Optional)
                                 </label>
                                 <textarea
@@ -968,36 +1008,36 @@ export default function CollectionsPage() {
                                     onChange={(e) => setNewCollectionSummary(e.target.value)}
                                     placeholder="Add a description for this collection..."
                                     rows={2}
-                                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 resize-none"
                                 />
                             </div>
 
                             {/* Search for movies */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
                                     Add Items to Collection * (Select at least one)
                                 </label>
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500" size={20} />
                                     <input
                                         type="text"
                                         placeholder={newCollectionLibrary ? "Search your library..." : "Enter a library name first..."}
                                         value={movieSearchQuery}
                                         onChange={(e) => setMovieSearchQuery(e.target.value)}
                                         disabled={!newCollectionLibrary}
-                                        className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-50"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {/* Movie Selection Grid */}
-                        <div className="flex-1 overflow-y-auto mb-4 scrollbar-hover-only">
+                        <div className="flex-1 overflow-y-auto px-6 pb-4 scrollbar-hover-only">
                             {searchLoading ? (
-                                <div className="text-gray-400 text-center py-8">Loading...</div>
+                                <div className="text-slate-400 text-center py-8">Loading...</div>
                             ) : movieSearchResults.length > 0 ? (
                                 <div>
-                                    <p className="text-sm text-gray-400 mb-3">
+                                    <p className="text-sm text-slate-400 mb-3">
                                         {selectedMovies.size} item(s) selected
                                     </p>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1005,14 +1045,14 @@ export default function CollectionsPage() {
                                             <button
                                                 key={item.rating_key}
                                                 onClick={() => toggleMovieSelection(item.rating_key)}
-                                                className={`bg-gray-800 rounded-lg overflow-hidden transition-all ${
+                                                className={`rounded-xl overflow-hidden border transition-all ${
                                                     selectedMovies.has(item.rating_key)
-                                                        ? "ring-2 ring-blue-500"
-                                                        : "hover:ring-2 hover:ring-gray-600"
+                                                        ? "ring-2 ring-primary border-primary/50 bg-slate-800/80"
+                                                        : "border-slate-800/60 bg-slate-900/50 hover:border-slate-700"
                                                 }`}
                                             >
                                                 {/* Poster */}
-                                                <div className="aspect-[2/3] bg-gray-900 relative">
+                                                <div className="aspect-[2/3] bg-slate-800 relative">
                                                     {item.thumb ? (
                                                         <img
                                                             src={item.thumb}
@@ -1021,12 +1061,12 @@ export default function CollectionsPage() {
                                                             loading="lazy"
                                                         />
                                                     ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">
+                                                        <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs">
                                                             No Poster
                                                         </div>
                                                     )}
                                                     {selectedMovies.has(item.rating_key) && (
-                                                        <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
+                                                        <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1">
                                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                             </svg>
@@ -1037,26 +1077,26 @@ export default function CollectionsPage() {
                                                 {/* Info */}
                                                 <div className="p-2">
                                                     <h3 className="text-white font-medium text-xs truncate">{item.title}</h3>
-                                                    {item.year && <p className="text-gray-400 text-xs">{item.year}</p>}
+                                                    {item.year && <p className="text-slate-400 text-xs">{item.year}</p>}
                                                 </div>
                                             </button>
                                         ))}
                                     </div>
                                 </div>
                             ) : newCollectionLibrary.trim() ? (
-                                <div className="text-gray-400 text-center py-8">
+                                <div className="text-slate-400 text-center py-8">
                                     {movieSearchQuery ? "No results found" : "No items found in this library"}
                                 </div>
                             ) : (
-                                <div className="text-gray-400 text-center py-8">
+                                <div className="text-slate-400 text-center py-8">
                                     Enter a library name to see available items
                                 </div>
                             )}
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="flex items-center justify-between gap-3 border-t border-gray-800 pt-4">
-                            <p className="text-sm text-gray-400">
+                        <div className="flex items-center justify-between gap-3 p-6 border-t border-slate-800/80 bg-slate-950/50">
+                            <p className="text-sm text-slate-400">
                                 {selectedMovies.size === 0
                                     ? "Select at least one item to create the collection"
                                     : `${selectedMovies.size} item(s) selected`}
@@ -1074,14 +1114,14 @@ export default function CollectionsPage() {
                                         setSelectedMovies(new Set());
                                     }}
                                     disabled={creating}
-                                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                                    className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleCreateCollection}
                                     disabled={creating || !newCollectionTitle.trim() || !newCollectionLibrary.trim() || selectedMovies.size === 0}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {creating ? "Creating..." : "Create Collection"}
                                 </button>
