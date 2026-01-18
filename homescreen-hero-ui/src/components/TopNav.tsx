@@ -1,7 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { User, LogOut, Moon, Sun } from "lucide-react";
+import { User, LogOut, Settings } from "lucide-react";
 import IconButton from "./IconButton";
-import { useTheme } from "../utils/theme";
 import { useAuth } from "../utils/auth";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -22,10 +21,8 @@ function NavItem({ to, label }: { to: string; label: string }) {
 }
 
 export default function TopNav() {
-    const { theme, toggleTheme } = useTheme();
     const { logout, username, authEnabled } = useAuth();
     const navigate = useNavigate();
-    const isDark = theme === "dark";
 
     const handleLogout = () => {
         logout();
@@ -53,31 +50,17 @@ export default function TopNav() {
                     <NavItem to="/groups" label="Groups" />
                     <NavItem to="/collections" label="Collections" />
                     <NavItem to="/integrations" label="Integrations" />
-                    <NavItem to="/settings" label="Settings" />
                 </nav>
 
                 {/* RIGHT: Icons */}
                 <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={toggleTheme}
-                        aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-100 hover:shadow hover:border-slate-300 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
-                    >
-                        {isDark ? <Sun size={18} className="transition-transform duration-200" /> : <Moon size={18} className="transition-transform duration-200" />}
-                        <span className="hidden sm:inline">{isDark ? "Light" : "Dark"} mode</span>
-                    </button>
-
-                    {/*
-                    <IconButton label="Notifications">
-                        <Bell size={20} />
+                    <IconButton label="Settings" onClick={() => navigate("/settings")}>
+                        <Settings size={20} />
                     </IconButton>
-                    */}
 
-                    <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                        <User size={18} />
-                        <span>{username}</span>
-                    </div>
+                    <IconButton label={username ?? "User"}>
+                        <User size={20} />
+                    </IconButton>
 
                     {authEnabled && (
                         <IconButton label="Logout" onClick={handleLogout}>

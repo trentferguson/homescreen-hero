@@ -218,13 +218,13 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
     // Loading state
     if (loading || graphLoading) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300 h-[420px] flex flex-col">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 px-5 py-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h3 className="text-lg font-bold text-white tracking-tight">
                             Graph Analytics
                         </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                        <p className="text-sm text-slate-400 mt-0.5">
                             Loading chart data...
                         </p>
                     </div>
@@ -239,21 +239,21 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
     // Tautulli not enabled state
     if (!tautulliEnabled) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300 h-[420px] flex flex-col">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 px-5 py-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h3 className="text-lg font-bold text-white tracking-tight">
                             Graph Analytics
                         </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                        <p className="text-sm text-slate-400 mt-0.5">
                             Viewing trends and patterns
                         </p>
                     </div>
                 </div>
                 <div className="text-center flex-1 flex flex-col items-center justify-center">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 mb-3">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-800 mb-3">
                         <svg
-                            className="w-6 h-6 text-slate-400 dark:text-slate-500"
+                            className="w-6 h-6 text-slate-500"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -266,7 +266,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                             />
                         </svg>
                     </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                    <p className="text-sm text-slate-400 mb-3">
                         Tautulli is not configured
                     </p>
                     <a
@@ -283,19 +283,19 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
     // Error state
     if (error) {
         return (
-            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 transition-all duration-300 h-[420px] flex flex-col">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 px-5 py-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h3 className="text-lg font-bold text-white tracking-tight">
                             Graph Analytics
                         </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                        <p className="text-sm text-slate-400 mt-0.5">
                             Viewing trends and patterns
                         </p>
                     </div>
                 </div>
                 <div className="text-center flex-1 flex flex-col items-center justify-center">
-                    <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
+                    <p className="text-sm text-red-400 mb-3">{error}</p>
                     <button
                         onClick={loadGraphData}
                         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition"
@@ -337,24 +337,24 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
         : concurrentData.some((d) => d.peak_concurrent > 0);
 
     return (
-        <div className="rounded-2xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md px-5 py-4 dark:bg-card-dark dark:border-slate-800/80 dark:hover:border-slate-700 transition-all duration-300 h-[420px] flex flex-col">
+        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 px-5 py-4 transition-all duration-300 hover:bg-slate-800/30 h-[420px] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                        <h3 className="text-lg font-bold text-white tracking-tight">
                             {currentGraphInfo.title}
                         </h3>
                         {/* Settings Button */}
                         <button
                             onClick={() => setSettingsOpen(true)}
-                            className="p-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="p-1 rounded-lg text-slate-400 hover:text-primary transition-all duration-200"
                             title="Graph settings"
                         >
                             <Settings className="h-3.5 w-3.5" />
                         </button>
                     </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+                    <p className="text-sm text-slate-400 mt-0.5">
                         {currentGraphInfo.subtitle}
                     </p>
                 </div>
@@ -363,23 +363,23 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                     {/* Time Range Selector */}
                     <Listbox value={timeRange} onChange={setTimeRange}>
                         <div className="relative">
-                            <Listbox.Button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 flex items-center gap-1.5">
+                            <Listbox.Button className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:border-primary/30 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all duration-200 flex items-center gap-1.5">
                                 <span>{TIME_RANGE_LABELS[timeRange]}</span>
                                 <ChevronDown className="h-3 w-3 text-slate-400" />
                             </Listbox.Button>
-                            <Listbox.Options className="absolute z-10 mt-1 right-0 w-32 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                            <Listbox.Options className="absolute z-10 mt-1 right-0 w-32 border border-slate-700/50 bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 max-h-60 overflow-auto focus:outline-none">
                                 {(Object.keys(TIME_RANGE_DAYS) as TimeRange[]).map((range) => (
                                     <Listbox.Option
                                         key={range}
                                         value={range}
-                                        className="px-3 py-2 cursor-pointer transition-colors text-xs text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:text-white flex items-center justify-between"
+                                        className="px-3 py-2 cursor-pointer transition-all duration-150 text-xs text-slate-300 hover:text-white hover:bg-primary/10 data-[selected]:bg-primary/20 data-[selected]:text-white flex items-center justify-between"
                                     >
                                         {({ selected }) => (
                                             <>
                                                 <span className={selected ? "font-semibold" : ""}>
                                                     {TIME_RANGE_LABELS[range]}
                                                 </span>
-                                                {selected && <Check className="h-3 w-3" />}
+                                                {selected && <Check className="h-3 w-3 text-primary" />}
                                             </>
                                         )}
                                     </Listbox.Option>
@@ -392,14 +392,14 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => navigateGraph("prev")}
-                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-lg border border-slate-700/50 bg-slate-800/30 text-slate-400 hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-all duration-200"
                             title="Previous graph"
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button
                             onClick={() => navigateGraph("next")}
-                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            className="p-1.5 rounded-lg border border-slate-700/50 bg-slate-800/30 text-slate-400 hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-all duration-200"
                             title="Next graph"
                         >
                             <ChevronRight className="h-4 w-4" />
@@ -414,16 +414,16 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                     hasHourlyData ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={hourlyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
                                 <XAxis
                                     dataKey="label"
                                     tick={{ fontSize: 10 }}
-                                    className="text-slate-600 dark:text-slate-400"
+                                    className="text-slate-400"
                                     interval={2}
                                 />
                                 <YAxis
                                     tick={{ fontSize: 10 }}
-                                    className="text-slate-600 dark:text-slate-400"
+                                    className="text-slate-400"
                                     allowDecimals={false}
                                 />
                                 <Tooltip
@@ -445,7 +445,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-sm text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
                             No viewing data available for this time range
                         </div>
                     )
@@ -461,16 +461,16 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                         <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
                                 <XAxis
                                     dataKey="label"
                                     tick={{ fontSize: 10 }}
-                                    className="text-slate-600 dark:text-slate-400"
+                                    className="text-slate-400"
                                     interval="preserveStartEnd"
                                 />
                                 <YAxis
                                     tick={{ fontSize: 10 }}
-                                    className="text-slate-600 dark:text-slate-400"
+                                    className="text-slate-400"
                                     allowDecimals={false}
                                 />
                                 <Tooltip
@@ -495,7 +495,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-sm text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
                             No viewing data available for this time range
                         </div>
                     )
@@ -506,16 +506,16 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                         <ResponsiveContainer width="100%" height="100%">
                             {isHourlyView ? (
                                 <BarChart data={concurrentChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
                                     <XAxis
                                         dataKey="label"
                                         tick={{ fontSize: 10 }}
-                                        className="text-slate-600 dark:text-slate-400"
+                                        className="text-slate-400"
                                         interval={2}
                                     />
                                     <YAxis
                                         tick={{ fontSize: 10 }}
-                                        className="text-slate-600 dark:text-slate-400"
+                                        className="text-slate-400"
                                         allowDecimals={false}
                                     />
                                     <Tooltip
@@ -543,16 +543,16 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                             <stop offset="95%" stopColor="#195de6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
                                     <XAxis
                                         dataKey="label"
                                         tick={{ fontSize: 10 }}
-                                        className="text-slate-600 dark:text-slate-400"
+                                        className="text-slate-400"
                                         interval="preserveStartEnd"
                                     />
                                     <YAxis
                                         tick={{ fontSize: 10 }}
-                                        className="text-slate-600 dark:text-slate-400"
+                                        className="text-slate-400"
                                         allowDecimals={false}
                                     />
                                     <Tooltip
@@ -578,7 +578,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                             )}
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-sm text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center justify-center h-full text-sm text-slate-400">
                             No concurrent viewing data available for this time range
                         </div>
                     )
@@ -594,7 +594,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                         className={`w-2 h-2 rounded-full transition-all duration-200 ${
                             activeGraph === graph.id
                                 ? "bg-primary w-4"
-                                : "bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500"
+                                : "bg-slate-600 hover:bg-slate-500"
                         }`}
                         title={graph.title}
                     />
@@ -605,42 +605,42 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
             <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} className="relative z-50">
                 <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
                 <div className="fixed inset-0 flex items-center justify-center p-4">
-                    <Dialog.Panel className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl">
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
-                            <Dialog.Title className="text-lg font-bold text-slate-900 dark:text-white">
+                    <Dialog.Panel className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 shadow-xl">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+                            <Dialog.Title className="text-lg font-bold text-white">
                                 Graph Settings
                             </Dialog.Title>
                             <button
                                 onClick={() => setSettingsOpen(false)}
-                                className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
                             >
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
                         <div className="px-5 py-4 space-y-4">
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                <label className="text-sm font-medium text-slate-300">
                                     Default Time Range
                                 </label>
                                 <Listbox value={defaultTimeRange} onChange={saveDefaultTimeRange}>
                                     <div className="relative">
-                                        <Listbox.Button className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 flex items-center gap-2 min-w-[120px] justify-between">
+                                        <Listbox.Button className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:border-primary/30 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all duration-200 flex items-center gap-2 min-w-[120px] justify-between">
                                             <span>{TIME_RANGE_LABELS[defaultTimeRange]}</span>
                                             <ChevronDown className="h-4 w-4 text-slate-400" />
                                         </Listbox.Button>
-                                        <Listbox.Options className="absolute z-10 mt-1 right-0 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                        <Listbox.Options className="absolute z-10 mt-1 right-0 w-full border border-slate-700/50 bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 max-h-60 overflow-auto focus:outline-none">
                                             {(Object.keys(TIME_RANGE_DAYS) as TimeRange[]).map((range) => (
                                                 <Listbox.Option
                                                     key={range}
                                                     value={range}
-                                                    className="px-3 py-2 cursor-pointer transition-colors text-sm text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:text-white flex items-center justify-between"
+                                                    className="px-3 py-2 cursor-pointer transition-all duration-150 text-sm text-slate-300 hover:text-white hover:bg-primary/10 data-[selected]:bg-primary/20 data-[selected]:text-white flex items-center justify-between"
                                                 >
                                                     {({ selected }) => (
                                                         <>
                                                             <span className={selected ? "font-semibold" : ""}>
                                                                 {TIME_RANGE_LABELS[range]}
                                                             </span>
-                                                            {selected && <Check className="h-4 w-4" />}
+                                                            {selected && <Check className="h-4 w-4 text-primary" />}
                                                         </>
                                                     )}
                                                 </Listbox.Option>
@@ -650,28 +650,28 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                 </Listbox>
                             </div>
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                <label className="text-sm font-medium text-slate-300">
                                     Default Graph
                                 </label>
                                 <Listbox value={defaultGraph} onChange={saveDefaultGraph}>
                                     <div className="relative">
-                                        <Listbox.Button className="px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 flex items-center gap-2 min-w-[180px] justify-between">
+                                        <Listbox.Button className="px-3 py-1.5 rounded-lg text-sm font-medium border border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:border-primary/30 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all duration-200 flex items-center gap-2 min-w-[180px] justify-between">
                                             <span>{GRAPHS.find((g) => g.id === defaultGraph)?.title}</span>
                                             <ChevronDown className="h-4 w-4 text-slate-400" />
                                         </Listbox.Button>
-                                        <Listbox.Options className="absolute z-10 mt-1 right-0 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                        <Listbox.Options className="absolute z-10 mt-1 right-0 w-full border border-slate-700/50 bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 max-h-60 overflow-auto focus:outline-none">
                                             {GRAPHS.map((graph) => (
                                                 <Listbox.Option
                                                     key={graph.id}
                                                     value={graph.id}
-                                                    className="px-3 py-2 cursor-pointer transition-colors text-sm text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:text-white flex items-center justify-between"
+                                                    className="px-3 py-2 cursor-pointer transition-all duration-150 text-sm text-slate-300 hover:text-white hover:bg-primary/10 data-[selected]:bg-primary/20 data-[selected]:text-white flex items-center justify-between"
                                                 >
                                                     {({ selected }) => (
                                                         <>
                                                             <span className={selected ? "font-semibold" : ""}>
                                                                 {graph.title}
                                                             </span>
-                                                            {selected && <Check className="h-4 w-4" />}
+                                                            {selected && <Check className="h-4 w-4 text-primary" />}
                                                         </>
                                                     )}
                                                 </Listbox.Option>
