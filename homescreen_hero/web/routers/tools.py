@@ -50,6 +50,37 @@ class UpdateAddedAtResponse(BaseModel):
     errors: List[str]
 
 
+# Watch History Cleaner models
+class TVShowResult(BaseModel):
+    rating_key: str
+    title: str
+    year: Optional[int] = None
+    thumb: Optional[str] = None
+    library: str
+    episode_count: int
+    watched_count: int
+
+
+class SearchShowsResponse(BaseModel):
+    items: List[TVShowResult]
+
+
+class MarkUnwatchedItem(BaseModel):
+    rating_key: str
+    library: str
+
+
+class MarkUnwatchedRequest(BaseModel):
+    items: List[MarkUnwatchedItem]
+
+
+class MarkUnwatchedResponse(BaseModel):
+    success: bool
+    shows_updated: int
+    episodes_updated: int
+    errors: List[str]
+
+
 @router.get("/search-media", response_model=SearchMediaResponse)
 def search_media(
     query: str,
@@ -158,5 +189,119 @@ def update_added_at(
     return UpdateAddedAtResponse(
         success=len(errors) == 0,
         updated_count=updated_count,
+        errors=errors,
+    )
+
+
+@router.get("/search-shows", response_model=SearchShowsResponse)
+def search_shows(
+    query: str,
+    library: str = "all",
+    limit: int = 50,
+    current_user: str = Depends(get_current_user),
+) -> SearchShowsResponse:
+    """Search for TV shows with episode watch counts."""
+    config = load_config()
+    server = get_plex_server(config)
+
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+    if library and library != "all":
+        if library not in enabled_libraries:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Library '{library}' not found or not enabled",
+            )
+        enabled_libraries = [library]
+
+    all_items: List[TVShowResult] = []
+
+    for lib_name in enabled_libraries:
+        try:
+            section = server.library.section(lib_name)
+
+            # Only search show libraries
+            if section.type != "show":
+                continue
+
+            shows = section.search(title=query, limit=limit)
+
+            for show in shows:
+                thumb_url = None
+                if hasattr(show, "thumb") and show.thumb:
+                    thumb_url = server.url(show.thumb, includeToken=True)
+
+                # Get episode counts
+                episodes = show.episodes()
+                episode_count = len(episodes)
+                watched_count = sum(1 for ep in episodes if ep.isWatched)
+
+                all_items.append(
+                    TVShowResult(
+                        rating_key=str(show.ratingKey),
+                        title=show.title,
+                        year=getattr(show, "year", None),
+                        thumb=thumb_url,
+                        library=lib_name,
+                        episode_count=episode_count,
+                        watched_count=watched_count,
+                    )
+                )
+        except Exception as e:
+            logger.warning(f"Error searching library {lib_name}: {e}")
+            continue
+
+    all_items.sort(key=lambda x: x.title.lower())
+    all_items = all_items[:limit]
+
+    return SearchShowsResponse(items=all_items)
+
+
+@router.post("/mark-unwatched", response_model=MarkUnwatchedResponse)
+def mark_unwatched(
+    request: MarkUnwatchedRequest,
+    current_user: str = Depends(get_current_user),
+) -> MarkUnwatchedResponse:
+    """Mark all episodes of selected TV shows as unwatched."""
+    config = load_config()
+    server = get_plex_server(config)
+
+    shows_updated = 0
+    episodes_updated = 0
+    errors: List[str] = []
+
+    for item_req in request.items:
+        try:
+            section = server.library.section(item_req.library)
+            show = section.fetchItem(int(item_req.rating_key))
+
+            if not show:
+                errors.append(f"Show {item_req.rating_key} not found in {item_req.library}")
+                continue
+
+            episodes = show.episodes()
+            show_episodes_updated = 0
+
+            for episode in episodes:
+                if episode.isWatched:
+                    episode.markUnwatched()
+                    show_episodes_updated += 1
+
+            if show_episodes_updated > 0:
+                shows_updated += 1
+                episodes_updated += show_episodes_updated
+                logger.info(
+                    f"Marked {show_episodes_updated} episodes of '{show.title}' as unwatched"
+                )
+
+        except Exception as e:
+            error_msg = f"Failed to update {item_req.rating_key}: {str(e)}"
+            logger.error(error_msg)
+            errors.append(error_msg)
+
+    return MarkUnwatchedResponse(
+        success=len(errors) == 0,
+        shows_updated=shows_updated,
+        episodes_updated=episodes_updated,
         errors=errors,
     )
