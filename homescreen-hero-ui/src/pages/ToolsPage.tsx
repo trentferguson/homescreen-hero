@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Calendar, Wrench, History } from "lucide-react";
+import { Calendar, Wrench, History, FileSearch } from "lucide-react";
 import ToolCard from "../components/tools/ToolCard";
 import DateAddedEditor from "../components/tools/DateAddedEditor";
 import WatchHistoryCleaner from "../components/tools/WatchHistoryCleaner";
+import UnwatchedReport from "../components/tools/UnwatchedReport";
 
 type Tool = {
     id: string;
@@ -23,6 +24,12 @@ const tools: Tool[] = [
         title: "Watch History Cleaner",
         description: "Mark TV shows as unwatched to rewatch them",
         icon: History,
+    },
+    {
+        id: "unwatched-report",
+        title: "Unwatched Report",
+        description: "Find movies and shows that haven't been watched",
+        icon: FileSearch,
     },
 ];
 
@@ -66,6 +73,9 @@ export default function ToolsPage() {
             )}
             {activeTool === "watch-history-cleaner" && (
                 <WatchHistoryCleaner onClose={() => setActiveTool(null)} />
+            )}
+            {activeTool === "unwatched-report" && (
+                <UnwatchedReport onClose={() => setActiveTool(null)} />
             )}
         </div>
     );

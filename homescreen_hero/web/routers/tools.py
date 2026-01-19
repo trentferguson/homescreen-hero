@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import List, Optional
+from datetime import datetime, date, timedelta
+from typing import List, Optional, Literal
 import logging
+import csv
+import io
+import math
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel
 
 from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.integrations.plex_client import get_plex_server
+from homescreen_hero.core.integrations.tautulli_client import get_tautulli_client
 from homescreen_hero.core.auth import get_current_user
 
 
@@ -79,6 +83,37 @@ class MarkUnwatchedResponse(BaseModel):
     shows_updated: int
     episodes_updated: int
     errors: List[str]
+
+
+# Unwatched Report models
+class UnwatchedReportRequest(BaseModel):
+    library: str
+    unwatched_mode: Literal["never_watched", "not_watched_since"]
+    time_period: Optional[str] = None  # "30d", "90d", "6m", "1y", "all", "custom"
+    custom_start_date: Optional[date] = None
+    page: int = 1
+    page_size: int = 50
+
+
+class UnwatchedItem(BaseModel):
+    rating_key: str
+    title: str
+    year: Optional[int] = None
+    thumb: Optional[str] = None
+    type: str  # "movie" or "show"
+    library: str
+    added_at: Optional[str] = None
+    last_watched_at: Optional[str] = None
+    total_plays: int = 0
+
+
+class UnwatchedReportResponse(BaseModel):
+    items: List[UnwatchedItem]
+    total_count: int
+    page: int
+    page_size: int
+    total_pages: int
+    time_period_description: str
 
 
 @router.get("/search-media", response_model=SearchMediaResponse)
@@ -304,4 +339,286 @@ def mark_unwatched(
         shows_updated=shows_updated,
         episodes_updated=episodes_updated,
         errors=errors,
+    )
+
+
+def _calculate_cutoff_date(
+    time_period: Optional[str], custom_date: Optional[date] = None
+) -> Optional[date]:
+    # Calculate the cutoff date based on time period
+    if time_period == "custom" and custom_date:
+        return custom_date
+    periods = {"30d": 30, "90d": 90, "6m": 182, "1y": 365, "all": None}
+    days = periods.get(time_period or "all")
+    return date.today() - timedelta(days=days) if days else None
+
+
+def _get_time_period_description(
+    unwatched_mode: str, time_period: Optional[str], custom_date: Optional[date]
+) -> str:
+    # Generate human-readable description of the time period
+    if unwatched_mode == "never_watched":
+        return "Items that have never been watched"
+
+    if time_period == "custom" and custom_date:
+        return f"Items not watched since {custom_date.strftime('%B %d, %Y')}"
+
+    descriptions = {
+        "30d": "Items not watched in the last 30 days",
+        "90d": "Items not watched in the last 90 days",
+        "6m": "Items not watched in the last 6 months",
+        "1y": "Items not watched in the last year",
+        "all": "Items that have never been watched",
+    }
+    return descriptions.get(time_period or "all", "Items not watched")
+
+
+def _get_unwatched_items(
+    config,
+    library_name: str,
+    unwatched_mode: str,
+    cutoff_date: Optional[date],
+) -> List[dict]:
+    # Get Tautulli client
+    tautulli = get_tautulli_client(config)
+    if not tautulli:
+        raise HTTPException(
+            status_code=400,
+            detail="Tautulli is not configured. Please enable Tautulli in integrations.",
+        )
+
+    # Get Plex server and library
+    server = get_plex_server(config)
+    try:
+        section = server.library.section(library_name)
+    except Exception:
+        raise HTTPException(status_code=404, detail=f"Library '{library_name}' not found")
+
+    if section.type not in ("movie", "show"):
+        raise HTTPException(
+            status_code=400, detail="Only movie and show libraries are supported"
+        )
+
+    # Fetch all items from the library
+    library_items = section.all()
+    logger.info(f"Found {len(library_items)} items in library '{library_name}'")
+
+    # Fetch watch history from Tautulli (all users)
+    # Paginate to get complete history - Tautulli returns history for ALL users by default
+    all_history: List[dict] = []
+    batch_size = 5000
+    start = 0
+    while True:
+        batch = tautulli.get_history(length=batch_size, start=start)
+        if not batch:
+            break
+        all_history.extend(batch)
+        if len(batch) < batch_size:
+            break
+        start += batch_size
+        # Safety limit to prevent infinite loops
+        if start > 50000:
+            break
+
+    logger.info(f"Retrieved {len(all_history)} total history entries from Tautulli (all users)")
+
+    # Build watch history maps:
+    # - watch_map: {rating_key: {last_watched_at, total_plays}} for movies/episodes
+    # - show_watch_map: {grandparent_rating_key: {last_watched_at, total_plays}} for TV shows
+    watch_map: dict = {}
+    show_watch_map: dict = {}
+
+    for entry in all_history:
+        rating_key = str(entry.get("rating_key", ""))
+        if not rating_key:
+            continue
+
+        # Parse the date (Tautulli returns Unix timestamp in 'date' field)
+        timestamp = entry.get("date") or entry.get("started")
+        if not timestamp:
+            continue
+
+        try:
+            watched_at = datetime.fromtimestamp(int(timestamp))
+        except (ValueError, TypeError):
+            continue
+
+        # Track by rating_key (for movies and individual episodes)
+        if rating_key not in watch_map:
+            watch_map[rating_key] = {"last_watched_at": watched_at, "total_plays": 1}
+        else:
+            watch_map[rating_key]["total_plays"] += 1
+            if watched_at > watch_map[rating_key]["last_watched_at"]:
+                watch_map[rating_key]["last_watched_at"] = watched_at
+
+        # For TV episodes, also track by grandparent_rating_key (the show)
+        # This lets us check if ANY episode of a show has been watched
+        grandparent_key = str(entry.get("grandparent_rating_key", ""))
+        if grandparent_key:
+            if grandparent_key not in show_watch_map:
+                show_watch_map[grandparent_key] = {"last_watched_at": watched_at, "total_plays": 1}
+            else:
+                show_watch_map[grandparent_key]["total_plays"] += 1
+                if watched_at > show_watch_map[grandparent_key]["last_watched_at"]:
+                    show_watch_map[grandparent_key]["last_watched_at"] = watched_at
+
+    # Cross-reference and filter unwatched items
+    unwatched_items = []
+    for item in library_items:
+        rating_key = str(item.ratingKey)
+
+        # For TV shows, check show_watch_map; for movies, check watch_map
+        if item.type == "show":
+            watch_info = show_watch_map.get(rating_key)
+        else:
+            watch_info = watch_map.get(rating_key)
+
+        is_unwatched = False
+        last_watched = None
+        total_plays = 0
+
+        if watch_info is None:
+            # Never watched by anyone
+            is_unwatched = True
+        else:
+            last_watched = watch_info["last_watched_at"]
+            total_plays = watch_info["total_plays"]
+
+            if unwatched_mode == "not_watched_since" and cutoff_date:
+                # Check if last watched is before cutoff
+                if last_watched.date() < cutoff_date:
+                    is_unwatched = True
+            # For "never_watched" mode, only include if not in watch_map (handled above)
+
+        if is_unwatched:
+            thumb_url = None
+            if hasattr(item, "thumb") and item.thumb:
+                thumb_url = server.url(item.thumb, includeToken=True)
+
+            added_at = getattr(item, "addedAt", None)
+            added_at_str = added_at.strftime("%Y-%m-%d") if added_at else None
+
+            last_watched_str = (
+                last_watched.strftime("%Y-%m-%d") if last_watched else None
+            )
+
+            unwatched_items.append(
+                {
+                    "rating_key": rating_key,
+                    "title": item.title,
+                    "year": getattr(item, "year", None),
+                    "thumb": thumb_url,
+                    "type": item.type,
+                    "library": library_name,
+                    "added_at": added_at_str,
+                    "last_watched_at": last_watched_str,
+                    "total_plays": total_plays,
+                }
+            )
+
+    # Sort by title
+    unwatched_items.sort(key=lambda x: x["title"].lower())
+    return unwatched_items
+
+
+@router.post("/unwatched-report", response_model=UnwatchedReportResponse)
+def generate_unwatched_report(
+    request: UnwatchedReportRequest,
+    current_user: str = Depends(get_current_user),
+) -> UnwatchedReportResponse:
+    # Generate a paginated report of unwatched items
+    config = load_config()
+
+    # Calculate cutoff date for "not_watched_since" mode
+    cutoff_date = None
+    if request.unwatched_mode == "not_watched_since":
+        cutoff_date = _calculate_cutoff_date(
+            request.time_period, request.custom_start_date
+        )
+
+    # Get all unwatched items
+    all_items = _get_unwatched_items(
+        config, request.library, request.unwatched_mode, cutoff_date
+    )
+
+    # Paginate results
+    total_count = len(all_items)
+    total_pages = max(1, math.ceil(total_count / request.page_size))
+    page = min(max(1, request.page), total_pages)
+
+    start_idx = (page - 1) * request.page_size
+    end_idx = start_idx + request.page_size
+    page_items = all_items[start_idx:end_idx]
+
+    # Convert to response model
+    items = [UnwatchedItem(**item) for item in page_items]
+
+    time_description = _get_time_period_description(
+        request.unwatched_mode, request.time_period, request.custom_start_date
+    )
+
+    return UnwatchedReportResponse(
+        items=items,
+        total_count=total_count,
+        page=page,
+        page_size=request.page_size,
+        total_pages=total_pages,
+        time_period_description=time_description,
+    )
+
+
+@router.post("/unwatched-report/export")
+def export_unwatched_report(
+    request: UnwatchedReportRequest,
+    current_user: str = Depends(get_current_user),
+) -> Response:
+    # Export unwatched report as CSV
+    config = load_config()
+
+    # Calculate cutoff date
+    cutoff_date = None
+    if request.unwatched_mode == "not_watched_since":
+        cutoff_date = _calculate_cutoff_date(
+            request.time_period, request.custom_start_date
+        )
+
+    # Get all unwatched items (no pagination for export)
+    all_items = _get_unwatched_items(
+        config, request.library, request.unwatched_mode, cutoff_date
+    )
+
+    # Build CSV content
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow(
+        ["Title", "Year", "Type", "Library", "Added Date", "Last Watched", "Total Plays"]
+    )
+
+    # Data rows
+    for item in all_items:
+        writer.writerow(
+            [
+                item["title"],
+                item["year"] or "",
+                item["type"],
+                item["library"],
+                item["added_at"] or "",
+                item["last_watched_at"] or "Never",
+                item["total_plays"],
+            ]
+        )
+
+    csv_content = output.getvalue()
+
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_library = request.library.replace(" ", "_").replace("/", "_")
+    filename = f"unwatched_report_{safe_library}_{timestamp}.csv"
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
