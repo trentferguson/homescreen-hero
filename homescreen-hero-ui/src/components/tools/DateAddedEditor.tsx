@@ -1,9 +1,26 @@
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { X, Search, Loader2, Check, ChevronDown, Calendar, Clock, Film } from "lucide-react";
+import { Search, Loader2, Check, ChevronDown, Film, CalendarIcon } from "lucide-react";
 import { Listbox } from "@headlessui/react";
+import { format } from "date-fns";
 import { fetchWithAuth } from "../../utils/api";
 import Toast from "../Toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogFooter,
+    DialogTitle,
+    DialogDescription,
+    DialogCloseButton,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 type MediaItem = {
     rating_key: string;
@@ -43,12 +60,15 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
 
     // Date option state
     const [dateOption, setDateOption] = useState<DateOption>("specific");
-    const [specificDate, setSpecificDate] = useState<string>(() => {
+    const [specificDate, setSpecificDate] = useState<Date>(() => {
         // Default to 30 days ago
         const date = new Date();
         date.setDate(date.getDate() - 30);
-        return date.toISOString().split("T")[0];
+        return date;
     });
+    const [calendarOpen, setCalendarOpen] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState<Date>(specificDate);
+    const [dateInputValue, setDateInputValue] = useState(() => format(specificDate, "MMMM dd, yyyy"));
 
     // Update state
     const [updating, setUpdating] = useState(false);
@@ -67,6 +87,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
         if (!query.trim()) {
             setSearchResults([]);
             setHasSearched(false);
+            setSearching(false);
             return;
         }
 
@@ -92,9 +113,10 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
     }, []);
 
     useEffect(() => {
+        // Don't show loading immediately - wait for debounce
         const timeoutId = setTimeout(() => {
             performSearch(searchQuery, selectedLibrary);
-        }, 300);
+        }, 400);
         return () => clearTimeout(timeoutId);
     }, [searchQuery, selectedLibrary, performSearch]);
 
@@ -125,11 +147,11 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
     const getNewDate = (item: MediaItem): string | null => {
         switch (dateOption) {
             case "specific":
-                return specificDate;
+                return format(specificDate, "yyyy-MM-dd");
             case "30-days-ago": {
                 const date = new Date();
                 date.setDate(date.getDate() - 30);
-                return date.toISOString().split("T")[0];
+                return format(date, "yyyy-MM-dd");
             }
             case "match-release":
                 if (item.originally_available_at) {
@@ -137,7 +159,26 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                 }
                 return null;
             default:
-                return specificDate;
+                return format(specificDate, "yyyy-MM-dd");
+        }
+    };
+
+    // Handle date input change
+    const handleDateInputChange = (value: string) => {
+        setDateInputValue(value);
+        const parsedDate = new Date(value);
+        if (!isNaN(parsedDate.getTime())) {
+            setSpecificDate(parsedDate);
+            setCalendarMonth(parsedDate);
+        }
+    };
+
+    // Handle calendar date selection
+    const handleCalendarSelect = (date: Date | undefined) => {
+        if (date) {
+            setSpecificDate(date);
+            setDateInputValue(format(date, "MMMM dd, yyyy"));
+            setCalendarOpen(false);
         }
     };
 
@@ -206,42 +247,36 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
         }
     };
 
-    return createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
-            <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-300">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-800/80">
-                    <div>
-                        <h2 className="text-xl font-bold text-white">Date Added Editor</h2>
-                        <p className="text-sm text-slate-400 mt-1">
-                            Modify when items appear in "Recently Added"
-                        </p>
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent size="wide">
+                {/* Header with integrated search */}
+                <DialogHeader className="flex-col items-start gap-4 pb-4">
+                    <div className="flex items-center justify-between w-full">
+                        <div>
+                            <DialogTitle>Date Added Editor</DialogTitle>
+                            <DialogDescription>
+                                Modify when items appear in Recently Added
+                            </DialogDescription>
+                        </div>
+                        <DialogCloseButton />
                     </div>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-lg p-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
 
-                {/* Search Bar + Library Filter */}
-                <div className="p-6 border-b border-slate-800/80 space-y-4">
-                    <div className="flex gap-3">
+                    {/* Search Bar + Library Filter - integrated in header */}
+                    <div className="flex gap-3 w-full">
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                             <input
                                 type="text"
                                 placeholder="Search movies or shows..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full pl-12 pr-4 py-3 bg-slate-800/60 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 text-base"
                             />
                         </div>
                         <Listbox value={selectedLibrary} onChange={setSelectedLibrary}>
                             <div className="relative">
-                                <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/60 px-4 py-2.5 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[160px]">
+                                <Listbox.Button className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[160px]">
                                     <span className="flex-1 text-left">
                                         {selectedLibrary === "all" ? "All Libraries" : selectedLibrary}
                                     </span>
@@ -277,21 +312,17 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                             </div>
                         </Listbox>
                     </div>
-                </div>
+                </DialogHeader>
 
                 {/* Results Grid */}
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-hover-only">
-                    {searching ? (
-                        <div className="flex items-center justify-center py-12 text-slate-400">
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            Searching...
-                        </div>
-                    ) : searchResults.length > 0 ? (
-                        <div className="space-y-4">
+                <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-hover-only min-h-[200px] relative">
+                    {searchResults.length > 0 ? (
+                        <div className={`space-y-3 transition-opacity duration-150 ${searching ? "opacity-50" : ""}`}>
                             {/* Selection controls */}
                             <div className="flex items-center justify-between">
-                                <p className="text-sm text-slate-400">
+                                <p className="text-sm text-slate-400 flex items-center gap-2">
                                     {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+                                    {searching && <Loader2 className="h-3 w-3 animate-spin" />}
                                 </p>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -313,7 +344,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                             </div>
 
                             {/* Results list */}
-                            <div className="grid gap-3">
+                            <div className="grid gap-2">
                                 {searchResults.map((item) => {
                                     const isSelected = selectedItems.has(item.rating_key);
                                     return (
@@ -321,7 +352,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                             key={item.rating_key}
                                             type="button"
                                             onClick={() => toggleSelection(item)}
-                                            className={`flex items-center gap-4 p-3 rounded-xl border transition-all duration-200 text-left ${
+                                            className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all duration-200 text-left ${
                                                 isSelected
                                                     ? "border-primary/50 bg-primary/10"
                                                     : "border-slate-800/60 bg-slate-900/50 hover:border-slate-700"
@@ -343,25 +374,25 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                                 <img
                                                     src={item.thumb}
                                                     alt={item.title}
-                                                    className="w-12 h-16 object-cover rounded-lg flex-shrink-0"
+                                                    className="w-10 h-14 object-cover rounded flex-shrink-0"
                                                 />
                                             ) : (
-                                                <div className="w-12 h-16 bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                    <Film className="h-5 w-5 text-slate-600" />
+                                                <div className="w-10 h-14 bg-slate-800 rounded flex items-center justify-center flex-shrink-0">
+                                                    <Film className="h-4 w-4 text-slate-600" />
                                                 </div>
                                             )}
 
                                             {/* Info */}
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-white truncate">
+                                                <p className="font-medium text-white truncate text-sm">
                                                     {item.title}
                                                     {item.year && (
-                                                        <span className="text-slate-400 font-normal ml-2">
+                                                        <span className="text-slate-400 font-normal ml-1.5">
                                                             ({item.year})
                                                         </span>
                                                     )}
                                                 </p>
-                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                <p className="text-xs text-slate-500">
                                                     {item.library} · {item.type}
                                                 </p>
                                             </div>
@@ -376,30 +407,35 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                 })}
                             </div>
                         </div>
+                    ) : searching ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <Loader2 className="h-10 w-10 mb-3 text-slate-600 animate-spin" />
+                            <p>Searching...</p>
+                        </div>
                     ) : hasSearched ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                            <Search className="h-8 w-8 mb-3 text-slate-600" />
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <Search className="h-10 w-10 mb-3 text-slate-600" />
                             <p>No results found</p>
                             <p className="text-sm text-slate-500 mt-1">Try a different search term</p>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                            <Search className="h-8 w-8 mb-3 text-slate-600" />
-                            <p>Search for movies or shows</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <Search className="h-12 w-12 mb-3 text-slate-600" />
+                            <p className="text-lg font-medium">Search for movies or shows</p>
                             <p className="text-sm text-slate-500 mt-1">
-                                Type a title to find items and change their "Date Added"
+                                Type a title to find items and change their 'Date Added'.
                             </p>
                         </div>
                     )}
                 </div>
 
-                {/* Date Selection Options */}
-                <div className="p-6 border-t border-slate-800/80 bg-slate-950/50">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <p className="text-sm text-slate-400">Set date to:</p>
+                {/* Combined Batch Actions + Footer */}
+                <DialogFooter className="flex-col gap-4 sm:flex-row sm:items-center bg-slate-950/50">
+                    <div className="flex items-center gap-3">
+                        <p className="text-sm text-slate-400 font-medium shrink-0">Batch Actions</p>
 
                         {/* Segmented control */}
-                        <div className="inline-flex rounded-lg bg-slate-800/80 p-1">
+                        <div className="inline-flex rounded-lg bg-slate-800/80 p-1 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setDateOption("specific")}
@@ -436,47 +472,77 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                         </div>
 
                         {dateOption === "specific" && (
-                            <input
-                                type="date"
-                                value={specificDate}
-                                onChange={(e) => setSpecificDate(e.target.value)}
-                                className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70 [color-scheme:dark]"
-                            />
+                            <div className="relative flex items-center shrink-0">
+                                <Input
+                                    value={dateInputValue}
+                                    placeholder="December 20, 2024"
+                                    className="w-[180px] pr-10 bg-slate-800/80 h-8"
+                                    onChange={(e) => handleDateInputChange(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "ArrowDown") {
+                                            e.preventDefault();
+                                            setCalendarOpen(true);
+                                        }
+                                    }}
+                                />
+                                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            className="absolute right-1 h-6 w-6 p-0"
+                                        >
+                                            <CalendarIcon className="h-3.5 w-3.5" />
+                                            <span className="sr-only">Select date</span>
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        className="w-auto overflow-hidden p-0"
+                                        align="end"
+                                        alignOffset={-8}
+                                        sideOffset={10}
+                                    >
+                                        <Calendar
+                                            mode="single"
+                                            selected={specificDate}
+                                            captionLayout="dropdown"
+                                            month={calendarMonth}
+                                            onMonthChange={setCalendarMonth}
+                                            onSelect={handleCalendarSelect}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         )}
                     </div>
-                </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-slate-800/80">
-                    <p className="text-sm text-slate-400">
-                        {selectedItems.size} item{selectedItems.size !== 1 ? "s" : ""} selected
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleUpdate}
-                            disabled={selectedItems.size === 0 || updating}
-                            className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                        >
-                            {updating ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Updating...
-                                </>
-                            ) : (
-                                "Update Date Added"
-                            )}
-                        </button>
+                    <div className="flex items-center gap-4 sm:ml-auto">
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleUpdate}
+                                disabled={selectedItems.size === 0 || updating}
+                                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                            >
+                                {updating ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Updating...
+                                    </>
+                                ) : (
+                                    "Update Date Added"
+                                )}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </DialogFooter>
+            </DialogContent>
 
             {toast && (
                 <Toast
@@ -485,7 +551,6 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                     onClose={() => setToast(null)}
                 />
             )}
-        </div>,
-        document.body
+        </Dialog>
     );
 }
