@@ -40,9 +40,9 @@ export default function ToolsPage() {
         <div className="space-y-8">
             {/* Header */}
             <div className="flex flex-col gap-1.5">
-                <h1 className="text-3xl font-black tracking-tight text-white">Tools</h1>
+                <h1 className="text-3xl font-black tracking-tight text-white">Tools & Utilities</h1>
                 <p className="text-slate-400 text-sm max-w-2xl">
-                    Utilities to help manage your Plex library beyond collection rotation.
+                    Utilities to help manage your Plex Server beyond collection rotation.
                 </p>
             </div>
 
