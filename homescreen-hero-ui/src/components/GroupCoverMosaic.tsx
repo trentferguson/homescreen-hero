@@ -29,15 +29,20 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
                     const posterUrls = cached.posters || [];
 
                     // Preload images before showing them
-                    await preloadImages(posterUrls);
+                    const allLoaded = await preloadImages(posterUrls);
 
-                    setPosters(posterUrls);
-                    setIsFirstLoad(false);
-                    setImagesLoaded(true);
-                    setLoading(false);
-                    return;
+                    if (allLoaded) {
+                        setPosters(posterUrls);
+                        setIsFirstLoad(false);
+                        setImagesLoaded(true);
+                        setLoading(false);
+                        return;
+                    }
+                    // If images failed to load (expired backend cache), clear cache and re-fetch
+                    sessionStorage.removeItem(cacheKey);
                 } catch (error) {
                     console.error("Failed to parse cached posters:", error);
+                    sessionStorage.removeItem(cacheKey);
                 }
             }
 
@@ -69,23 +74,28 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
     }, [collections]);
 
     // Preload all images before rendering
-    const preloadImages = (imageUrls: string[]): Promise<void> => {
+    // Returns true if all images loaded successfully, false if any failed (expired cache)
+    const preloadImages = (imageUrls: string[]): Promise<boolean> => {
         return new Promise((resolve) => {
             if (!imageUrls || imageUrls.length === 0) {
-                resolve();
+                resolve(true);
                 return;
             }
 
+            let hasError = false;
             const imagePromises = imageUrls.slice(0, 6).map((url) => {
                 return new Promise<void>((resolve) => {
                     const img = new Image();
                     img.onload = () => resolve();
-                    img.onerror = () => resolve(); // Resolve even on error to prevent hanging
+                    img.onerror = () => {
+                        hasError = true;
+                        resolve();
+                    };
                     img.src = url;
                 });
             });
 
-            Promise.all(imagePromises).then(() => resolve());
+            Promise.all(imagePromises).then(() => resolve(!hasError));
         });
     };
 

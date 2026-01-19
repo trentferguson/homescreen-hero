@@ -398,6 +398,9 @@ def proxy_group_poster(cache_key: str):
             }
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404) without wrapping them
+        raise
     except requests.RequestException as e:
         logger.error(f"Failed to proxy poster {cache_key}: {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch poster from Plex")
