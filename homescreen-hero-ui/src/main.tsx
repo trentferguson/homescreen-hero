@@ -18,6 +18,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CollectionDetailPage from "./pages/CollectionDetailPage";
 import CollectionsPage from "./pages/CollectionsPage";
+import ToolsPage from "./pages/ToolsPage";
 
 
 const router = createBrowserRouter([
@@ -44,6 +45,7 @@ const router = createBrowserRouter([
       { path: "/collections", element: <CollectionsPage /> },
       { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },
       { path: "/integrations", element: <IntegrationsPage /> },
+      { path: "/tools", element: <ToolsPage /> },
       { path: "/config", element: <ConfigPage /> },
       { path: "/settings", element: <SettingsPage /> },
     ],
