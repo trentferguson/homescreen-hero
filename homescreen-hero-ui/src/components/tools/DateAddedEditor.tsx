@@ -256,7 +256,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                         <div>
                             <DialogTitle>Date Added Editor</DialogTitle>
                             <DialogDescription>
-                                Modify when items appear in Recently Added
+                                Fix 'Date Added' on Movies/Shows that were redownloaded to your Library
                             </DialogDescription>
                         </div>
                         <DialogCloseButton />

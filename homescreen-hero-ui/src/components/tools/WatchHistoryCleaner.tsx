@@ -177,7 +177,7 @@ export default function WatchHistoryCleaner({ onClose }: WatchHistoryCleanerProp
                     <div>
                         <DialogTitle>Watch History Cleaner</DialogTitle>
                         <DialogDescription>
-                            Mark TV shows as unwatched to rewatch them
+                            Mark shows as Unwatched to allow them to show up in 'Continue Watching'
                         </DialogDescription>
                     </div>
                     <DialogCloseButton />

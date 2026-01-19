@@ -247,7 +247,7 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
                         <div>
                             <DialogTitle>Unwatched Report</DialogTitle>
                             <DialogDescription>
-                                Find movies and shows that haven't been watched
+                                Find movies and shows that haven't been watched and export results as CSV
                             </DialogDescription>
                         </div>
                         <DialogCloseButton />

@@ -16,13 +16,13 @@ const tools: Tool[] = [
     {
         id: "date-added-editor",
         title: "Date Added Editor",
-        description: "Change when items appear as 'recently added' in Plex",
+        description: "Change Data Added for items in your Plex Library",
         icon: Calendar,
     },
     {
         id: "watch-history-cleaner",
         title: "Watch History Cleaner",
-        description: "Mark TV shows as unwatched to rewatch them",
+        description: "Fix TV Shows not showing in 'Continue Watching'",
         icon: History,
     },
     {
