@@ -376,6 +376,7 @@ def save_rotation_settings(
             strategy=payload.strategy,
             allow_repeats=payload.allow_repeats,
             sync_all_on_rotation=payload.sync_all_on_rotation,
+            blacklisted_collections=payload.blacklisted_collections,
         )
 
         data["rotation"] = rotation_section

@@ -9,6 +9,7 @@ from homescreen_hero.core.rotation import (
     _is_date_in_range,
     _group_is_active,
     _passes_gap_rule,
+    _is_blacklisted,
     _get_ordered_groups,
     _select_collections_from_group,
 )
@@ -186,6 +187,28 @@ class TestPassesGapRule:
         }
         # Current rotation is 10, last used at 7, gap is exactly 3
         assert _passes_gap_rule("Test Collection", group, max_rotation_id=10, usage_map=usage_map) is True
+
+
+class TestIsBlacklisted:
+    """Tests for _is_blacklisted function"""
+
+    def test_collection_not_blacklisted_empty_list(self):
+        assert _is_blacklisted("Collection A", []) is False
+
+    def test_collection_blacklisted(self):
+        blacklist = ["Collection A", "Collection B"]
+        assert _is_blacklisted("Collection A", blacklist) is True
+        assert _is_blacklisted("Collection B", blacklist) is True
+
+    def test_collection_not_in_blacklist(self):
+        blacklist = ["Collection A", "Collection B"]
+        assert _is_blacklisted("Collection C", blacklist) is False
+
+    def test_case_sensitive_matching(self):
+        blacklist = ["Collection A"]
+        assert _is_blacklisted("Collection A", blacklist) is True
+        assert _is_blacklisted("collection a", blacklist) is False
+        assert _is_blacklisted("COLLECTION A", blacklist) is False
 
 
 class TestGetOrderedGroups:

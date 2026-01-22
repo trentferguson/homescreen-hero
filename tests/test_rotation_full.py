@@ -331,3 +331,116 @@ class TestRunRotationWithHistory:
 
         # "Shared Movie" should only appear once
         assert result.selected_collections.count("Shared Movie") <= 1
+
+    def test_blacklisted_collections_never_selected(self):
+        """Test that blacklisted collections are filtered from all groups"""
+        config = AppConfig(
+            plex=PlexSettings(base_url="http://localhost:32400"),
+            rotation=RotationSettings(
+                enabled=True,
+                max_collections=5,
+                strategy="random",
+                blacklisted_collections=["Blocked Movie", "Another Blocked"]
+            ),
+            groups=[
+                CollectionGroupConfig(
+                    name="Movies",
+                    enabled=True,
+                    min_picks=2,
+                    max_picks=3,
+                    collections=["Good Movie", "Blocked Movie", "Another Movie", "Another Blocked"]
+                )
+            ]
+        )
+
+        rng = random.Random(42)
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            today=date(2024, 12, 15),
+            rng=rng
+        )
+
+        # Blacklisted collections should never be selected
+        assert "Blocked Movie" not in result.selected_collections
+        assert "Another Blocked" not in result.selected_collections
+        # Only non-blacklisted collections should be available
+        for collection in result.selected_collections:
+            assert collection in ["Good Movie", "Another Movie"]
+
+    def test_blacklist_with_all_collections_blocked(self):
+        """Test that group is skipped when all collections are blacklisted"""
+        config = AppConfig(
+            plex=PlexSettings(base_url="http://localhost:32400"),
+            rotation=RotationSettings(
+                enabled=True,
+                max_collections=5,
+                strategy="random",
+                blacklisted_collections=["Movie 1", "Movie 2"]
+            ),
+            groups=[
+                CollectionGroupConfig(
+                    name="Movies",
+                    enabled=True,
+                    min_picks=1,
+                    max_picks=2,
+                    collections=["Movie 1", "Movie 2"]  # All blacklisted
+                )
+            ]
+        )
+
+        rng = random.Random(42)
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            today=date(2024, 12, 15),
+            rng=rng
+        )
+
+        # No collections should be selected
+        assert len(result.selected_collections) == 0
+        assert result.groups[0].reason_skipped is not None
+
+    def test_blacklist_across_multiple_groups(self):
+        """Test that blacklist applies across all groups"""
+        config = AppConfig(
+            plex=PlexSettings(base_url="http://localhost:32400"),
+            rotation=RotationSettings(
+                enabled=True,
+                max_collections=10,
+                strategy="random",
+                blacklisted_collections=["Blocked Everywhere"]
+            ),
+            groups=[
+                CollectionGroupConfig(
+                    name="Action",
+                    enabled=True,
+                    min_picks=1,
+                    max_picks=2,
+                    collections=["Action 1", "Blocked Everywhere"]
+                ),
+                CollectionGroupConfig(
+                    name="Comedy",
+                    enabled=True,
+                    min_picks=1,
+                    max_picks=2,
+                    collections=["Comedy 1", "Blocked Everywhere"]
+                ),
+            ]
+        )
+
+        rng = random.Random(42)
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            today=date(2024, 12, 15),
+            rng=rng
+        )
+
+        # Blocked collection should not appear from any group
+        assert "Blocked Everywhere" not in result.selected_collections
+        # Other collections should still be selected
+        assert len(result.selected_collections) >= 2

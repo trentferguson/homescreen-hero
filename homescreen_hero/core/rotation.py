@@ -150,6 +150,11 @@ def _passes_gap_rule(
     return gap >= group.min_gap_rotations
 
 
+def _is_blacklisted(collection_name: str, blacklist: List[str]) -> bool:
+    # Check if collection is in the global blacklist
+    return collection_name in blacklist
+
+
 # Same as run_rotation_dry, but respects history for gap rules
 def run_rotation_with_history(
     config: AppConfig,
@@ -213,6 +218,11 @@ def run_rotation_with_history(
             for c in available
             if _passes_gap_rule(c, group, max_rotation_id, usage_map)
         ]
+
+        # Filter out blacklisted collections
+        blacklist = config.rotation.blacklisted_collections
+        available = [c for c in available if not _is_blacklisted(c, blacklist)]
+
         result.available_collections = available
 
         if not available:
@@ -338,6 +348,11 @@ def run_rotation_dry(
 
         # Remove any collections already chosen by earlier groups
         available = [c for c in group.collections if c not in selected_set]
+
+        # Filter out blacklisted collections
+        blacklist = config.rotation.blacklisted_collections
+        available = [c for c in available if not _is_blacklisted(c, blacklist)]
+
         result.available_collections = available
 
         if not available:

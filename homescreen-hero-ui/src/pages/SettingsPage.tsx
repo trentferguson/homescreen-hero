@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, Clock } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, CalendarSync, Ban } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
@@ -24,10 +24,24 @@ type RotationSettings = {
     strategy: string;
     allow_repeats: boolean;
     sync_all_on_rotation: boolean;
+    blacklisted_collections: string[];
 };
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "ALL";
+
+type CollectionSource = {
+    name: string;
+    source: "plex" | "trakt" | "letterboxd" | "mdblist";
+    detail?: string | null;
+};
+
+type CollectionSourcesResponse = {
+    plex: CollectionSource[];
+    trakt: CollectionSource[];
+    letterboxd: CollectionSource[];
+    mdblist: CollectionSource[];
+};
 
 function guessLevel(line: string): Exclude<LogLevel, "ALL"> | null {
     const up = line.toUpperCase();
@@ -103,7 +117,13 @@ export default function SettingsPage() {
         strategy: "random",
         allow_repeats: false,
         sync_all_on_rotation: true,
+        blacklisted_collections: [],
     });
+    const [blacklistSearch, setBlacklistSearch] = useState("");
+    const [blacklistSourceFilter, setBlacklistSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist">("all");
+    const [blacklistPage, setBlacklistPage] = useState(1);
+    const [collectionSources, setCollectionSources] = useState<CollectionSource[]>([]);
+    const blacklistItemsPerPage = 20;
     const [loadingRotation, setLoadingRotation] = useState(true);
     const [savingRotation, setSavingRotation] = useState(false);
     const [rotationError, setRotationError] = useState<string | null>(null);
@@ -191,6 +211,58 @@ export default function SettingsPage() {
             isMounted = false;
         };
     }, []);
+
+    // Fetch collection sources for blacklist picker
+    useEffect(() => {
+        fetchWithAuth("/api/admin/config/group-sources")
+            .then((r) => r.json())
+            .then((data: CollectionSourcesResponse) => {
+                const combined = [
+                    ...(data.plex || []),
+                    ...(data.trakt || []),
+                    ...(data.letterboxd || []),
+                    ...(data.mdblist || []),
+                ];
+                setCollectionSources(combined);
+            })
+            .catch(() => {
+                // Non-fatal, users can still type names manually
+            });
+    }, []);
+
+    // Filter and paginate available sources for blacklist
+    const availableBlacklistSources = useMemo(() => {
+        let filtered = collectionSources.filter(
+            (s) => !rotationSettings.blacklisted_collections.includes(s.name)
+        );
+
+        if (blacklistSourceFilter !== "all") {
+            filtered = filtered.filter((s) => s.source === blacklistSourceFilter);
+        }
+
+        if (blacklistSearch.trim()) {
+            const query = blacklistSearch.toLowerCase();
+            filtered = filtered.filter(
+                (s) =>
+                    s.name.toLowerCase().includes(query) ||
+                    s.detail?.toLowerCase().includes(query)
+            );
+        }
+
+        return filtered;
+    }, [collectionSources, rotationSettings.blacklisted_collections, blacklistSourceFilter, blacklistSearch]);
+
+    const paginatedBlacklistSources = useMemo(() => {
+        const startIndex = (blacklistPage - 1) * blacklistItemsPerPage;
+        return availableBlacklistSources.slice(startIndex, startIndex + blacklistItemsPerPage);
+    }, [availableBlacklistSources, blacklistPage, blacklistItemsPerPage]);
+
+    const blacklistTotalPages = Math.ceil(availableBlacklistSources.length / blacklistItemsPerPage);
+
+    // Reset pagination when filter/search changes
+    useEffect(() => {
+        setBlacklistPage(1);
+    }, [blacklistSourceFilter, blacklistSearch]);
 
     useEffect(() => {
         let isMounted = true;
@@ -296,6 +368,25 @@ export default function SettingsPage() {
         setRotationSettings((prev) => ({
             ...prev,
             [key]: Number.isNaN(parsed) ? 0 : parsed,
+        }));
+    };
+
+    const addToBlacklist = (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        setRotationSettings((prev) => {
+            if (prev.blacklisted_collections.includes(trimmed)) return prev;
+            return {
+                ...prev,
+                blacklisted_collections: [...prev.blacklisted_collections, trimmed],
+            };
+        });
+    };
+
+    const removeFromBlacklist = (name: string) => {
+        setRotationSettings((prev) => ({
+            ...prev,
+            blacklisted_collections: prev.blacklisted_collections.filter((c) => c !== name),
         }));
     };
 
@@ -585,7 +676,7 @@ export default function SettingsPage() {
                     <CollapsibleFormSection
                         title="Rotation schedule"
                         description="Configure how often the scheduler rotates featured collections."
-                        icon={Clock}
+                        icon={CalendarSync}
                         expanded={rotationExpanded}
                         actions={
                             <div className="flex items-center gap-3 text-xs text-slate-400">
@@ -739,6 +830,206 @@ export default function SettingsPage() {
                                 {rotationError}
                             </div>
                         ) : null}
+                    </CollapsibleFormSection>
+
+                    {/* Collection Blacklist */}
+                    <CollapsibleFormSection
+                        title="Collection Blacklist"
+                        description="Collections that will never be selected during rotation, regardless of which groups they belong to."
+                        icon={Ban}
+                    >
+                        {/* Currently Blacklisted */}
+                        <div className="space-y-2">
+                            <label className="block text-xs font-medium text-red-400 uppercase tracking-wider">
+                                Currently Blacklisted
+                            </label>
+                            {rotationSettings.blacklisted_collections.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {rotationSettings.blacklisted_collections.map((collection) => (
+                                        <button
+                                            key={collection}
+                                            type="button"
+                                            onClick={() => removeFromBlacklist(collection)}
+                                            disabled={loadingRotation}
+                                            className="group inline-flex items-center gap-2 rounded-full border border-red-800/60 bg-red-900/30 px-3 py-1.5 text-xs font-semibold text-red-100 hover:border-red-600 hover:bg-red-900/50 transition-all disabled:opacity-50"
+                                        >
+                                            {collection}
+                                            <span className="text-red-400 group-hover:text-red-200">×</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/20 p-3 text-center">
+                                    <p className="text-xs text-slate-500">No collections blacklisted yet.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Search and Filter */}
+                        <div className="space-y-3 pt-4 border-t border-slate-700/50">
+                            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                Add to Blacklist
+                            </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                <input
+                                    type="text"
+                                    value={blacklistSearch}
+                                    onChange={(e) => setBlacklistSearch(e.target.value)}
+                                    placeholder="Search collections..."
+                                    className="w-full pl-10 pr-4 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                                />
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                                {(["all", "plex", "trakt", "letterboxd", "mdblist"] as const).map((filter) => (
+                                    <button
+                                        key={filter}
+                                        type="button"
+                                        onClick={() => setBlacklistSourceFilter(filter)}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                            blacklistSourceFilter === filter
+                                                ? filter === "all"
+                                                    ? "bg-red-600 text-white"
+                                                    : "text-white"
+                                                : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                        }`}
+                                        style={
+                                            blacklistSourceFilter === filter && filter !== "all"
+                                                ? {
+                                                      backgroundColor:
+                                                          filter === "plex"
+                                                              ? "#b8860b"
+                                                              : filter === "trakt"
+                                                              ? "#8b2e82"
+                                                              : filter === "letterboxd"
+                                                              ? "#00a63d"
+                                                              : "#4284c9",
+                                                  }
+                                                : undefined
+                                        }
+                                    >
+                                        {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Collection Grid */}
+                        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-4">
+                            {paginatedBlacklistSources.map((source) => (
+                                <button
+                                    key={`${source.source}-${source.name}`}
+                                    type="button"
+                                    onClick={() => addToBlacklist(source.name)}
+                                    className="flex flex-col gap-1 rounded-lg border border-slate-800/60 bg-slate-900/50 p-2.5 text-left text-sm text-slate-100 transition-all duration-200 hover:border-red-500/40 hover:bg-red-900/20"
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-semibold text-xs leading-tight flex-1 line-clamp-1">{source.name}</p>
+                                        <span
+                                            className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold flex-shrink-0 text-white"
+                                            style={{
+                                                backgroundColor:
+                                                    source.source === "plex"
+                                                        ? "#e5a00d"
+                                                        : source.source === "trakt"
+                                                        ? "#af35a3"
+                                                        : source.source === "letterboxd"
+                                                        ? "#00a63d"
+                                                        : "#4284c9",
+                                            }}
+                                        >
+                                            {source.source.charAt(0).toUpperCase() + source.source.slice(1)}
+                                        </span>
+                                    </div>
+                                    {source.detail && (
+                                        <p className="text-[10px] text-slate-500 line-clamp-1">{source.detail}</p>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {availableBlacklistSources.length === 0 && (
+                            <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/20 p-3 text-center mt-4">
+                                <p className="text-xs text-slate-500">
+                                    {collectionSources.length === 0
+                                        ? "No collections found. Configure Plex or integrations first."
+                                        : "No matching collections found."}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {blacklistTotalPages > 1 && (
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/60">
+                                <p className="text-xs text-slate-400">
+                                    Showing {((blacklistPage - 1) * blacklistItemsPerPage) + 1}-{Math.min(blacklistPage * blacklistItemsPerPage, availableBlacklistSources.length)} of {availableBlacklistSources.length}
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBlacklistPage((p) => Math.max(1, p - 1))}
+                                        disabled={blacklistPage === 1}
+                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    >
+                                        Previous
+                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: blacklistTotalPages }, (_, i) => i + 1).map((page) => (
+                                            <button
+                                                key={page}
+                                                type="button"
+                                                onClick={() => setBlacklistPage(page)}
+                                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                                    blacklistPage === page
+                                                        ? "bg-red-600 text-white"
+                                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBlacklistPage((p) => Math.min(blacklistTotalPages, p + 1))}
+                                        disabled={blacklistPage === blacklistTotalPages}
+                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Save Button */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700/50">
+                            <div className="flex-1">
+                                {rotationMessage && (
+                                    <p className="text-xs text-emerald-400">{rotationMessage}</p>
+                                )}
+                                {rotationError && (
+                                    <p className="text-xs text-rose-400">{rotationError}</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={saveRotationSettings}
+                                disabled={savingRotation || loadingRotation}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {savingRotation ? (
+                                    <>
+                                        <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="h-4 w-4" />
+                                        Save Blacklist
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </CollapsibleFormSection>
                 </>
             ) : null}

@@ -53,6 +53,10 @@ class RotationSettings(BaseModel):
         default=True,
         description="Whether to sync all Trakt/Letterboxd lists on every rotation (true) or only selected collections (false)",
     )
+    blacklisted_collections: List[str] = Field(
+        default_factory=list,
+        description="Collections that will never be selected during rotation",
+    )
 
 
 class CollectionGroupConfig(BaseModel):
