@@ -532,19 +532,6 @@ export default function SettingsPage() {
                         title="Plex"
                         description="Provide credentials for the media server this dashboard references."
                         icon={Server}
-                        actions={
-                            <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Your secrets stay in the browser until saved.</span>
-                                <button
-                                    type="button"
-                                    onClick={savePlexSettings}
-                                    disabled={savingPlex || loadingPlex}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingPlex ? "Saving…" : "Save Plex Settings"}
-                                </button>
-                            </div>
-                        }
                     >
                         <FieldRow
                             label="Server URL"
@@ -670,6 +657,16 @@ export default function SettingsPage() {
                             status={plexTestStatus}
                             onTest={handleTestConnection}
                             message="Run a dry connection test without restarting the service."
+                            actions={
+                                <button
+                                    type="button"
+                                    onClick={savePlexSettings}
+                                    disabled={savingPlex || loadingPlex}
+                                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                                >
+                                    {savingPlex ? "Saving…" : "Save Settings"}
+                                </button>
+                            }
                         />
                     </CollapsibleFormSection>
 
@@ -678,19 +675,6 @@ export default function SettingsPage() {
                         description="Configure how often the scheduler rotates featured collections."
                         icon={CalendarSync}
                         expanded={rotationExpanded}
-                        actions={
-                            <div className="flex items-center gap-3 text-xs text-slate-400">
-                                <span className="hidden sm:inline">Writes directly to config.yaml.</span>
-                                <button
-                                    type="button"
-                                    onClick={saveRotationSettings}
-                                    disabled={savingRotation || loadingRotation}
-                                    className="rounded-lg border border-slate-700 px-3 py-1 font-semibold text-slate-100 transition disabled:opacity-60"
-                                >
-                                    {savingRotation ? "Saving…" : "Save rotation settings"}
-                                </button>
-                            </div>
-                        }
                     >
                         <FieldRow label="Automatic rotations">
                             <div className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 px-3 py-2">
@@ -819,17 +803,35 @@ export default function SettingsPage() {
                             </Switch>
                         </FieldRow>
 
-                        {rotationMessage ? (
-                            <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                                {rotationMessage}
+                        {/* Save Button */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700/50">
+                            <div className="flex-1">
+                                {rotationMessage && (
+                                    <p className="text-xs text-emerald-400">{rotationMessage}</p>
+                                )}
+                                {rotationError && (
+                                    <p className="text-xs text-rose-400">{rotationError}</p>
+                                )}
                             </div>
-                        ) : null}
-
-                        {rotationError ? (
-                            <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                                {rotationError}
-                            </div>
-                        ) : null}
+                            <button
+                                type="button"
+                                onClick={saveRotationSettings}
+                                disabled={savingRotation || loadingRotation}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {savingRotation ? (
+                                    <>
+                                        <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="h-4 w-4" />
+                                        Save Settings
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </CollapsibleFormSection>
 
                     {/* Collection Blacklist */}

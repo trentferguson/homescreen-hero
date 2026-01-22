@@ -1,13 +1,15 @@
 import { Wifi, WifiOff } from "lucide-react";
+import React from "react";
 
 interface TestConnectionCtaProps {
     service: string;
     status: "idle" | "testing" | "success" | "error";
     onTest: () => void;
     message?: string;
+    actions?: React.ReactNode;
 }
 
-export default function TestConnectionCta({ service, status, onTest, message }: TestConnectionCtaProps) {
+export default function TestConnectionCta({ service, status, onTest, message, actions }: TestConnectionCtaProps) {
     const isTesting = status === "testing";
     const isSuccess = status === "success";
     const Icon = isSuccess ? Wifi : WifiOff;
@@ -31,14 +33,17 @@ export default function TestConnectionCta({ service, status, onTest, message }: 
                 </div>
             </div>
 
-            <button
-                type="button"
-                onClick={onTest}
-                disabled={isTesting}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
-            >
-                {isTesting ? "Testing…" : isSuccess ? "Retest" : "Test connection"}
-            </button>
+            <div className="flex items-center gap-2">
+                {actions}
+                <button
+                    type="button"
+                    onClick={onTest}
+                    disabled={isTesting}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
+                >
+                    {isTesting ? "Testing…" : isSuccess ? "Retest" : "Test connection"}
+                </button>
+            </div>
         </div>
     );
 }
