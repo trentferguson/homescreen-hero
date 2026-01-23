@@ -222,6 +222,22 @@ class TautulliSettings(BaseModel):
     )
 
 
+class SeerrSettings(BaseModel):
+    # Seerr/Jellyseerr/Overseerr connection details.
+    enabled: bool = Field(
+        default=False,
+        description="Whether Seerr integration is enabled",
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Seerr API key (can be set via HSH_SEERR_API_KEY env var)",
+    )
+    base_url: str = Field(
+        "http://localhost:5055",
+        description="Base URL for Seerr instance",
+    )
+
+
 class AppConfig(BaseModel):
     # Root application configuration, loaded from config.yaml.
     plex: PlexSettings
@@ -231,6 +247,7 @@ class AppConfig(BaseModel):
     letterboxd: Optional[LetterboxdSettings] = None
     mdblist: Optional[MDBListSettings] = None
     tautulli: Optional[TautulliSettings] = None
+    seerr: Optional[SeerrSettings] = None
     logging: LoggingSettings = LoggingSettings()
     auth: Optional[AuthSettings] = None
 

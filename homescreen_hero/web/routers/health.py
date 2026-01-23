@@ -178,6 +178,33 @@ def _check_tautulli(config: Any) -> HealthComponent:
         )
 
 
+# Helper function for Seerr health check
+def _check_seerr(config: Any) -> HealthComponent:
+    try:
+        from homescreen_hero.core.integrations.seerr_client import get_seerr_client
+
+        seerr_client = get_seerr_client(config)
+
+        if seerr_client is None:
+            # Check if Seerr is enabled - if so, this is an error (missing API key)
+            if config.seerr and config.seerr.enabled:
+                return HealthComponent(ok=False, error="Seerr enabled but API key not configured")
+            return HealthComponent(ok=True, error="Seerr disabled or not configured")
+
+        s_ok, s_error = seerr_client.ping()
+
+        if not s_ok:
+            return HealthComponent(ok=False, error=f"Seerr ping failed: {s_error}")
+
+        return HealthComponent(ok=True)
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("Seerr health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in Seerr health check: {exc}"
+        )
+
+
 # Helper function for Plex health check
 def _check_plex(config: Any) -> HealthComponent:
     try:
@@ -266,6 +293,16 @@ def health_tautulli() -> HealthComponent:
     return _check_tautulli(config)
 
 
+# Validate Seerr connectivity
+@router.get("/health/seerr", response_model=HealthComponent)
+def health_seerr() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_seerr(config)
+
+
 # Validate Plex connectivity and configured library is accessible
 @router.get("/health/plex", response_model=HealthComponent)
 def health_plex() -> HealthComponent:
@@ -295,6 +332,7 @@ def health_check() -> HealthResponse:
     components["trakt"] = _check_trakt(config)
     components["mdblist"] = _check_mdblist(config)
     components["tautulli"] = _check_tautulli(config)
+    components["seerr"] = _check_seerr(config)
     components["plex"] = _check_plex(config)
 
     overall_ok = all(component.ok for component in components.values())

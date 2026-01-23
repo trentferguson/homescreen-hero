@@ -75,6 +75,12 @@ export interface TautulliSettings {
     collect_interval_hours: number;
 }
 
+export interface SeerrSettings {
+    enabled: boolean;
+    api_key: string;
+    base_url: string;
+}
+
 export interface PlexLibraryConfig {
     name: string;
     enabled: boolean;

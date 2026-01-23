@@ -16,6 +16,7 @@ from .health import (
     _check_config,
     _check_trakt,
     _check_tautulli,
+    _check_seerr,
     _check_plex,
     _check_mdblist,
 )
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/admin/integrations", tags=["integrations"])
 
 
 class IntegrationHealthOut(BaseModel):
-    """Health status for a single integration"""
+    # Health status for a single integration
 
     name: str  # "Trakt", "Tautulli", etc.
     enabled: bool
@@ -37,7 +38,7 @@ class IntegrationHealthOut(BaseModel):
 
 
 class IntegrationsHealthOut(BaseModel):
-    """Overall integrations health summary"""
+    # Overall integrations health summary
 
     total_integrations: int
     enabled_count: int
@@ -51,9 +52,8 @@ class IntegrationsHealthOut(BaseModel):
 def get_integrations_health(
     current_user: str = Depends(get_current_user),
 ) -> IntegrationsHealthOut:
-    """
-    Get health status for all configured integrations.
-    """
+    # Get health status for all configured integrations
+        
     component, config = _check_config()
 
     integrations = []
@@ -63,7 +63,7 @@ def get_integrations_health(
     integrations.append(
         IntegrationHealthOut(
             name="Plex",
-            enabled=True,  # Plex is always required/enabled for core functionality
+            enabled=True,  # Plex is always required for core functionality (will need to change if Jellyfin is integrated)
             ok=plex_health.ok,
             status="online" if plex_health.ok else "error",
             detail=plex_health.error
@@ -138,6 +138,29 @@ def get_integrations_health(
             ok=mdblist_health.ok or not mdblist_enabled,
             status=mdblist_status,
             detail=mdblist_detail,
+        )
+    )
+
+    # 5. Seerr
+    seerr_health = _check_seerr(config)
+    seerr_enabled = bool(config.seerr and config.seerr.enabled)
+    if not seerr_enabled:
+        seerr_status = "disabled"
+        seerr_detail = seerr_health.error or "Seerr disabled"
+    elif not seerr_health.ok:
+        seerr_status = "error"
+        seerr_detail = seerr_health.error
+    else:
+        seerr_status = "online"
+        seerr_detail = "Seerr OK"
+
+    integrations.append(
+        IntegrationHealthOut(
+            name="Seerr",
+            enabled=seerr_enabled,
+            ok=seerr_health.ok or not seerr_enabled,
+            status=seerr_status,
+            detail=seerr_detail,
         )
     )
 

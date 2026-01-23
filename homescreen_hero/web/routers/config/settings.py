@@ -17,6 +17,7 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSettings,
     MDBListSettings,
     TautulliSettings,
+    SeerrSettings,
 )
 from homescreen_hero.core.scheduler import update_rotation_schedule
 
@@ -28,6 +29,7 @@ from .schemas import (
     LetterboxdConfigSaveRequest,
     MDBListConfigSaveRequest,
     TautulliConfigSaveRequest,
+    SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
 )
 
@@ -330,6 +332,72 @@ def save_tautulli_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="Tautulli settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# SEERR SETTINGS
+# ========================================================================
+
+@router.get("/seerr", response_model=SeerrSettings)
+def get_seerr_settings(current_user: str = Depends(get_current_user)) -> SeerrSettings:
+    # Return the currently configured Seerr settings
+    try:
+        config = load_config()
+        if config.seerr is None:
+            return SeerrSettings(
+                enabled=False,
+                api_key=None,
+                base_url="http://localhost:5055",
+            )
+        return config.seerr
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/seerr", response_model=ConfigSaveResponse)
+def save_seerr_settings(
+    payload: SeerrConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    # Update only Seerr settings in config.yaml while preserving other keys
+    try:
+        data = load_config_mapping()
+
+        seerr_section = data.get("seerr") if isinstance(data.get("seerr"), dict) else {}
+        seerr_section = dict(seerr_section)
+
+        # Only save api_key to config if it's not coming from environment variable
+        api_key_from_env = os.getenv("HSH_SEERR_API_KEY")
+        if api_key_from_env:
+            # Don't write api_key to config if it's set in environment
+            seerr_section.pop("api_key", None)
+        else:
+            # Write api_key to config only if not using env var
+            seerr_section["api_key"] = payload.api_key
+
+        seerr_section.update(
+            enabled=payload.enabled,
+            base_url=payload.base_url,
+        )
+
+        data["seerr"] = seerr_section
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Seerr settings saved and validated.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

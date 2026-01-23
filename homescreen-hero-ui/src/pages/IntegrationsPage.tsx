@@ -3,13 +3,14 @@ import { TraktIntegration } from "../components/integrations/TraktIntegration";
 import { LetterboxdIntegration } from "../components/integrations/LetterboxdIntegration";
 import { MDBListIntegration } from "../components/integrations/MDBListIntegration";
 import { TautulliIntegration } from "../components/integrations/TautulliIntegration";
+import { SeerrIntegration } from "../components/integrations/SeerrIntegration";
 
 const tabs = [
     { name: "Trakt", component: TraktIntegration },
     { name: "Letterboxd", component: LetterboxdIntegration },
     { name: "MDBList", component: MDBListIntegration },
     { name: "Tautulli", component: TautulliIntegration },
-    { name: "Overseerr", component: null, disabled: true },
+    { name: "Seerr", component: SeerrIntegration },
 ] as const;
 
 export default function IntegrationsPage() {

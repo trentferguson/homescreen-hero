@@ -67,6 +67,13 @@ tautulli:
   collect_on_rotation: true  # Automatically collect analytics after each rotation
   collect_interval_hours: 24  # How often to collect analytics snapshots (in hours)
 
+# Optional: Seerr/Jellyseerr/Overseerr integration
+seerr:
+  enabled: false
+  # api_key: "YOUR_SEERR_API_KEY"  # RECOMMENDED: Use HSH_SEERR_API_KEY environment variable instead
+  # Get your API key from: Seerr Settings → General → API Key
+  base_url: "http://localhost:5055"  # Your Seerr instance URL
+
 logging:
   level: INFO
 

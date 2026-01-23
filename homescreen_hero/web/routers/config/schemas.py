@@ -15,6 +15,7 @@ from homescreen_hero.core.config.schema import (
     MDBListSettings,
     MDBListSource,
     TautulliSettings,
+    SeerrSettings,
     CollectionGroupConfig,
 )
 
@@ -79,6 +80,11 @@ class MDBListSourcePayload(MDBListSource):
 
 # Incoming payload for Tautulli settings updates.
 class TautulliConfigSaveRequest(TautulliSettings):
+    pass
+
+
+# Incoming payload for Seerr settings updates.
+class SeerrConfigSaveRequest(SeerrSettings):
     pass
 
 
@@ -221,6 +227,8 @@ class EnvVarsResponse(BaseModel):
     mdblist_api_key_from_env: bool
     tautulli_api_key_from_env: bool
     tautulli_url_from_env: bool
+    seerr_api_key_from_env: bool
+    seerr_url_from_env: bool
 
 
 # Request payload for testing Trakt connection with provided credentials.
@@ -239,6 +247,12 @@ class MDBListTestRequest(BaseModel):
 class TautulliTestRequest(BaseModel):
     api_key: Optional[str] = None  # Falls back to HSH_TAUTULLI_API_KEY env var
     base_url: str = "http://localhost:8181"  # Falls back to HSH_TAUTULLI_BASE_URL env var
+
+
+# Request payload for testing Seerr connection with provided credentials.
+class SeerrTestRequest(BaseModel):
+    api_key: Optional[str] = None  # Falls back to HSH_SEERR_API_KEY env var
+    base_url: str = "http://localhost:5055"  # Falls back to HSH_SEERR_BASE_URL env var
 
 
 # Response for connection test endpoints.

@@ -17,6 +17,7 @@ from homescreen_hero.core.config.loader import (
 from homescreen_hero.core.integrations.trakt_client import TraktClient, TraktConfig
 from homescreen_hero.core.integrations.mdblist_client import MDBListClient, MDBListConfig
 from homescreen_hero.core.integrations.tautulli_client import TautulliClient, TautulliConfig
+from homescreen_hero.core.integrations.seerr_client import SeerrClient, SeerrConfig
 from homescreen_hero.core.scheduler import update_rotation_schedule
 
 from .schemas import (
@@ -28,6 +29,7 @@ from .schemas import (
     TraktTestRequest,
     MDBListTestRequest,
     TautulliTestRequest,
+    SeerrTestRequest,
     ConnectionTestResponse,
     QuickStartRequest,
 )
@@ -120,6 +122,8 @@ def check_env_vars() -> EnvVarsResponse:
         mdblist_api_key_from_env=bool(os.getenv("HSH_MDBLIST_API_KEY")),
         tautulli_api_key_from_env=bool(os.getenv("HSH_TAUTULLI_API_KEY")),
         tautulli_url_from_env=bool(os.getenv("HSH_TAUTULLI_BASE_URL")),
+        seerr_api_key_from_env=bool(os.getenv("HSH_SEERR_API_KEY")),
+        seerr_url_from_env=bool(os.getenv("HSH_SEERR_BASE_URL")),
     )
 
 
@@ -188,6 +192,28 @@ def test_tautulli_connection(payload: TautulliTestRequest) -> ConnectionTestResp
         return ConnectionTestResponse(ok=ok, error=error)
     except Exception as exc:
         logger.exception("Tautulli connection test failed")
+        return ConnectionTestResponse(ok=False, error=str(exc))
+
+
+@router.post("/test-seerr", response_model=ConnectionTestResponse)
+def test_seerr_connection(payload: SeerrTestRequest) -> ConnectionTestResponse:
+    # Test Seerr connection with provided credentials (for quick-start wizard).
+    try:
+        # Use provided values or fall back to environment variables
+        api_key = payload.api_key or os.getenv("HSH_SEERR_API_KEY")
+        base_url = payload.base_url or os.getenv("HSH_SEERR_BASE_URL", "http://localhost:5055")
+        if not api_key:
+            return ConnectionTestResponse(ok=False, error="No Seerr API Key provided")
+
+        cfg = SeerrConfig(
+            api_key=api_key,
+            base_url=base_url,
+        )
+        client = SeerrClient(cfg)
+        ok, error = client.ping()
+        return ConnectionTestResponse(ok=ok, error=error)
+    except Exception as exc:
+        logger.exception("Seerr connection test failed")
         return ConnectionTestResponse(ok=False, error=str(exc))
 
 

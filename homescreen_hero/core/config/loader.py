@@ -162,6 +162,23 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             logger.info("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
             config.tautulli.base_url = tautulli_base_url
 
+    # Seerr API key override (if Seerr is enabled)
+    if config.seerr and config.seerr.enabled:
+        seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
+        if seerr_api_key:
+            logger.info("Using Seerr API key from HSH_SEERR_API_KEY environment variable")
+            config.seerr.api_key = seerr_api_key
+        elif not config.seerr.api_key:
+            raise ValueError(
+                "Seerr API key is required when Seerr is enabled. Set it in config.yaml or via HSH_SEERR_API_KEY environment variable"
+            )
+
+        # Seerr base URL override (optional)
+        seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
+        if seerr_base_url:
+            logger.info("Using Seerr base URL from HSH_SEERR_BASE_URL environment variable")
+            config.seerr.base_url = seerr_base_url
+
     return config
 
 
