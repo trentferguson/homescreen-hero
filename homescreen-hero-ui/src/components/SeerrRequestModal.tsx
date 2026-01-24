@@ -12,7 +12,6 @@ import { ConfirmDialog } from "./ui/confirm-dialog";
 import {
     Film,
     Tv,
-    Star,
     Calendar,
     User,
     CheckCircle,
@@ -23,6 +22,12 @@ import {
 } from "lucide-react";
 import type { SeerrRequest, SeerrRequestDetail, SeerrRequestStatus } from "../types/seerr";
 import { SEERR_STATUS_COLORS } from "../types/seerr";
+import {
+    RTFreshIcon,
+    RTRottenIcon,
+    RTAudienceFreshIcon,
+    RTAudienceRottenIcon,
+} from "./icons/RottenTomatoesIcons";
 
 type Props = {
     request: SeerrRequest | null;
@@ -253,10 +258,35 @@ export default function SeerrRequestModal({
                                             </span>
                                         )}
 
-                                        {detail.media.voteAverage != null && detail.media.voteAverage > 0 && (
-                                            <span className="inline-flex items-center gap-1.5">
-                                                <Star className="h-4 w-4 text-yellow-400" />
-                                                {detail.media.voteAverage.toFixed(1)}
+                                        {detail.media.rottenTomatoesCriticScore != null && (
+                                            <span
+                                                className="inline-flex items-center gap-1"
+                                                title="Rotten Tomatoes Critic Score"
+                                            >
+                                                {detail.media.rottenTomatoesCriticScore >= 60 ? (
+                                                    <RTFreshIcon className="h-5 w-5" />
+                                                ) : (
+                                                    <RTRottenIcon className="h-5 w-5" />
+                                                )}
+                                                <span className={detail.media.rottenTomatoesCriticScore >= 60 ? "text-emerald-400" : "text-red-400"}>
+                                                    {detail.media.rottenTomatoesCriticScore}%
+                                                </span>
+                                            </span>
+                                        )}
+
+                                        {detail.media.rottenTomatoesAudienceScore != null && (
+                                            <span
+                                                className="inline-flex items-center gap-1"
+                                                title="Rotten Tomatoes Audience Score"
+                                            >
+                                                {detail.media.rottenTomatoesAudienceScore >= 60 ? (
+                                                    <RTAudienceFreshIcon className="h-5 w-5" />
+                                                ) : (
+                                                    <RTAudienceRottenIcon className="h-5 w-5" />
+                                                )}
+                                                <span className={detail.media.rottenTomatoesAudienceScore >= 60 ? "text-emerald-400" : "text-red-400"}>
+                                                    {detail.media.rottenTomatoesAudienceScore}%
+                                                </span>
                                             </span>
                                         )}
                                     </div>

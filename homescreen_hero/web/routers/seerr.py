@@ -50,6 +50,8 @@ class SeerrMediaDetail(BaseModel):
     releaseDate: Optional[str] = None
     voteAverage: Optional[float] = None
     tmdbId: Optional[int] = None
+    rottenTomatoesCriticScore: Optional[int] = None
+    rottenTomatoesAudienceScore: Optional[int] = None
 
 
 class SeerrRequestDetail(BaseModel):
@@ -395,6 +397,8 @@ def get_seerr_request_detail(
         overview = None
         release_date = None
         vote_average = None
+        rt_critic_score = None
+        rt_audience_score = None
 
         if tmdb_id:
             if media_type == "movie":
@@ -405,6 +409,10 @@ def get_seerr_request_detail(
                 overview = movie_data.get("overview")
                 release_date = movie_data.get("releaseDate")
                 vote_average = movie_data.get("voteAverage")
+                # Fetch Rotten Tomatoes scores from dedicated ratings endpoint
+                rt_ratings = client.get_movie_ratings(tmdb_id)
+                rt_critic_score = rt_ratings.get("criticsScore")
+                rt_audience_score = rt_ratings.get("audienceScore")
             elif media_type == "tv":
                 tv_data = client.get_tv(tmdb_id)
                 title = tv_data.get("name") or tv_data.get("originalName") or "Unknown"
@@ -413,6 +421,10 @@ def get_seerr_request_detail(
                 overview = tv_data.get("overview")
                 release_date = tv_data.get("firstAirDate")
                 vote_average = tv_data.get("voteAverage")
+                # Fetch Rotten Tomatoes scores from dedicated ratings endpoint
+                rt_ratings = client.get_tv_ratings(tmdb_id)
+                rt_critic_score = rt_ratings.get("criticsScore")
+                rt_audience_score = rt_ratings.get("audienceScore")
 
         # Get username
         username = None
@@ -437,6 +449,8 @@ def get_seerr_request_detail(
                 releaseDate=release_date,
                 voteAverage=vote_average,
                 tmdbId=tmdb_id,
+                rottenTomatoesCriticScore=rt_critic_score,
+                rottenTomatoesAudienceScore=rt_audience_score,
             ),
             status=display_status,
             statusLabel=DISPLAY_STATUS_LABELS.get(display_status, "Unknown"),

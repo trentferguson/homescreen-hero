@@ -136,6 +136,22 @@ class SeerrClient:
             logger.error("Failed to get TV show %s: %s", tmdb_id, exc)
             return {}
 
+    def get_movie_ratings(self, tmdb_id: int) -> Dict[str, Any]:
+        # Get Rotten Tomatoes ratings for a movie
+        try:
+            return self._request("GET", f"/movie/{tmdb_id}/ratings")
+        except Exception as exc:
+            logger.debug("Failed to get movie ratings %s: %s", tmdb_id, exc)
+            return {}
+
+    def get_tv_ratings(self, tmdb_id: int) -> Dict[str, Any]:
+        # Get Rotten Tomatoes ratings for a TV show
+        try:
+            return self._request("GET", f"/tv/{tmdb_id}/ratings")
+        except Exception as exc:
+            logger.debug("Failed to get TV ratings %s: %s", tmdb_id, exc)
+            return {}
+
     def approve_request(self, request_id: int) -> Tuple[bool, Optional[str]]:
         # Approve a pending request by ID
         # Returns (success, error_message)

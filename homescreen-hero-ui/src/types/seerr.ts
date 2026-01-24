@@ -37,6 +37,8 @@ export type SeerrMediaDetail = {
     releaseDate: string | null;
     voteAverage: number | null;
     tmdbId: number | null;
+    rottenTomatoesCriticScore: number | null;
+    rottenTomatoesAudienceScore: number | null;
 };
 
 // Detailed request for modal
