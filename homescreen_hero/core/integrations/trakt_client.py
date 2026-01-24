@@ -12,6 +12,28 @@ from ..config.schema import AppConfig, TraktSettings
 logger = logging.getLogger(__name__)
 
 
+def _parse_connection_error(exc: Exception, service_name: str) -> str:
+    # Parse requests.ConnectionError into user-friendly messages
+    error_str = str(exc).lower()
+
+    if "connection refused" in error_str:
+        return f"Connection refused. Check that {service_name} is running and the port is correct."
+    if "name or service not known" in error_str or "nodename nor servname" in error_str:
+        return "Host not found. Check that the hostname or IP address is correct."
+    if "no route to host" in error_str:
+        return "No route to host. Check the IP address and network connectivity."
+    if "network is unreachable" in error_str:
+        return "Network unreachable. Check your network connection."
+    if "ssl" in error_str or "certificate" in error_str:
+        return "SSL/TLS error. Check the URL or try a different protocol."
+    if "max retries" in error_str:
+        if "connection refused" in error_str:
+            return f"Connection refused. Check that {service_name} is running and the port is correct."
+        return f"Could not connect to {service_name}. Check the URL and ensure the server is running."
+
+    return f"Could not connect to {service_name}. Check the URL and network connectivity."
+
+
 @dataclass
 class TraktConfig:
     client_id: str
@@ -78,14 +100,19 @@ class TraktClient:
             logger.info("Trakt API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
-            return False, "Timeout while connecting to Trakt"
+            return False, "Connection timed out. Check your network connection."
+        except requests.ConnectionError as exc:
+            return False, _parse_connection_error(exc, "Trakt")
         except requests.HTTPError as exc:
             status = exc.response.status_code if exc.response else "unknown"
             if status == 401:
-                return False, "Unauthorized: invalid Trakt client_id"
-            return False, f"HTTP error from Trakt: {status}"
+                return False, "Invalid Client ID. Check your Trakt application credentials."
+            if status == 403:
+                return False, "Access forbidden. Your Client ID may be revoked."
+            return False, f"Trakt API returned error {status}"
         except Exception as exc:
-            return False, f"Error connecting to Trakt: {exc}"
+            logger.debug("Trakt ping error: %s", exc)
+            return False, "Connection failed. Check your network connection."
 
     def get_popular_movies(self, limit: int = 10) -> Any:
         return self._request(

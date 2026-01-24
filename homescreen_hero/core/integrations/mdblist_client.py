@@ -12,6 +12,26 @@ from ..config.schema import AppConfig, MDBListSettings
 logger = logging.getLogger(__name__)
 
 
+def _parse_connection_error(exc: Exception, service_name: str) -> str:
+    # Parse requests.ConnectionError into user-friendly messages
+    error_str = str(exc).lower()
+
+    if "connection refused" in error_str:
+        return f"Connection refused. Check that {service_name} is reachable."
+    if "name or service not known" in error_str or "nodename nor servname" in error_str:
+        return "Host not found. Check that the hostname or IP address is correct."
+    if "no route to host" in error_str:
+        return "No route to host. Check the IP address and network connectivity."
+    if "network is unreachable" in error_str:
+        return "Network unreachable. Check your network connection."
+    if "ssl" in error_str or "certificate" in error_str:
+        return "SSL/TLS error. Check the URL or try a different protocol."
+    if "max retries" in error_str:
+        return f"Could not connect to {service_name}. Check your network connection."
+
+    return f"Could not connect to {service_name}. Check your network connection."
+
+
 @dataclass
 class MDBListConfig:
     api_key: str
@@ -101,16 +121,19 @@ class MDBListClient:
             logger.info("MDBList API ping successful at %s", self.cfg.base_url)
             return True, f"API key valid. Rate limit: {remaining}/{limit} remaining"
         except requests.Timeout:
-            return False, "Timeout while connecting to MDBList"
+            return False, "Connection timed out. Check your network connection."
+        except requests.ConnectionError as exc:
+            return False, _parse_connection_error(exc, "MDBList")
         except requests.HTTPError as exc:
             status = exc.response.status_code if exc.response else "unknown"
             if status == 401:
-                return False, "Unauthorized: invalid MDBList API key"
-            elif status == 429:
-                return False, "Rate limit exceeded"
-            return False, f"HTTP error from MDBList: {status}"
+                return False, "Invalid API key. Check your MDBList API key."
+            if status == 429:
+                return False, "Rate limit exceeded. Try again later."
+            return False, f"MDBList API returned error {status}"
         except Exception as exc:
-            return False, f"Error connecting to MDBList: {exc}"
+            logger.debug("MDBList ping error: %s", exc)
+            return False, "Connection failed. Check your network connection."
 
     def get_list_items(self, list_url: str) -> List[MDBListMovie]:
         # Fetch movies from an MDBList URL

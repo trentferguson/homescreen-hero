@@ -19,6 +19,8 @@ services:
       HSH_MDBLIST_API_KEY: ${HSH_MDBLIST_API_KEY:-}
       HSH_TAUTULLI_API_KEY: ${HSH_TAUTULLI_API_KEY:-}
       HSH_TAUTULLI_BASE_URL: ${HSH_TAUTULLI_BASE_URL:-}
+      HSH_SEERR_API_KEY: ${HSH_SEERR_API_KEY:-}
+      HSH_SEERR_BASE_URL: ${HSH_SEERR_BASE_URL:-}
     volumes:
       - ./data:/data
     restart: unless-stopped

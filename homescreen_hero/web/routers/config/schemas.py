@@ -274,6 +274,9 @@ class QuickStartRequest(BaseModel):
     tautulli_enabled: bool = False
     tautulli_api_key: Optional[str] = None
     tautulli_base_url: str = "http://localhost:8181"
+    seerr_enabled: bool = False
+    seerr_api_key: Optional[str] = None
+    seerr_base_url: str = "http://localhost:5055"
     libraries: List[str] = []
     auth_enabled: bool = False
     auth_username: Optional[str] = None

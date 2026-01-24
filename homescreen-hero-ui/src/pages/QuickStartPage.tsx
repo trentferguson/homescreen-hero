@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
-import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, List, BarChart2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, List, BarChart2, Film } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
@@ -15,6 +15,8 @@ type EnvVars = {
     mdblist_api_key_from_env: boolean;
     tautulli_api_key_from_env: boolean;
     tautulli_url_from_env: boolean;
+    seerr_api_key_from_env: boolean;
+    seerr_url_from_env: boolean;
 };
 
 type Library = {
@@ -38,6 +40,9 @@ type WizardData = {
     tautulliEnabled: boolean;
     tautulliApiKey: string;
     tautulliBaseUrl: string;
+    seerrEnabled: boolean;
+    seerrApiKey: string;
+    seerrBaseUrl: string;
     rotationEnabled: boolean;
     rotationIntervalHours: number;
     rotationMaxCollections: number;
@@ -62,6 +67,9 @@ export default function QuickStartPage() {
         tautulliEnabled: false,
         tautulliApiKey: "",
         tautulliBaseUrl: "http://localhost:8181",
+        seerrEnabled: false,
+        seerrApiKey: "",
+        seerrBaseUrl: "http://localhost:5055",
         rotationEnabled: false,
         rotationIntervalHours: 12,
         rotationMaxCollections: 5,
@@ -78,6 +86,8 @@ export default function QuickStartPage() {
         mdblist_api_key_from_env: false,
         tautulli_api_key_from_env: false,
         tautulli_url_from_env: false,
+        seerr_api_key_from_env: false,
+        seerr_url_from_env: false,
     });
 
     useEffect(() => {
@@ -104,6 +114,7 @@ export default function QuickStartPage() {
                         <TraktStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <MDBListStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <TautulliStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
+                        <SeerrStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
                         <RotationStep wizardData={wizardData} setWizardData={setWizardData} />
                         <CompleteStep wizardData={wizardData} />
                     </Wizard>
@@ -1165,6 +1176,224 @@ function TautulliStep({ wizardData, setWizardData, envVars }: { wizardData: Wiza
     );
 }
 
+function SeerrStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
+    const { nextStep, previousStep } = useWizard();
+    const [localSeerrEnabled, setLocalSeerrEnabled] = useState(wizardData.seerrEnabled);
+    const [localSeerrApiKey, setLocalSeerrApiKey] = useState(wizardData.seerrApiKey);
+    const [localSeerrBaseUrl, setLocalSeerrBaseUrl] = useState(wizardData.seerrBaseUrl);
+    const [testingSeerr, setTestingSeerr] = useState(false);
+    const [seerrTestSuccess, setSeerrTestSuccess] = useState(false);
+    const [error, setError] = useState("");
+
+    const handleTestSeerr = async () => {
+        if ((!localSeerrApiKey && !envVars.seerr_api_key_from_env) || (!localSeerrBaseUrl && !envVars.seerr_url_from_env)) {
+            setError("Please enter both Seerr API Key and URL before testing");
+            return;
+        }
+
+        try {
+            setTestingSeerr(true);
+            setError("");
+            setSeerrTestSuccess(false);
+
+            // Test Seerr connection with provided credentials
+            // Send empty strings for values configured via env vars so backend uses env var values
+            const response = await fetch("/api/admin/config/test-seerr", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    api_key: envVars.seerr_api_key_from_env ? "" : localSeerrApiKey,
+                    base_url: envVars.seerr_url_from_env ? "" : localSeerrBaseUrl,
+                }),
+            });
+            if (!response.ok) {
+                throw new Error("Seerr connection test failed");
+            }
+
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(result.error || "Seerr connection test failed");
+            }
+
+            setSeerrTestSuccess(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Seerr connection test failed");
+            setSeerrTestSuccess(false);
+        } finally {
+            setTestingSeerr(false);
+        }
+    };
+
+    const handleNext = () => {
+        setWizardData({
+            ...wizardData,
+            seerrEnabled: localSeerrEnabled,
+            seerrApiKey: localSeerrApiKey,
+            seerrBaseUrl: localSeerrBaseUrl,
+        });
+        nextStep();
+    };
+
+    const handleSkip = () => {
+        setWizardData({
+            ...wizardData,
+            seerrEnabled: false,
+            seerrApiKey: "",
+            seerrBaseUrl: "http://localhost:5055",
+        });
+        nextStep();
+    };
+
+    return (
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="text-center space-y-2">
+                <Film className="h-12 w-12 text-primary mx-auto" />
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Seerr Integration</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Optionally connect Overseerr/Jellyseerr for media requests
+                </p>
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <input
+                        id="seerrEnabled"
+                        type="checkbox"
+                        checked={localSeerrEnabled}
+                        onChange={(e) => setLocalSeerrEnabled(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                    />
+                    <label htmlFor="seerrEnabled" className="flex-1 cursor-pointer">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                            Enable Seerr integration
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                            View and manage media requests from your dashboard
+                        </div>
+                    </label>
+                </div>
+
+                {localSeerrEnabled && (
+                    <div className="space-y-4 pl-4 border-l-2 border-primary">
+                        <div>
+                            <label htmlFor="seerrApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Seerr API Key
+                            </label>
+                            {envVars.seerr_api_key_from_env ? (
+                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                                        ✓ Seerr API Key configured via environment variable (HSH_SEERR_API_KEY)
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        id="seerrApiKey"
+                                        type="password"
+                                        value={localSeerrApiKey}
+                                        onChange={(e) => setLocalSeerrApiKey(e.target.value)}
+                                        required={localSeerrEnabled}
+                                        placeholder="Your Seerr API key"
+                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                    />
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        Found in Overseerr/Jellyseerr under Settings → General → API Key
+                                    </p>
+                                </>
+                            )}
+                        </div>
+
+                        <div>
+                            <label htmlFor="seerrBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                Seerr URL
+                            </label>
+                            {envVars.seerr_url_from_env ? (
+                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                                        ✓ Seerr URL configured via environment variable (HSH_SEERR_BASE_URL)
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        id="seerrBaseUrl"
+                                        type="text"
+                                        value={localSeerrBaseUrl}
+                                        onChange={(e) => setLocalSeerrBaseUrl(e.target.value)}
+                                        required={localSeerrEnabled}
+                                        placeholder="http://localhost:5055"
+                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                                    />
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        The URL where your Overseerr/Jellyseerr instance is running
+                                    </p>
+                                </>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleTestSeerr}
+                            disabled={testingSeerr || (!localSeerrApiKey && !envVars.seerr_api_key_from_env) || (!localSeerrBaseUrl && !envVars.seerr_url_from_env)}
+                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {testingSeerr ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Testing connection...
+                                </>
+                            ) : seerrTestSuccess ? (
+                                <>
+                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                    Connection successful!
+                                </>
+                            ) : (
+                                "Test Seerr Connection"
+                            )}
+                        </button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
+                        {error}
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3">
+                <button
+                    onClick={() => previousStep()}
+                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                    Back
+                </button>
+                {!localSeerrEnabled && (
+                    <button
+                        onClick={handleSkip}
+                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                        Skip
+                        <ArrowRight className="h-5 w-5" />
+                    </button>
+                )}
+                <button
+                    onClick={handleNext}
+                    disabled={localSeerrEnabled && !localSeerrApiKey && !envVars.seerr_api_key_from_env}
+                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    Next
+                    <ArrowRight className="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; setWizardData: (data: WizardData) => void }) {
     const { nextStep, previousStep } = useWizard();
     const [localRotationEnabled, setLocalRotationEnabled] = useState(wizardData.rotationEnabled);
@@ -1374,6 +1603,9 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                     tautulli_enabled: wizardData.tautulliEnabled,
                     tautulli_api_key: wizardData.tautulliEnabled ? wizardData.tautulliApiKey : null,
                     tautulli_base_url: wizardData.tautulliBaseUrl,
+                    seerr_enabled: wizardData.seerrEnabled,
+                    seerr_api_key: wizardData.seerrEnabled ? wizardData.seerrApiKey : null,
+                    seerr_base_url: wizardData.seerrBaseUrl,
                     libraries: wizardData.selectedLibraries,
                     auth_enabled: wizardData.authEnabled,
                     auth_username: wizardData.authUsername,
@@ -1442,6 +1674,12 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Tautulli</span>
                     <span className="text-sm text-slate-900 dark:text-white">
                         {wizardData.tautulliEnabled ? "Enabled" : "Disabled"}
+                    </span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Seerr</span>
+                    <span className="text-sm text-slate-900 dark:text-white">
+                        {wizardData.seerrEnabled ? "Enabled" : "Disabled"}
                     </span>
                 </div>
                 <div className="flex justify-between items-center">

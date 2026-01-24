@@ -343,6 +343,29 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
                 "collect_interval_hours": 24,
             }
 
+        # Add Seerr if enabled
+        # Use environment variables if payload values are empty
+        seerr_api_key = payload.seerr_api_key or os.getenv("HSH_SEERR_API_KEY", "")
+        seerr_api_key_from_env = os.getenv("HSH_SEERR_API_KEY")
+        seerr_base_url = payload.seerr_base_url or os.getenv("HSH_SEERR_BASE_URL", "http://localhost:5055")
+        seerr_url_from_env = os.getenv("HSH_SEERR_BASE_URL")
+
+        if payload.seerr_enabled and seerr_api_key:
+            minimal_config["seerr"] = {
+                "enabled": True,
+            }
+            # Only write api_key to config if not from environment variable
+            if not seerr_api_key_from_env:
+                minimal_config["seerr"]["api_key"] = seerr_api_key
+            # Only write base_url to config if not from environment variable
+            if not seerr_url_from_env:
+                minimal_config["seerr"]["base_url"] = seerr_base_url
+        else:
+            minimal_config["seerr"] = {
+                "enabled": False,
+                "base_url": seerr_base_url,
+            }
+
         # Add auth configuration
         # Check if password is provided via env var or payload
         password_from_env = os.getenv("HSH_AUTH_PASSWORD")

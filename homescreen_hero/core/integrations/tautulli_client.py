@@ -11,6 +11,28 @@ from ..config.schema import AppConfig, TautulliSettings
 logger = logging.getLogger(__name__)
 
 
+def _parse_connection_error(exc: Exception, service_name: str) -> str:
+    # Parse requests.ConnectionError into user-friendly messages
+    error_str = str(exc).lower()
+
+    if "connection refused" in error_str:
+        return f"Connection refused. Check that {service_name} is running and the port is correct."
+    if "name or service not known" in error_str or "nodename nor servname" in error_str:
+        return "Host not found. Check that the hostname or IP address is correct."
+    if "no route to host" in error_str:
+        return "No route to host. Check the IP address and network connectivity."
+    if "network is unreachable" in error_str:
+        return "Network unreachable. Check your network connection."
+    if "ssl" in error_str or "certificate" in error_str:
+        return "SSL/TLS error. Try using http:// instead of https://, or check the certificate."
+    if "max retries" in error_str:
+        if "connection refused" in error_str:
+            return f"Connection refused. Check that {service_name} is running and the port is correct."
+        return f"Could not connect to {service_name}. Check the URL and ensure the server is running."
+
+    return f"Could not connect to {service_name}. Check the URL and network connectivity."
+
+
 @dataclass
 class TautulliConfig:
     api_key: str
@@ -82,25 +104,31 @@ class TautulliClient:
         return resp.text
 
     def ping(self) -> Tuple[bool, Optional[str]]:
-        """
-        Health check for Tautulli connection.
-        Uses get_activity command as a simple test.
-        """
+        # Health check for Tautulli connection using get_activity command
         try:
             self._request("get_activity")
             logger.info("Tautulli API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
-            return False, "Timeout while connecting to Tautulli"
+            return False, "Connection timed out. Check that the URL is correct and the server is responding."
+        except requests.ConnectionError as exc:
+            return False, _parse_connection_error(exc, "Tautulli")
         except requests.HTTPError as exc:
             status = exc.response.status_code if exc.response else "unknown"
             if status == 401:
                 return False, "Unauthorized: invalid Tautulli API key"
-            return False, f"HTTP error from Tautulli: {status}"
+            if status == 404:
+                return False, "Server responded but API not found. Is this a Tautulli instance?"
+            return False, f"Server returned error {status}"
         except ValueError as exc:
-            return False, str(exc)
+            # Tautulli API returned an error response
+            msg = str(exc)
+            if "invalid api key" in msg.lower():
+                return False, "Invalid API key. Check your Tautulli API key."
+            return False, msg
         except Exception as exc:
-            return False, f"Error connecting to Tautulli: {exc}"
+            logger.debug("Tautulli ping error: %s", exc)
+            return False, "Connection failed. Check the URL and ensure the server is running."
 
     def get_libraries(self) -> List[Dict[str, Any]]:
         """
