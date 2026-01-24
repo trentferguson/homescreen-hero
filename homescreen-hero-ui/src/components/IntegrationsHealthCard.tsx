@@ -56,6 +56,7 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
             "Trakt": "/api/health/trakt",
             "Tautulli": "/api/health/tautulli",
             "MDBList": "/api/health/mdblist",
+            "Seerr": "/api/health/seerr",
         };
 
         const endpoint = endpointMap[name];

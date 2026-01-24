@@ -9,6 +9,7 @@ import HealthCard from "../components/HealthCard";
 import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
 import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
+import SeerrCarouselCard from "../components/SeerrCarouselCard";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
@@ -234,7 +235,7 @@ export default function Dashboard() {
         void loadHealth();
         void loadActiveCollections();
         void loadSchedulerStatus();
-        fetchWithAuth("/api/history/all?limit=10")
+        fetchWithAuth("/api/history/all?limit=50")
             .then(async (r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
                 return r.json();
@@ -597,7 +598,7 @@ export default function Dashboard() {
                     )}
                 </div>
 
-                {/* Recent Rotations - Half Width */}
+                {/* Recent Rotations + Seerr Requests - Half Width */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <RecentRotationsCard
                         items={rotationItems}
@@ -605,6 +606,7 @@ export default function Dashboard() {
                         loading={historyLoading}
                         formatTimeAgo={timeAgo}
                     />
+                    <SeerrCarouselCard loading={healthLoading} />
                 </div>
 
                 {/* Footer */}

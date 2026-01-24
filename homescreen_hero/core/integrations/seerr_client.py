@@ -92,6 +92,70 @@ class SeerrClient:
             logger.error("Failed to get Seerr status: %s", exc)
             return {}
 
+    def get_requests(
+        self,
+        take: int = 5,
+        skip: int = 0,
+        filter_status: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        # Get recent media requests from Seerr.
+        # Args:
+        #     take: Number of requests to return (default: 5)
+        #     skip: Number of requests to skip for pagination (default: 0)
+        #     filter_status: Optional filter (e.g., "pending", "approved", "available", "processing")
+        # Returns:
+        #     Dict with pageInfo and results array
+        try:
+            params: Dict[str, str] = {
+                "take": str(take),
+                "skip": str(skip),
+                "sort": "added",
+                "sortDirection": "desc",
+            }
+            if filter_status:
+                params["filter"] = filter_status
+
+            return self._request("GET", "/request", params=params)
+        except Exception as exc:
+            logger.error("Failed to get Seerr requests: %s", exc)
+            return {"pageInfo": {}, "results": []}
+
+    def get_movie(self, tmdb_id: int) -> Dict[str, Any]:
+        # Get movie details by TMDB ID
+        try:
+            return self._request("GET", f"/movie/{tmdb_id}")
+        except Exception as exc:
+            logger.error("Failed to get movie %s: %s", tmdb_id, exc)
+            return {}
+
+    def get_tv(self, tmdb_id: int) -> Dict[str, Any]:
+        # Get TV show details by TMDB ID
+        try:
+            return self._request("GET", f"/tv/{tmdb_id}")
+        except Exception as exc:
+            logger.error("Failed to get TV show %s: %s", tmdb_id, exc)
+            return {}
+
+    def approve_request(self, request_id: int) -> Tuple[bool, Optional[str]]:
+        # Approve a pending request by ID
+        # Returns (success, error_message)
+        try:
+            self._request("POST", f"/request/{request_id}/approve")
+            logger.info("Approved Seerr request %s", request_id)
+            return True, None
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response else "unknown"
+            if status == 404:
+                return False, f"Request {request_id} not found"
+            if status == 401:
+                return False, "Unauthorized: invalid API key"
+            if status == 403:
+                return False, "Forbidden: insufficient permissions to approve requests"
+            return False, f"HTTP error: {status}"
+        except Exception as exc:
+            logger.error("Failed to approve request %s: %s", request_id, exc)
+            return False, f"Error approving request: {exc}"
+
 
 def get_seerr_client(config: AppConfig) -> Optional[SeerrClient]:
     # Create a SeerrClient from AppConfig.
