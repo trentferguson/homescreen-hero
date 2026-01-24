@@ -6,13 +6,12 @@ import { ChevronDown, Check, ChevronLeft, ChevronRight, Film, Tv, CheckCircle, L
 import type { SeerrRequest, SeerrRequestStatus, SeerrRequestsResponse } from "../types/seerr";
 import { SEERR_STATUS_OPTIONS, SEERR_STATUS_COLORS } from "../types/seerr";
 import SeerrRequestModal from "./SeerrRequestModal";
+import SeerrQuickSearch from "./SeerrQuickSearch";
 
-// Carousel pages configuration (expandable for future pages)
+// Carousel pages configuration
 const PAGES = [
     { id: "requests", title: "Recent Requests", subtitle: "Latest media requests from users" },
-    // Future pages:
-    // { id: "charts", title: "Request Analytics", subtitle: "Request trends over time" },
-    // { id: "actions", title: "Quick Actions", subtitle: "Manage pending requests" },
+    { id: "search", title: "Quick Search", subtitle: "Search and request new media" },
 ] as const;
 
 type PageId = (typeof PAGES)[number]["id"];
@@ -275,37 +274,39 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Status Filter Dropdown */}
-                    <Listbox value={statusFilter} onChange={handleStatusChange}>
-                        <div className="relative">
-                            <Listbox.Button className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:border-primary/30 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all duration-200 flex items-center gap-1.5 min-w-[110px]">
-                                <span>
-                                    {SEERR_STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || "All Statuses"}
-                                </span>
-                                <ChevronDown className="h-3 w-3 text-slate-400" />
-                            </Listbox.Button>
-                            <Listbox.Options className="absolute z-10 mt-1 right-0 w-36 border border-slate-700/50 bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 max-h-60 overflow-auto scrollbar-hover-only focus:outline-none">
-                                {SEERR_STATUS_OPTIONS.map((option) => (
-                                    <Listbox.Option
-                                        key={String(option.value)}
-                                        value={option.value}
-                                        className="px-3 py-2 cursor-pointer transition-all duration-150 text-xs text-slate-300 hover:text-white hover:bg-primary/10 data-[selected]:bg-primary/20 data-[selected]:text-white flex items-center justify-between"
-                                    >
-                                        {({ selected }) => (
-                                            <>
-                                                <span className={selected ? "font-semibold" : ""}>
-                                                    {option.label}
-                                                </span>
-                                                {selected && <Check className="h-3 w-3 text-primary" />}
-                                            </>
-                                        )}
-                                    </Listbox.Option>
-                                ))}
-                            </Listbox.Options>
-                        </div>
-                    </Listbox>
+                    {/* Status Filter Dropdown (only on requests page) */}
+                    {activePage === "requests" && (
+                        <Listbox value={statusFilter} onChange={handleStatusChange}>
+                            <div className="relative">
+                                <Listbox.Button className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700/50 bg-slate-800/30 text-slate-300 hover:text-white hover:border-primary/30 hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all duration-200 flex items-center gap-1.5 min-w-[110px]">
+                                    <span>
+                                        {SEERR_STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label || "All Statuses"}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3 text-slate-400" />
+                                </Listbox.Button>
+                                <Listbox.Options className="absolute z-10 mt-1 right-0 w-36 border border-slate-700/50 bg-slate-900/95 backdrop-blur-sm rounded-lg shadow-lg shadow-black/20 max-h-60 overflow-auto scrollbar-hover-only focus:outline-none">
+                                    {SEERR_STATUS_OPTIONS.map((option) => (
+                                        <Listbox.Option
+                                            key={String(option.value)}
+                                            value={option.value}
+                                            className="px-3 py-2 cursor-pointer transition-all duration-150 text-xs text-slate-300 hover:text-white hover:bg-primary/10 data-[selected]:bg-primary/20 data-[selected]:text-white flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span className={selected ? "font-semibold" : ""}>
+                                                        {option.label}
+                                                    </span>
+                                                    {selected && <Check className="h-3 w-3 text-primary" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                    ))}
+                                </Listbox.Options>
+                            </div>
+                        </Listbox>
+                    )}
 
-                    {/* Navigation Arrows (hidden when only 1 page) */}
+                    {/* Navigation Arrows */}
                     {PAGES.length > 1 && (
                         <div className="flex items-center gap-1">
                             <button
@@ -327,69 +328,80 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                 </div>
             </div>
 
-            {/* Requests List */}
-            {requestsLoading ? (
-                <div className="space-y-3">
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                        <SkeletonItem key={idx} />
-                    ))}
-                </div>
-            ) : requests.length === 0 ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-slate-400">
-                    No requests found
-                    {statusFilter !== "all" && " for this status"}
-                </div>
-            ) : (
-                <ul className="space-y-2 max-h-[440px] overflow-y-auto scrollbar-hover-only pr-1">
-                    {requests.map((request) => (
-                        <li
-                            key={request.id}
-                            onClick={() => handleRowClick(request)}
-                            className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
-                        >
-                            {/* Media type icon */}
-                            <div className="pt-1">
-                                <MediaTypeIcon type={request.media.mediaType} />
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-semibold text-white truncate" title={request.media.title}>
-                                        {request.media.title}
-                                    </p>
-                                    <div className="flex items-center gap-1.5">
-                                        {/* Approve button for pending requests */}
-                                        {request.status === 1 && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleApprove(request.id);
-                                                }}
-                                                disabled={approvingId === request.id}
-                                                className="p-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                                                title="Approve request"
-                                            >
-                                                {approvingId === request.id ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                    <CheckCircle className="h-3.5 w-3.5" />
-                                                )}
-                                            </button>
-                                        )}
-                                        <StatusPill status={request.status} label={request.statusLabel} />
+            {/* Page Content */}
+            {activePage === "requests" && (
+                <>
+                    {requestsLoading ? (
+                        <div className="space-y-3">
+                            {Array.from({ length: 5 }).map((_, idx) => (
+                                <SkeletonItem key={idx} />
+                            ))}
+                        </div>
+                    ) : requests.length === 0 ? (
+                        <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-slate-400">
+                            No requests found
+                            {statusFilter !== "all" && " for this status"}
+                        </div>
+                    ) : (
+                        <ul className="space-y-2 max-h-[440px] overflow-y-auto scrollbar-hover-only pr-1">
+                            {requests.map((request) => (
+                                <li
+                                    key={request.id}
+                                    onClick={() => handleRowClick(request)}
+                                    className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
+                                >
+                                    {/* Media type icon */}
+                                    <div className="pt-1">
+                                        <MediaTypeIcon type={request.media.mediaType} />
                                     </div>
-                                </div>
 
-                                <div className="text-xs text-slate-400">
-                                    <span>Requested by {request.requestedBy.username}</span>
-                                    <span className="mx-1">·</span>
-                                    <span>{timeAgo(request.createdAt)}</span>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                                    {/* Content */}
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold text-white truncate" title={request.media.title}>
+                                                {request.media.title}
+                                            </p>
+                                            <div className="flex items-center gap-1.5">
+                                                {/* Approve button for pending requests */}
+                                                {request.status === 1 && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleApprove(request.id);
+                                                        }}
+                                                        disabled={approvingId === request.id}
+                                                        className="p-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                                        title="Approve request"
+                                                    >
+                                                        {approvingId === request.id ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle className="h-3.5 w-3.5" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <StatusPill status={request.status} label={request.statusLabel} />
+                                            </div>
+                                        </div>
+
+                                        <div className="text-xs text-slate-400">
+                                            <span>Requested by {request.requestedBy.username}</span>
+                                            <span className="mx-1">·</span>
+                                            <span>{timeAgo(request.createdAt)}</span>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </>
+            )}
+
+            {activePage === "search" && (
+                <SeerrQuickSearch
+                    onRequestCreated={loadRequests}
+                    seerrBaseUrl={seerrBaseUrl}
+                />
             )}
 
             {/* Dot Indicators (hidden when only 1 page) */}

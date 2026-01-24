@@ -64,6 +64,73 @@ class SeerrRequestDetail(BaseModel):
     requestedBy: SeerrRequestedBy
 
 
+# Search Models
+class SeerrSearchResult(BaseModel):
+    mediaType: str  # "movie" or "tv"
+    title: str
+    posterPath: Optional[str] = None
+    releaseDate: Optional[str] = None
+    voteAverage: Optional[float] = None
+    tmdbId: int
+    mediaStatus: Optional[int] = None  # 1=Unknown, 2=Pending, 3=Processing, 4=Partial, 5=Available
+
+
+class SeerrSearchResponse(BaseModel):
+    results: List[SeerrSearchResult]
+    totalResults: int
+    totalPages: int
+    page: int
+
+
+# Quality Profile Models
+class QualityProfile(BaseModel):
+    id: int
+    name: str
+
+
+class RootFolder(BaseModel):
+    id: int
+    path: str
+
+
+class ServiceInfo(BaseModel):
+    id: int
+    name: str
+    isDefault: bool
+    profiles: List[QualityProfile]
+    rootFolders: List[RootFolder]
+
+
+class ServicesResponse(BaseModel):
+    radarr: List[ServiceInfo]
+    sonarr: List[ServiceInfo]
+
+
+# TV Season Info
+class SeasonInfo(BaseModel):
+    seasonNumber: int
+    name: str
+    episodeCount: int
+    airDate: Optional[str] = None
+    status: Optional[int] = None
+
+
+# Create Request Models
+class CreateRequestBody(BaseModel):
+    mediaType: str
+    mediaId: int
+    seasons: Optional[List[int]] = None
+    serverId: Optional[int] = None
+    profileId: Optional[int] = None
+    rootFolder: Optional[str] = None
+
+
+class CreateRequestResponse(BaseModel):
+    success: bool
+    message: str
+    requestId: Optional[int] = None
+
+
 # Request status (request.status)
 REQUEST_STATUS_PENDING = 1
 REQUEST_STATUS_APPROVED = 2
@@ -469,4 +536,275 @@ def get_seerr_request_detail(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get request: {str(e)}",
+        )
+
+
+@router.get("/search", response_model=SeerrSearchResponse)
+def search_seerr(
+    query: str,
+    page: int = 1,
+    current_user: str = Depends(get_current_user),
+) -> SeerrSearchResponse:
+    # Search Overseerr for movies and TV shows
+    try:
+        config = load_config()
+
+        if not config.seerr or not config.seerr.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Seerr is not enabled or configured",
+            )
+
+        client = get_seerr_client(config)
+        if not client:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Seerr client",
+            )
+
+        data = client.search(query, page)
+        raw_results = data.get("results", [])
+
+        results = []
+        for item in raw_results:
+            media_type = item.get("mediaType")
+            if media_type not in ("movie", "tv"):
+                continue
+
+            # Get title based on media type
+            if media_type == "movie":
+                title = item.get("title") or item.get("originalTitle") or "Unknown"
+                release_date = item.get("releaseDate")
+            else:
+                title = item.get("name") or item.get("originalName") or "Unknown"
+                release_date = item.get("firstAirDate")
+
+            # Get media status if media info exists
+            media_info = item.get("mediaInfo")
+            media_status = media_info.get("status") if media_info else None
+
+            results.append(SeerrSearchResult(
+                mediaType=media_type,
+                title=title,
+                posterPath=item.get("posterPath"),
+                releaseDate=release_date,
+                voteAverage=item.get("voteAverage"),
+                tmdbId=item.get("id"),
+                mediaStatus=media_status,
+            ))
+
+        return SeerrSearchResponse(
+            results=results,
+            totalResults=data.get("totalResults", 0),
+            totalPages=data.get("totalPages", 0),
+            page=data.get("page", 1),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to search Seerr: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search: {str(e)}",
+        )
+
+
+@router.get("/services", response_model=ServicesResponse)
+def get_seerr_services(
+    current_user: str = Depends(get_current_user),
+) -> ServicesResponse:
+    # Get available Radarr/Sonarr services with quality profiles
+    try:
+        config = load_config()
+
+        if not config.seerr or not config.seerr.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Seerr is not enabled or configured",
+            )
+
+        client = get_seerr_client(config)
+        if not client:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Seerr client",
+            )
+
+        # Get Radarr servers and their profiles
+        radarr_settings = client.get_radarr_settings()
+        radarr_services = []
+        for server in radarr_settings:
+            server_id = server.get("id")
+            if server_id is None:
+                continue
+            # Fetch profiles for this server
+            profiles_data = client.get_radarr_profiles(server_id)
+            profiles = [
+                QualityProfile(id=p.get("id", 0), name=p.get("name", "Unknown"))
+                for p in profiles_data
+            ]
+            radarr_services.append(ServiceInfo(
+                id=server_id,
+                name=server.get("name", "Radarr"),
+                isDefault=server.get("isDefault", False),
+                profiles=profiles,
+                rootFolders=[],  # Not fetching root folders for now
+            ))
+
+        # Get Sonarr servers and their profiles
+        sonarr_settings = client.get_sonarr_settings()
+        sonarr_services = []
+        for server in sonarr_settings:
+            server_id = server.get("id")
+            if server_id is None:
+                continue
+            # Fetch profiles for this server
+            profiles_data = client.get_sonarr_profiles(server_id)
+            profiles = [
+                QualityProfile(id=p.get("id", 0), name=p.get("name", "Unknown"))
+                for p in profiles_data
+            ]
+            sonarr_services.append(ServiceInfo(
+                id=server_id,
+                name=server.get("name", "Sonarr"),
+                isDefault=server.get("isDefault", False),
+                profiles=profiles,
+                rootFolders=[],
+            ))
+
+        return ServicesResponse(
+            radarr=radarr_services,
+            sonarr=sonarr_services,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get Seerr services: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get services: {str(e)}",
+        )
+
+
+@router.get("/tv/{tmdb_id}/seasons", response_model=List[SeasonInfo])
+def get_tv_seasons(
+    tmdb_id: int,
+    current_user: str = Depends(get_current_user),
+) -> List[SeasonInfo]:
+    # Get season info for a TV show
+    try:
+        config = load_config()
+
+        if not config.seerr or not config.seerr.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Seerr is not enabled or configured",
+            )
+
+        client = get_seerr_client(config)
+        if not client:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Seerr client",
+            )
+
+        tv_data = client.get_tv(tmdb_id)
+        if not tv_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"TV show {tmdb_id} not found",
+            )
+
+        seasons = []
+        for s in tv_data.get("seasons", []):
+            season_num = s.get("seasonNumber", 0)
+            # Skip "specials" season (season 0) unless it has episodes
+            if season_num == 0 and s.get("episodeCount", 0) == 0:
+                continue
+
+            # Check if this season has been requested (via mediaInfo)
+            media_info = tv_data.get("mediaInfo")
+            season_status = None
+            if media_info:
+                # Look for this season in the requests
+                for req in media_info.get("requests", []):
+                    for req_season in req.get("seasons", []):
+                        if req_season.get("seasonNumber") == season_num:
+                            season_status = req_season.get("status")
+                            break
+
+            seasons.append(SeasonInfo(
+                seasonNumber=season_num,
+                name=s.get("name") or f"Season {season_num}",
+                episodeCount=s.get("episodeCount", 0),
+                airDate=s.get("airDate"),
+                status=season_status,
+            ))
+
+        return seasons
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get TV seasons for %s: %s", tmdb_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get seasons: {str(e)}",
+        )
+
+
+@router.post("/requests/new", response_model=CreateRequestResponse)
+def create_seerr_request(
+    body: CreateRequestBody,
+    current_user: str = Depends(get_current_user),
+) -> CreateRequestResponse:
+    # Create a new media request
+    try:
+        config = load_config()
+
+        if not config.seerr or not config.seerr.enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Seerr is not enabled or configured",
+            )
+
+        client = get_seerr_client(config)
+        if not client:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to initialize Seerr client",
+            )
+
+        success, error, result = client.create_request(
+            media_type=body.mediaType,
+            media_id=body.mediaId,
+            seasons=body.seasons,
+            server_id=body.serverId,
+            profile_id=body.profileId,
+            root_folder=body.rootFolder,
+        )
+
+        if not success:
+            return CreateRequestResponse(
+                success=False,
+                message=error or "Failed to create request",
+                requestId=None,
+            )
+
+        request_id = result.get("id") if result else None
+        return CreateRequestResponse(
+            success=True,
+            message="Request created successfully",
+            requestId=request_id,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create Seerr request: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create request: {str(e)}",
         )

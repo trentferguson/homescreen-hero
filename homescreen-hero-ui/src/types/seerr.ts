@@ -74,3 +74,90 @@ export const SEERR_STATUS_COLORS: Record<SeerrRequestStatus, { bg: string; text:
     5: { bg: "bg-purple-500/15", text: "text-purple-300", border: "ring-purple-500/30" },   // Processing
     6: { bg: "bg-orange-500/15", text: "text-orange-300", border: "ring-orange-500/30" },   // Partial
 };
+
+// Media status from Overseerr (different from request display status)
+// 1=Unknown, 2=Pending, 3=Processing, 4=Partial, 5=Available
+export type SeerrMediaStatus = 1 | 2 | 3 | 4 | 5;
+
+export const SEERR_MEDIA_STATUS_LABELS: Record<SeerrMediaStatus, string> = {
+    1: "Not Requested",
+    2: "Requested",
+    3: "Processing",
+    4: "Partially Available",
+    5: "Available",
+};
+
+export const SEERR_MEDIA_STATUS_COLORS: Record<SeerrMediaStatus, { bg: string; text: string; border: string }> = {
+    1: { bg: "bg-slate-500/15", text: "text-slate-300", border: "ring-slate-500/30" },
+    2: { bg: "bg-amber-500/15", text: "text-amber-300", border: "ring-amber-500/30" },
+    3: { bg: "bg-purple-500/15", text: "text-purple-300", border: "ring-purple-500/30" },
+    4: { bg: "bg-orange-500/15", text: "text-orange-300", border: "ring-orange-500/30" },
+    5: { bg: "bg-emerald-500/15", text: "text-emerald-300", border: "ring-emerald-500/30" },
+};
+
+// Search result from API
+export type SeerrSearchResult = {
+    mediaType: "movie" | "tv";
+    title: string;
+    posterPath: string | null;
+    releaseDate: string | null;
+    voteAverage: number | null;
+    tmdbId: number;
+    mediaStatus: SeerrMediaStatus | null;
+};
+
+export type SeerrSearchResponse = {
+    results: SeerrSearchResult[];
+    totalResults: number;
+    totalPages: number;
+    page: number;
+};
+
+// Quality profiles for request creation
+export type QualityProfile = {
+    id: number;
+    name: string;
+};
+
+export type RootFolder = {
+    id: number;
+    path: string;
+};
+
+export type ServiceInfo = {
+    id: number;
+    name: string;
+    isDefault: boolean;
+    profiles: QualityProfile[];
+    rootFolders: RootFolder[];
+};
+
+export type ServicesResponse = {
+    radarr: ServiceInfo[];
+    sonarr: ServiceInfo[];
+};
+
+// Season info for TV requests
+export type SeasonInfo = {
+    seasonNumber: number;
+    name: string;
+    episodeCount: number;
+    airDate: string | null;
+    status: SeerrMediaStatus | null;
+};
+
+// Request creation payload
+export type CreateRequestPayload = {
+    mediaType: "movie" | "tv";
+    mediaId: number;
+    seasons?: number[];
+    serverId?: number;
+    profileId?: number;
+    rootFolder?: string;
+};
+
+export type CreateRequestResponse = {
+    success: boolean;
+    message: string;
+    requestId: number | null;
+};

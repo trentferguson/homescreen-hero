@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import logging
 import requests
@@ -217,6 +217,92 @@ class SeerrClient:
         except Exception as exc:
             logger.error("Failed to get request %s: %s", request_id, exc)
             return {}
+
+    def search(self, query: str, page: int = 1) -> Dict[str, Any]:
+        # Combined search for movies and TV shows
+        # Overseerr requires %20 encoding for spaces (not +)
+        from urllib.parse import quote
+        try:
+            base_url = self._build_url("/search")
+            encoded_query = quote(query, safe="")
+            url = f"{base_url}?query={encoded_query}&page={page}"
+
+            resp = self.session.get(url, timeout=30.0)
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as exc:
+            logger.error("Failed to search Seerr: %s", exc)
+            return {"results": [], "totalResults": 0, "totalPages": 0, "page": 1}
+
+    def get_radarr_settings(self) -> List[Dict[str, Any]]:
+        # Get list of configured Radarr servers
+        try:
+            return self._request("GET", "/settings/radarr")
+        except Exception as exc:
+            logger.error("Failed to get Radarr settings: %s", exc)
+            return []
+
+    def get_radarr_profiles(self, radarr_id: int) -> List[Dict[str, Any]]:
+        # Get quality profiles for a specific Radarr server
+        try:
+            return self._request("GET", f"/settings/radarr/{radarr_id}/profiles")
+        except Exception as exc:
+            logger.error("Failed to get Radarr profiles for %s: %s", radarr_id, exc)
+            return []
+
+    def get_sonarr_settings(self) -> List[Dict[str, Any]]:
+        # Get list of configured Sonarr servers
+        try:
+            return self._request("GET", "/settings/sonarr")
+        except Exception as exc:
+            logger.error("Failed to get Sonarr settings: %s", exc)
+            return []
+
+    def get_sonarr_profiles(self, sonarr_id: int) -> List[Dict[str, Any]]:
+        # Get quality profiles for a specific Sonarr server
+        try:
+            return self._request("GET", f"/settings/sonarr/{sonarr_id}/profiles")
+        except Exception as exc:
+            logger.error("Failed to get Sonarr profiles for %s: %s", sonarr_id, exc)
+            return []
+
+    def create_request(
+        self,
+        media_type: str,
+        media_id: int,
+        seasons: Optional[List[int]] = None,
+        server_id: Optional[int] = None,
+        profile_id: Optional[int] = None,
+        root_folder: Optional[str] = None,
+    ) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
+        # Create a new media request
+        try:
+            body: Dict[str, Any] = {
+                "mediaType": media_type,
+                "mediaId": media_id,
+            }
+            if media_type == "tv" and seasons is not None:
+                body["seasons"] = seasons
+            if server_id is not None:
+                body["serverId"] = server_id
+            if profile_id is not None:
+                body["profileId"] = profile_id
+            if root_folder:
+                body["rootFolder"] = root_folder
+
+            result = self._request("POST", "/request", json=body)
+            logger.info("Created Seerr request for %s %s", media_type, media_id)
+            return True, None, result
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response else "unknown"
+            if status == 409:
+                return False, "Media already requested or available", None
+            if status == 403:
+                return False, "Insufficient permissions to create requests", None
+            return False, f"HTTP error: {status}", None
+        except Exception as exc:
+            logger.error("Failed to create request: %s", exc)
+            return False, f"Error creating request: {exc}", None
 
 
 def get_seerr_client(config: AppConfig) -> Optional[SeerrClient]:
