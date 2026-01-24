@@ -61,7 +61,7 @@ function SkeletonItem() {
 
 export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
     const [requests, setRequests] = useState<SeerrRequest[]>([]);
-    const [totalResults, setTotalResults] = useState(0);
+    const [_totalResults, setTotalResults] = useState(0);
     const [requestsLoading, setRequestsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [seerrEnabled, setSeerrEnabled] = useState<boolean | null>(null);

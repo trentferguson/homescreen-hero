@@ -71,8 +71,8 @@ export default function SeerrNewRequestModal({
     onRequestCreated,
     seerrBaseUrl,
 }: Props) {
-    const [mediaDetail, setMediaDetail] = useState<MediaDetail | null>(null);
-    const [services, setServices] = useState<ServicesResponse | null>(null);
+    const [_mediaDetail, setMediaDetail] = useState<MediaDetail | null>(null);
+    const [_services, setServices] = useState<ServicesResponse | null>(null);
     const [seasons, setSeasons] = useState<SeasonInfo[]>([]);
     const [selectedSeasons, setSelectedSeasons] = useState<number[]>([]);
     const [selectedService, setSelectedService] = useState<ServiceInfo | null>(null);

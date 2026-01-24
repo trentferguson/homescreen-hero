@@ -31,17 +31,9 @@ export default function IntegrationsPage() {
                     {tabs.map((tab) => (
                         <Tab
                             key={tab.name}
-                            disabled={"disabled" in tab && tab.disabled}
-                            className={`flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition focus:outline-none ${
-                                "disabled" in tab && tab.disabled
-                                    ? "border-slate-800/60 bg-slate-900/30 text-slate-500 cursor-not-allowed"
-                                    : "data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700"
-                            }`}
+                            className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition focus:outline-none data-[selected]:bg-primary data-[selected]:text-white data-[selected]:border-primary border-slate-800/60 bg-slate-900/60 text-slate-200 hover:border-slate-700"
                         >
                             {tab.name}
-                            {"disabled" in tab && tab.disabled && (
-                                <span className="text-xs opacity-60">(Coming Soon)</span>
-                            )}
                         </Tab>
                     ))}
                 </Tab.List>
