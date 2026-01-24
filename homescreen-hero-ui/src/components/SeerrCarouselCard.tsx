@@ -5,6 +5,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronDown, Check, ChevronLeft, ChevronRight, Film, Tv, CheckCircle, Loader2 } from "lucide-react";
 import type { SeerrRequest, SeerrRequestStatus, SeerrRequestsResponse } from "../types/seerr";
 import { SEERR_STATUS_OPTIONS, SEERR_STATUS_COLORS } from "../types/seerr";
+import SeerrRequestModal from "./SeerrRequestModal";
 
 // Carousel pages configuration (expandable for future pages)
 const PAGES = [
@@ -65,9 +66,12 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
     const [requestsLoading, setRequestsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [seerrEnabled, setSeerrEnabled] = useState<boolean | null>(null);
+    const [seerrBaseUrl, setSeerrBaseUrl] = useState<string>("");
     const [statusFilter, setStatusFilter] = useState<string>(getStoredStatusFilter);
     const [activePage, setActivePage] = useState<PageId>("requests");
     const [approvingId, setApprovingId] = useState<number | null>(null);
+    const [selectedRequest, setSelectedRequest] = useState<SeerrRequest | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
 
     useEffect(() => {
         loadRequests();
@@ -92,6 +96,9 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
             }
 
             setSeerrEnabled(true);
+            if (config.base_url) {
+                setSeerrBaseUrl(config.base_url);
+            }
 
             // Build query params - fetch up to 50 requests for scrollable list
             const params = new URLSearchParams({ take: "50" });
@@ -153,6 +160,34 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
         } finally {
             setApprovingId(null);
         }
+    };
+
+    const handleRowClick = (request: SeerrRequest) => {
+        setSelectedRequest(request);
+        setModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setModalOpen(false);
+        setSelectedRequest(null);
+    };
+
+    const handleRequestStatusChange = (requestId: number, newStatus: SeerrRequestStatus, newLabel: string) => {
+        setRequests((prev) =>
+            prev.map((r) =>
+                r.id === requestId ? { ...r, status: newStatus, statusLabel: newLabel } : r
+            )
+        );
+        // Also update selectedRequest if it's the same one
+        if (selectedRequest?.id === requestId) {
+            setSelectedRequest((prev) =>
+                prev ? { ...prev, status: newStatus, statusLabel: newLabel } : prev
+            );
+        }
+    };
+
+    const handleDelete = (requestId: number) => {
+        setRequests((prev) => prev.filter((r) => r.id !== requestId));
     };
 
     const currentPageInfo = PAGES.find((p) => p.id === activePage)!;
@@ -309,7 +344,8 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                     {requests.map((request) => (
                         <li
                             key={request.id}
-                            className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200"
+                            onClick={() => handleRowClick(request)}
+                            className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
                         >
                             {/* Media type icon */}
                             <div className="pt-1">
@@ -326,7 +362,10 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                                         {/* Approve button for pending requests */}
                                         {request.status === 1 && (
                                             <button
-                                                onClick={() => handleApprove(request.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleApprove(request.id);
+                                                }}
                                                 disabled={approvingId === request.id}
                                                 className="p-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                                 title="Approve request"
@@ -370,6 +409,16 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                     ))}
                 </div>
             )}
+
+            {/* Request Detail Modal */}
+            <SeerrRequestModal
+                request={selectedRequest}
+                open={modalOpen}
+                onClose={handleModalClose}
+                onStatusChange={handleRequestStatusChange}
+                onDelete={handleDelete}
+                seerrBaseUrl={seerrBaseUrl}
+            />
         </div>
     );
 }

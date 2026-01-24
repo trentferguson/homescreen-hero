@@ -27,6 +27,29 @@ export type SeerrRequestsResponse = {
     totalResults: number;
 };
 
+// Detailed media info for modal
+export type SeerrMediaDetail = {
+    mediaType: "movie" | "tv" | "unknown";
+    title: string;
+    posterPath: string | null;
+    backdropPath: string | null;
+    overview: string | null;
+    releaseDate: string | null;
+    voteAverage: number | null;
+    tmdbId: number | null;
+};
+
+// Detailed request for modal
+export type SeerrRequestDetail = {
+    id: number;
+    media: SeerrMediaDetail;
+    status: SeerrRequestStatus;
+    statusLabel: string;
+    createdAt: string;
+    updatedAt: string | null;
+    requestedBy: SeerrRequestedBy;
+};
+
 // Status filter options for dropdown (string values for API)
 export const SEERR_STATUS_OPTIONS = [
     { value: "all", label: "All Statuses" },

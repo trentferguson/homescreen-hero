@@ -156,6 +156,52 @@ class SeerrClient:
             logger.error("Failed to approve request %s: %s", request_id, exc)
             return False, f"Error approving request: {exc}"
 
+    def decline_request(self, request_id: int) -> Tuple[bool, Optional[str]]:
+        # Decline a pending request by ID
+        try:
+            self._request("POST", f"/request/{request_id}/decline")
+            logger.info("Declined Seerr request %s", request_id)
+            return True, None
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response else "unknown"
+            if status == 404:
+                return False, f"Request {request_id} not found"
+            if status == 401:
+                return False, "Unauthorized: invalid API key"
+            if status == 403:
+                return False, "Forbidden: insufficient permissions to decline requests"
+            return False, f"HTTP error: {status}"
+        except Exception as exc:
+            logger.error("Failed to decline request %s: %s", request_id, exc)
+            return False, f"Error declining request: {exc}"
+
+    def delete_request(self, request_id: int) -> Tuple[bool, Optional[str]]:
+        # Delete a request by ID
+        try:
+            self._request("DELETE", f"/request/{request_id}")
+            logger.info("Deleted Seerr request %s", request_id)
+            return True, None
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response else "unknown"
+            if status == 404:
+                return False, f"Request {request_id} not found"
+            if status == 401:
+                return False, "Unauthorized: invalid API key"
+            if status == 403:
+                return False, "Forbidden: insufficient permissions to delete requests"
+            return False, f"HTTP error: {status}"
+        except Exception as exc:
+            logger.error("Failed to delete request %s: %s", request_id, exc)
+            return False, f"Error deleting request: {exc}"
+
+    def get_request(self, request_id: int) -> Dict[str, Any]:
+        # Get a single request by ID
+        try:
+            return self._request("GET", f"/request/{request_id}")
+        except Exception as exc:
+            logger.error("Failed to get request %s: %s", request_id, exc)
+            return {}
+
 
 def get_seerr_client(config: AppConfig) -> Optional[SeerrClient]:
     # Create a SeerrClient from AppConfig.
