@@ -9,6 +9,7 @@ export interface WidgetDefinition {
     category: WidgetCategory;
     section: WidgetSection;
     requiresIntegration?: RequiredIntegration;
+    colSpan?: number; // 1 = single column, 2 = two columns, 4 = full width
 }
 
 export const widgetRegistry: Record<string, WidgetDefinition> = {
@@ -49,6 +50,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         description: "Currently featured collections on your Plex home",
         category: "activity",
         section: "main",
+        colSpan: 4,
     },
     "analytics": {
         id: "analytics",
@@ -73,6 +75,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         category: "analytics",
         section: "main",
         requiresIntegration: "tautulli",
+        colSpan: 2,
     },
     "recent-rotations": {
         id: "recent-rotations",
@@ -80,6 +83,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         description: "History of collection rotations",
         category: "activity",
         section: "main",
+        colSpan: 2,
     },
     "seerr-carousel": {
         id: "seerr-carousel",
@@ -88,6 +92,7 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         category: "integrations",
         section: "main",
         requiresIntegration: "seerr",
+        colSpan: 2,
     },
 };
 

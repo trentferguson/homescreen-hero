@@ -118,7 +118,7 @@ export default function SeerrQuickSearch({ onRequestCreated, seerrBaseUrl }: Pro
     };
 
     return (
-        <div className="space-y-3">
+        <div className="flex flex-col h-full gap-3">
             {/* Search Input */}
             <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -133,7 +133,7 @@ export default function SeerrQuickSearch({ onRequestCreated, seerrBaseUrl }: Pro
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search movies & TV shows..."
-                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-700/50 bg-slate-800/50 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-700/50 bg-slate-800/50 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary/50 focus:border-primary/30 transition-[border-color]"
                 />
                 {query && (
                     <button
@@ -147,28 +147,28 @@ export default function SeerrQuickSearch({ onRequestCreated, seerrBaseUrl }: Pro
 
             {/* Results */}
             {loading && results.length === 0 ? (
-                <div className="space-y-2">
+                <div className="flex-1 min-h-0 space-y-2 overflow-y-auto scrollbar-hover-only pr-1">
                     {Array.from({ length: 4 }).map((_, idx) => (
                         <SkeletonItem key={idx} />
                     ))}
                 </div>
             ) : error ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-red-400">
+                <div className="flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-red-400">
                     {error}
                 </div>
             ) : results.length === 0 && debouncedQuery.length >= 2 ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-slate-400">
+                <div className="flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-6 text-center text-sm text-slate-400">
                     No results found for "{debouncedQuery}"
                 </div>
             ) : results.length === 0 ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-8 text-center">
-                    <Search className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                <div className="flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-8 flex flex-col items-center justify-center">
+                    <Search className="h-8 w-8 text-slate-600 mb-2" />
                     <p className="text-sm text-slate-400">
                         Search for movies or TV shows to request
                     </p>
                 </div>
             ) : (
-                <ul className="space-y-2 max-h-[380px] overflow-y-auto scrollbar-hover-only pr-1">
+                <ul className="flex-1 min-h-0 space-y-2 overflow-y-auto scrollbar-hover-only pr-1">
                     {results.map((result) => (
                         <li
                             key={`${result.mediaType}-${result.tmdbId}`}

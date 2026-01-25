@@ -288,3 +288,18 @@ select option {
 .react-datepicker__input-container input:first-child {
     padding-left: 0.75rem !important;
 }
+
+/* ===== Dashboard Edit Mode Wiggle Animation ===== */
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-0.15deg); }
+    75% { transform: rotate(0.15deg); }
+}
+
+.edit-mode-widget {
+    animation: wiggle 0.3s ease-in-out infinite;
+}
+
+.edit-mode-widget:hover {
+    animation: none;
+}

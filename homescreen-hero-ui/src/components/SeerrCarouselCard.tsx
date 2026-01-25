@@ -398,10 +398,12 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
             )}
 
             {activePage === "search" && (
-                <SeerrQuickSearch
-                    onRequestCreated={loadRequests}
-                    seerrBaseUrl={seerrBaseUrl}
-                />
+                <div className="flex-1 min-h-0 overflow-hidden">
+                    <SeerrQuickSearch
+                        onRequestCreated={loadRequests}
+                        seerrBaseUrl={seerrBaseUrl}
+                    />
+                </div>
             )}
 
             {/* Dot Indicators (hidden when only 1 page) */}

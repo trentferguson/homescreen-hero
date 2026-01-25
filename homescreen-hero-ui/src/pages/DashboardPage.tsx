@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { Settings } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
+import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
+import { Lock, Unlock } from "lucide-react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
+import { DraggableWidget, DroppableSection, EditModeBanner } from "../components/dashboard";
+import { widgetRegistry } from "../widgets/registry";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import AnalyticsCard from "../components/AnalyticsCard";
 import MostActiveUsersCard from "../components/MostActiveUsersCard";
@@ -11,7 +15,6 @@ import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
 import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
 import SeerrCarouselCard from "../components/SeerrCarouselCard";
-import DashboardSettingsModal from "../components/DashboardSettingsModal";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
@@ -76,7 +79,6 @@ export default function Dashboard() {
     const [busy, setBusy] = useState<null | "simulate" | "apply" | "sync">(null);
     const [simulation, setSimulation] = useState<RotationExecution | null>(null);
     const [showSimulationModal, setShowSimulationModal] = useState(false);
-    const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
@@ -98,11 +100,60 @@ export default function Dashboard() {
         visibleStatusBarWidgets,
         visibleMainWidgets,
         toggleVisibility,
-        resetToDefaults,
         isWidgetAvailable,
-        canEnableWidget,
-        enabledStatusBarCount,
+        isEditMode,
+        toggleEditMode,
+        reorderStatusBarWidgets,
+        reorderMainWidgets,
     } = useDashboardLayout({ tautulli: tautulliEnabled, seerr: seerrEnabled });
+
+    // Compute hidden widgets for the "Add Widget" dropdown
+    const hiddenWidgets = useMemo(() => {
+        return Object.values(widgetRegistry)
+            .filter((widget) => !visibilityMap[widget.id])
+            .map((widget) => ({
+                id: widget.id,
+                name: widget.name,
+                description: widget.description,
+                available: isWidgetAvailable(widget.id),
+            }));
+    }, [visibilityMap, isWidgetAvailable]);
+
+    // Track which widget is being dragged for overlay
+    const [activeId, setActiveId] = useState<string | null>(null);
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(String(event.active.id));
+    };
+
+    // Handle drag over for real-time reordering preview
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) return;
+
+        const draggedId = String(active.id);
+        const overId = String(over.id);
+
+        // Only reorder within the same section
+        const activeWidget = widgetRegistry[draggedId];
+        const overWidget = widgetRegistry[overId];
+
+        if (!activeWidget || !overWidget) return;
+        if (activeWidget.section !== overWidget.section) return;
+
+        // Reorder during drag for real-time preview
+        if (activeWidget.section === "status-bar") {
+            reorderStatusBarWidgets(draggedId, overId);
+        } else {
+            reorderMainWidgets(draggedId, overId);
+        }
+    };
+
+    // Handle drag end - just clear the active state
+    const handleDragEnd = (_event: DragEndEvent) => {
+        setActiveId(null);
+    };
 
     const plex = health.plex;
 
@@ -437,38 +488,25 @@ export default function Dashboard() {
                     />
                 );
             case "active-collections":
-                return (
-                    <div key={widgetId} className="col-span-full w-full">
-                        <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
-                    </div>
-                );
+                return <ActiveCollectionsCard key={widgetId} collections={activeCollections} loading={activeLoading} />;
             case "analytics":
                 return <AnalyticsCard key={widgetId} loading={healthLoading} />;
             case "most-active-users":
                 return <MostActiveUsersCard key={widgetId} loading={healthLoading} />;
             case "graph-carousel":
-                return (
-                    <div key={widgetId} className="sm:col-span-2 h-full">
-                        <GraphCarouselCard loading={healthLoading} />
-                    </div>
-                );
+                return <GraphCarouselCard key={widgetId} loading={healthLoading} />;
             case "recent-rotations":
                 return (
-                    <div key={widgetId} className="sm:col-span-2">
-                        <RecentRotationsCard
-                            items={rotationItems}
-                            lastRun={lastRun}
-                            loading={historyLoading}
-                            formatTimeAgo={timeAgo}
-                        />
-                    </div>
+                    <RecentRotationsCard
+                        key={widgetId}
+                        items={rotationItems}
+                        lastRun={lastRun}
+                        loading={historyLoading}
+                        formatTimeAgo={timeAgo}
+                    />
                 );
             case "seerr-carousel":
-                return (
-                    <div key={widgetId} className="sm:col-span-2 h-full">
-                        <SeerrCarouselCard loading={healthLoading} />
-                    </div>
-                );
+                return <SeerrCarouselCard key={widgetId} loading={healthLoading} />;
             default:
                 return null;
         }
@@ -607,18 +645,7 @@ export default function Dashboard() {
                 </div>
             ) : null}
 
-            <DashboardSettingsModal
-                open={showSettingsModal}
-                onOpenChange={setShowSettingsModal}
-                visibilityMap={visibilityMap}
-                onToggle={toggleVisibility}
-                onReset={resetToDefaults}
-                isWidgetAvailable={isWidgetAvailable}
-                canEnableWidget={canEnableWidget}
-                enabledStatusBarCount={enabledStatusBarCount}
-            />
-
-            <div className="max-w-8xl mx-auto flex flex-col gap-8">
+            <div className="max-w-8xl mx-auto flex flex-col gap-4">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex flex-col gap-1.5">
@@ -630,11 +657,15 @@ export default function Dashboard() {
 
                     <div className="flex gap-3 flex-wrap">
                         <button
-                            onClick={() => setShowSettingsModal(true)}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95"
-                            title="Customize dashboard"
+                            onClick={toggleEditMode}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
+                                isEditMode
+                                    ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                                    : "border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300"
+                            }`}
+                            title={isEditMode ? "Lock dashboard" : "Edit layout"}
                         >
-                            <Settings size={18} />
+                            {isEditMode ? <Unlock size={18} /> : <Lock size={18} />}
                         </button>
 
                         <button
@@ -679,19 +710,66 @@ export default function Dashboard() {
                     </pre>
                 ) : null}
 
-                {/* Status Bar - always 4 columns for 1x1 health widgets */}
-                {visibleStatusBarWidgets.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {visibleStatusBarWidgets.map((widgetId) => renderWidget(widgetId))}
-                    </div>
-                )}
+                <DndContext
+                    collisionDetection={rectIntersection}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDragEnd={handleDragEnd}
+                >
+                    {/* Edit mode banner */}
+                    {isEditMode && (
+                        <EditModeBanner
+                            hiddenWidgets={hiddenWidgets}
+                            onAddWidget={toggleVisibility}
+                        />
+                    )}
 
-                {/* Main Widget Grid */}
-                {visibleMainWidgets.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {visibleMainWidgets.map((widgetId) => renderWidget(widgetId))}
-                    </div>
-                )}
+                    {/* Status Bar - always 4 columns for 1x1 health widgets */}
+                    {visibleStatusBarWidgets.length > 0 && (
+                        <DroppableSection id="status-bar" items={visibleStatusBarWidgets}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {visibleStatusBarWidgets.map((widgetId) => (
+                                    <DraggableWidget
+                                        key={widgetId}
+                                        id={widgetId}
+                                        isEditMode={isEditMode}
+                                        onHide={() => toggleVisibility(widgetId)}
+                                    >
+                                        {renderWidget(widgetId)}
+                                    </DraggableWidget>
+                                ))}
+                            </div>
+                        </DroppableSection>
+                    )}
+
+                    {/* Main Widget Grid */}
+                    {visibleMainWidgets.length > 0 && (
+                        <DroppableSection id="main" items={visibleMainWidgets}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {visibleMainWidgets.map((widgetId) => (
+                                    <DraggableWidget
+                                        key={widgetId}
+                                        id={widgetId}
+                                        isEditMode={isEditMode}
+                                        colSpan={widgetRegistry[widgetId]?.colSpan}
+                                        onHide={() => toggleVisibility(widgetId)}
+                                    >
+                                        {renderWidget(widgetId)}
+                                    </DraggableWidget>
+                                ))}
+                            </div>
+                        </DroppableSection>
+                    )}
+
+                    {/* Drag overlay for smooth visual feedback */}
+                    <DragOverlay>
+                        {activeId ? (
+                            <div className="opacity-90 shadow-2xl rounded-xl">
+                                {renderWidget(activeId)}
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
 
                 {/* Footer */}
                 <div className="border-t border-slate-200 dark:border-slate-800 mt-4 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-500">
