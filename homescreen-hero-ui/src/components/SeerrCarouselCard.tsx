@@ -348,7 +348,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                                 <li
                                     key={request.id}
                                     onClick={() => handleRowClick(request)}
-                                    className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
+                                    className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 px-2.5 py-1.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
                                 >
                                     {/* Media type icon */}
                                     <div className="pt-1">
@@ -406,7 +406,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
 
             {/* Dot Indicators (hidden when only 1 page) */}
             {PAGES.length > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
+                <div className="flex items-center justify-center gap-2">
                     {PAGES.map((page) => (
                         <button
                             key={page.id}

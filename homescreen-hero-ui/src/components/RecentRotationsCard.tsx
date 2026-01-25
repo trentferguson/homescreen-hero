@@ -70,7 +70,7 @@ export default function RecentRotationsCard({
     const [selectedRotation, setSelectedRotation] = useState<RotationEvent | null>(null);
 
     return (
-        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-5 space-y-4 transition-all duration-300 hover:bg-slate-800/30">
+        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-5 space-y-4 transition-all duration-300 hover:bg-slate-800/30 h-[420px] flex flex-col">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <h3 className="text-lg font-bold text-white tracking-tight">Recent Rotations</h3>
@@ -95,14 +95,14 @@ export default function RecentRotationsCard({
                     No rotation history available yet.
                 </div>
             ) : (
-                <ul className="space-y-2 max-h-[440px] overflow-y-auto scrollbar-hover-only pr-1">
+                <ul className="space-y-2 flex-1 overflow-y-auto scrollbar-hover-only pr-1">
                     {displayItems.map((event, idx) => {
                         const { created_at, success, summary, error_message, featured_collections } = event;
                         const hasMoreInfo = featured_collections.length > 2 || (error_message && error_message.length > 100);
                         return (
                             <li
                                 key={`${created_at}-${idx}`}
-                                className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-2.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
+                                className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 px-2.5 py-1.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
                                 onClick={() => setSelectedRotation(event)}
                             >
                                 <div className="pt-1">
