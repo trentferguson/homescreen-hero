@@ -43,7 +43,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<MediaItem[]>([]);
     const [searching, setSearching] = useState(false);
-    const [hasSearched, setHasSearched] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
 
     // Library filter
     const [libraries, setLibraries] = useState<Library[]>([]);
@@ -60,51 +60,81 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
     const [updating, setUpdating] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-    // Fetch libraries on mount
-    useEffect(() => {
-        fetchWithAuth("/api/collections/libraries")
-            .then((r) => r.json())
-            .then((data) => setLibraries(data.libraries || []))
-            .catch((e) => console.error("Failed to fetch libraries:", e));
-    }, []);
-
-    // Debounced search
-    const performSearch = useCallback(async (query: string, library: string) => {
-        if (!query.trim()) {
-            setSearchResults([]);
-            setHasSearched(false);
-            setSearching(false);
-            return;
-        }
-
-        setSearching(true);
-        setHasSearched(true);
-
+    // Fetch recent media (for initial display)
+    const fetchRecentMedia = useCallback(async (library: string) => {
         try {
             const params = new URLSearchParams({
-                query: query.trim(),
                 library: library,
                 limit: "50",
             });
-
-            const response = await fetchWithAuth(`/api/tools/search-media?${params}`);
+            const response = await fetchWithAuth(`/api/tools/recent-media?${params}`);
             const data = await response.json();
-            setSearchResults(data.items || []);
+            return data.items || [];
+        } catch (e) {
+            console.error("Failed to fetch recent media:", e);
+            return [];
+        }
+    }, []);
+
+    // Fetch libraries and recent media on mount
+    useEffect(() => {
+        const init = async () => {
+            try {
+                const libResponse = await fetchWithAuth("/api/collections/libraries");
+                const libData = await libResponse.json();
+                setLibraries(libData.libraries || []);
+            } catch (e) {
+                console.error("Failed to fetch libraries:", e);
+            }
+
+            // Load recently added items
+            const recentItems = await fetchRecentMedia("all");
+            setSearchResults(recentItems);
+            setInitialLoading(false);
+        };
+
+        init();
+    }, [fetchRecentMedia]);
+
+    // Debounced search or recent fetch
+    const performSearch = useCallback(async (query: string, library: string) => {
+        setSearching(true);
+
+        try {
+            if (!query.trim()) {
+                // No query - fetch recent items
+                const recentItems = await fetchRecentMedia(library);
+                setSearchResults(recentItems);
+            } else {
+                // Search with query
+                const params = new URLSearchParams({
+                    query: query.trim(),
+                    library: library,
+                    limit: "50",
+                });
+
+                const response = await fetchWithAuth(`/api/tools/search-media?${params}`);
+                const data = await response.json();
+                setSearchResults(data.items || []);
+            }
         } catch (e) {
             console.error("Search failed:", e);
             setSearchResults([]);
         } finally {
             setSearching(false);
         }
-    }, []);
+    }, [fetchRecentMedia]);
 
+    // Re-fetch when search query or library changes (debounced)
     useEffect(() => {
-        // Don't show loading immediately - wait for debounce
+        // Skip during initial load
+        if (initialLoading) return;
+
         const timeoutId = setTimeout(() => {
             performSearch(searchQuery, selectedLibrary);
         }, 400);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedLibrary, performSearch]);
+    }, [searchQuery, selectedLibrary, performSearch, initialLoading]);
 
     // Selection handlers
     const toggleSelection = (item: MediaItem) => {
@@ -185,8 +215,13 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
             if (data.success) {
                 setToast({ message: `Updated ${data.updated_count} item(s)`, type: "success" });
                 setSelectedItems(new Map());
-                // Refresh search results
-                performSearch(searchQuery, selectedLibrary);
+                // Refresh results
+                if (searchQuery.trim()) {
+                    performSearch(searchQuery, selectedLibrary);
+                } else {
+                    const recentItems = await fetchRecentMedia(selectedLibrary);
+                    setSearchResults(recentItems);
+                }
             } else {
                 setToast({
                     message: `Updated ${data.updated_count} item(s), ${data.errors.length} failed`,
@@ -216,7 +251,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent size="wide">
+            <DialogContent size="wide" className="max-h-[75vh]">
                 {/* Header with integrated search */}
                 <DialogHeader className="flex-col items-start gap-4 pb-4">
                     <div className="flex items-center justify-between w-full">
@@ -288,7 +323,9 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                             {/* Selection controls */}
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-slate-400 flex items-center gap-2">
-                                    {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+                                    {searchQuery.trim()
+                                        ? `${searchResults.length} result${searchResults.length !== 1 ? "s" : ""}`
+                                        : `${searchResults.length} recently added`}
                                     {searching && <Loader2 className="h-3 w-3 animate-spin" />}
                                 </p>
                                 <div className="flex items-center gap-2">
@@ -374,23 +411,17 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                 })}
                             </div>
                         </div>
-                    ) : searching ? (
+                    ) : initialLoading || searching ? (
                         <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                             <Loader2 className="h-10 w-10 mb-3 text-slate-600 animate-spin" />
-                            <p>Searching...</p>
-                        </div>
-                    ) : hasSearched ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                            <Search className="h-10 w-10 mb-3 text-slate-600" />
-                            <p>No results found</p>
-                            <p className="text-sm text-slate-500 mt-1">Try a different search term</p>
+                            <p>{initialLoading ? "Loading recent items..." : "Searching..."}</p>
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                            <Search className="h-12 w-12 mb-3 text-slate-600" />
-                            <p className="text-lg font-medium">Search for movies or shows</p>
+                            <Search className="h-10 w-10 mb-3 text-slate-600" />
+                            <p>No results found</p>
                             <p className="text-sm text-slate-500 mt-1">
-                                Type a title to find items and change their 'Date Added'.
+                                {searchQuery.trim() ? "Try a different search term" : "No items found in your library"}
                             </p>
                         </div>
                     )}

@@ -116,6 +116,73 @@ class UnwatchedReportResponse(BaseModel):
     time_period_description: str
 
 
+@router.get("/recent-media", response_model=SearchMediaResponse)
+def get_recent_media(
+    library: str = "all",
+    limit: int = 50,
+    current_user: str = Depends(get_current_user),
+) -> SearchMediaResponse:
+    """Get recently added movies and shows, sorted by added_at descending."""
+    config = load_config()
+    server = get_plex_server(config)
+
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+    if library and library != "all":
+        if library not in enabled_libraries:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Library '{library}' not found or not enabled",
+            )
+        enabled_libraries = [library]
+
+    all_items: List[MediaItemResult] = []
+
+    for lib_name in enabled_libraries:
+        try:
+            section = server.library.section(lib_name)
+
+            if section.type not in ("movie", "show"):
+                continue
+
+            # Fetch recently added items using Plex's recentlyAdded method
+            items = section.recentlyAdded(maxresults=limit)
+
+            for item in items:
+                thumb_url = None
+                if hasattr(item, "thumb") and item.thumb:
+                    thumb_url = server.url(item.thumb, includeToken=True)
+
+                added_at = getattr(item, "addedAt", None)
+                originally_available_at = getattr(item, "originallyAvailableAt", None)
+
+                if added_at is None:
+                    logger.warning(f"Item '{item.title}' has no addedAt date, skipping")
+                    continue
+
+                all_items.append(
+                    MediaItemResult(
+                        rating_key=str(item.ratingKey),
+                        title=item.title,
+                        year=getattr(item, "year", None),
+                        thumb=thumb_url,
+                        type=item.type,
+                        library=lib_name,
+                        added_at=added_at,
+                        originally_available_at=originally_available_at,
+                    )
+                )
+        except Exception as e:
+            logger.warning(f"Error fetching recent items from {lib_name}: {e}")
+            continue
+
+    # Sort by added_at descending (most recent first) and limit
+    all_items.sort(key=lambda x: x.added_at, reverse=True)
+    all_items = all_items[:limit]
+
+    return SearchMediaResponse(items=all_items)
+
+
 @router.get("/search-media", response_model=SearchMediaResponse)
 def search_media(
     query: str,
