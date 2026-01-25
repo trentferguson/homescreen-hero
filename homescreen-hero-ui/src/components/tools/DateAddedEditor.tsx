@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Loader2, Check, ChevronDown, Film, CalendarIcon } from "lucide-react";
+import { Search, Loader2, Check, ChevronDown, ChevronLeft, ChevronRight, Film, CalendarDays } from "lucide-react";
 import { Listbox } from "@headlessui/react";
-import { format } from "date-fns";
+import { format, getMonth, getYear } from "date-fns";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { fetchWithAuth } from "../../utils/api";
 import Toast from "../Toast";
 import {
@@ -13,14 +15,6 @@ import {
     DialogDescription,
     DialogCloseButton,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 
 type MediaItem = {
     rating_key: string;
@@ -60,15 +54,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
 
     // Date option state
     const [dateOption, setDateOption] = useState<DateOption>("specific");
-    const [specificDate, setSpecificDate] = useState<Date>(() => {
-        // Default to 30 days ago
-        const date = new Date();
-        date.setDate(date.getDate() - 30);
-        return date;
-    });
-    const [calendarOpen, setCalendarOpen] = useState(false);
-    const [calendarMonth, setCalendarMonth] = useState<Date>(specificDate);
-    const [dateInputValue, setDateInputValue] = useState(() => format(specificDate, "MMMM dd, yyyy"));
+    const [specificDate, setSpecificDate] = useState<Date | null>(null);
 
     // Update state
     const [updating, setUpdating] = useState(false);
@@ -147,7 +133,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
     const getNewDate = (item: MediaItem): string | null => {
         switch (dateOption) {
             case "specific":
-                return format(specificDate, "yyyy-MM-dd");
+                return specificDate ? format(specificDate, "yyyy-MM-dd") : null;
             case "30-days-ago": {
                 const date = new Date();
                 date.setDate(date.getDate() - 30);
@@ -159,26 +145,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                 }
                 return null;
             default:
-                return format(specificDate, "yyyy-MM-dd");
-        }
-    };
-
-    // Handle date input change
-    const handleDateInputChange = (value: string) => {
-        setDateInputValue(value);
-        const parsedDate = new Date(value);
-        if (!isNaN(parsedDate.getTime())) {
-            setSpecificDate(parsedDate);
-            setCalendarMonth(parsedDate);
-        }
-    };
-
-    // Handle calendar date selection
-    const handleCalendarSelect = (date: Date | undefined) => {
-        if (date) {
-            setSpecificDate(date);
-            setDateInputValue(format(date, "MMMM dd, yyyy"));
-            setCalendarOpen(false);
+                return specificDate ? format(specificDate, "yyyy-MM-dd") : null;
         }
     };
 
@@ -472,45 +439,106 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                         </div>
 
                         {dateOption === "specific" && (
-                            <div className="relative flex items-center shrink-0">
-                                <Input
-                                    value={dateInputValue}
-                                    placeholder="December 20, 2024"
-                                    className="w-[180px] pr-10 bg-slate-800/80 h-8"
-                                    onChange={(e) => handleDateInputChange(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "ArrowDown") {
-                                            e.preventDefault();
-                                            setCalendarOpen(true);
-                                        }
-                                    }}
+                            <div className="relative shrink-0">
+                                <DatePicker
+                                    selected={specificDate}
+                                    onChange={(date: Date | null) => date && setSpecificDate(date)}
+                                    dateFormat="MMMM d, yyyy"
+                                    placeholderText="Pick a date"
+                                    popperPlacement="top-end"
+                                    className="w-[180px] pl-3 pr-8 py-1.5 bg-slate-800/80 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/70 placeholder-slate-500"
+                                    calendarClassName="hsh-datepicker"
+                                    renderCustomHeader={({
+                                    date,
+                                    changeYear,
+                                    changeMonth,
+                                    decreaseMonth,
+                                    increaseMonth,
+                                    prevMonthButtonDisabled,
+                                    nextMonthButtonDisabled,
+                                }) => {
+                                    const months = [
+                                        "January", "February", "March", "April", "May", "June",
+                                        "July", "August", "September", "October", "November", "December"
+                                    ];
+                                    const years = Array.from({ length: 50 }, (_, i) => getYear(new Date()) - 40 + i);
+
+                                    return (
+                                        <div className="flex items-center justify-between px-2 py-2">
+                                            <button
+                                                type="button"
+                                                onClick={decreaseMonth}
+                                                disabled={prevMonthButtonDisabled}
+                                                className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </button>
+
+                                            <div className="flex items-center gap-2">
+                                                <Listbox value={getMonth(date)} onChange={changeMonth}>
+                                                    <div className="relative">
+                                                        <Listbox.Button className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[100px]">
+                                                            <span className="flex-1 text-left">{months[getMonth(date)]}</span>
+                                                            <ChevronDown className="h-3 w-3 text-slate-400" />
+                                                        </Listbox.Button>
+                                                        <Listbox.Options className="absolute left-0 z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none scrollbar-thin">
+                                                            {months.map((month, idx) => (
+                                                                <Listbox.Option
+                                                                    key={month}
+                                                                    value={idx}
+                                                                    className="cursor-pointer px-3 py-1.5 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                                                >
+                                                                    {({ selected }) => (
+                                                                        <>
+                                                                            <span>{month}</span>
+                                                                            {selected && <Check className="h-3 w-3 text-white" />}
+                                                                        </>
+                                                                    )}
+                                                                </Listbox.Option>
+                                                            ))}
+                                                        </Listbox.Options>
+                                                    </div>
+                                                </Listbox>
+
+                                                <Listbox value={getYear(date)} onChange={changeYear}>
+                                                    <div className="relative">
+                                                        <Listbox.Button className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[70px]">
+                                                            <span className="flex-1 text-left">{getYear(date)}</span>
+                                                            <ChevronDown className="h-3 w-3 text-slate-400" />
+                                                        </Listbox.Button>
+                                                        <Listbox.Options className="absolute right-0 z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none scrollbar-thin">
+                                                            {years.map((year) => (
+                                                                <Listbox.Option
+                                                                    key={year}
+                                                                    value={year}
+                                                                    className="cursor-pointer px-3 py-1.5 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                                                >
+                                                                    {({ selected }) => (
+                                                                        <>
+                                                                            <span>{year}</span>
+                                                                            {selected && <Check className="h-3 w-3 text-white" />}
+                                                                        </>
+                                                                    )}
+                                                                </Listbox.Option>
+                                                            ))}
+                                                        </Listbox.Options>
+                                                    </div>
+                                                </Listbox>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={increaseMonth}
+                                                disabled={nextMonthButtonDisabled}
+                                                className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <ChevronRight className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    );
+                                }}
                                 />
-                                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            className="absolute right-1 h-6 w-6 p-0"
-                                        >
-                                            <CalendarIcon className="h-3.5 w-3.5" />
-                                            <span className="sr-only">Select date</span>
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        className="w-auto overflow-hidden p-0"
-                                        align="end"
-                                        alignOffset={-8}
-                                        sideOffset={10}
-                                    >
-                                        <Calendar
-                                            mode="single"
-                                            selected={specificDate}
-                                            captionLayout="dropdown"
-                                            month={calendarMonth}
-                                            onMonthChange={setCalendarMonth}
-                                            onSelect={handleCalendarSelect}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                                <CalendarDays className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 pointer-events-none" />
                             </div>
                         )}
                     </div>
