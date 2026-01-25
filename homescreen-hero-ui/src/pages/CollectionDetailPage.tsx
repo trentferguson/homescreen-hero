@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { ArrowLeft, Plus, Trash2, Search, Image, Edit, ChevronDown, Check, X } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, Image, Edit, ChevronDown, Check } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogCloseButton,
+    DialogFooter,
+} from "../components/ui/dialog";
 
 
 type CollectionItem = {
@@ -518,187 +527,514 @@ export default function CollectionDetailPage() {
             </section>
 
             {/* Add Items Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-300">
-                        {/* Modal Header */}
-                        <div className="p-6 border-b border-slate-800/80">
-                            <h2 className="text-xl font-bold text-white mb-4">Add Items to Collection</h2>
-
-                            {/* Search Bar */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500" size={20} />
-                                <input
-                                    type="text"
-                                    placeholder="Search your library..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    autoFocus
-                                />
+            <Dialog open={showAddModal} onOpenChange={(isOpen) => !isOpen && closeAddModal()}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader className="flex-col items-stretch gap-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col gap-1">
+                                <DialogTitle>Add Items to Collection</DialogTitle>
+                                <DialogDescription>
+                                    Search and select items from your library to add
+                                </DialogDescription>
                             </div>
+                            <DialogCloseButton />
                         </div>
 
-                        {/* Search Results */}
-                        <div className="flex-1 overflow-y-auto p-6 scrollbar-hover-only">
-                            {searchLoading ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                    {Array.from({ length: 10 }).map((_, i) => (
-                                        <div key={i} className="bg-slate-800/60 rounded-xl overflow-hidden animate-pulse">
-                                            {/* Poster skeleton */}
-                                            <div className="aspect-[2/3] bg-slate-700/50"></div>
-                                            {/* Info skeleton */}
-                                            <div className="p-3 space-y-2">
-                                                <div className="h-3 bg-slate-700/50 rounded w-3/4"></div>
-                                                <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
-                                            </div>
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500" size={20} />
+                            <input
+                                type="text"
+                                placeholder="Search your library..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                autoFocus
+                            />
+                        </div>
+                    </DialogHeader>
+
+                    {/* Search Results */}
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-hover-only max-h-[50vh]">
+                        {searchLoading ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                    <div key={i} className="bg-slate-800/60 rounded-xl overflow-hidden animate-pulse">
+                                        {/* Poster skeleton */}
+                                        <div className="aspect-[2/3] bg-slate-700/50"></div>
+                                        {/* Info skeleton */}
+                                        <div className="p-3 space-y-2">
+                                            <div className="h-3 bg-slate-700/50 rounded w-3/4"></div>
+                                            <div className="h-3 bg-slate-700/50 rounded w-1/2"></div>
                                         </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : searchResults.length > 0 ? (
+                            <div>
+                                <p className="text-sm text-slate-400 mb-3">
+                                    {selectedItems.size} item(s) selected
+                                </p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                    {searchResults.map((item, index) => (
+                                        <button
+                                            key={item.rating_key}
+                                            onClick={() => !item.in_collection && toggleItemSelection(item.rating_key)}
+                                            disabled={item.in_collection}
+                                            className={`rounded-xl overflow-hidden transition-all animate-slide-up border ${
+                                                item.in_collection
+                                                    ? "opacity-50 cursor-not-allowed border-slate-800/60 bg-slate-900/50"
+                                                    : selectedItems.has(item.rating_key)
+                                                    ? "ring-2 ring-primary border-primary/50 bg-slate-900/50"
+                                                    : "border-slate-800/60 bg-slate-900/50 hover:border-slate-700"
+                                            }`}
+                                            style={{ animationDelay: `${index * 0.02}s` }}
+                                        >
+                                            {/* Poster */}
+                                            <div className="aspect-[2/3] bg-slate-800 relative">
+                                                {item.thumb ? (
+                                                    <img
+                                                        src={item.thumb}
+                                                        alt={item.title}
+                                                        className="w-full h-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs">
+                                                        No Poster
+                                                    </div>
+                                                )}
+                                                {selectedItems.has(item.rating_key) && !item.in_collection && (
+                                                    <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1">
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Info */}
+                                            <div className="p-3">
+                                                <h3 className="text-white font-medium text-sm truncate">{item.title}</h3>
+                                                {item.year && <p className="text-slate-400 text-xs">{item.year}</p>}
+
+                                                {item.in_collection && (
+                                                    <div className="mt-2 text-emerald-400 text-xs">Already in collection</div>
+                                                )}
+                                            </div>
+                                        </button>
                                     ))}
                                 </div>
-                            ) : searchResults.length > 0 ? (
-                                <div>
-                                    <p className="text-sm text-slate-400 mb-3">
-                                        {selectedItems.size} item(s) selected
-                                    </p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                        {searchResults.map((item, index) => (
-                                            <button
-                                                key={item.rating_key}
-                                                onClick={() => !item.in_collection && toggleItemSelection(item.rating_key)}
-                                                disabled={item.in_collection}
-                                                className={`rounded-xl overflow-hidden transition-all animate-slide-up border ${
-                                                    item.in_collection
-                                                        ? "opacity-50 cursor-not-allowed border-slate-800/60 bg-slate-900/50"
-                                                        : selectedItems.has(item.rating_key)
-                                                        ? "ring-2 ring-primary border-primary/50 bg-slate-900/50"
-                                                        : "border-slate-800/60 bg-slate-900/50 hover:border-slate-700"
-                                                }`}
-                                                style={{ animationDelay: `${index * 0.02}s` }}
-                                            >
-                                                {/* Poster */}
-                                                <div className="aspect-[2/3] bg-slate-800 relative">
-                                                    {item.thumb ? (
-                                                        <img
-                                                            src={item.thumb}
-                                                            alt={item.title}
-                                                            className="w-full h-full object-cover"
-                                                            loading="lazy"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs">
-                                                            No Poster
-                                                        </div>
-                                                    )}
-                                                    {selectedItems.has(item.rating_key) && !item.in_collection && (
-                                                        <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1">
-                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                            </svg>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Info */}
-                                                <div className="p-3">
-                                                    <h3 className="text-white font-medium text-sm truncate">{item.title}</h3>
-                                                    {item.year && <p className="text-slate-400 text-xs">{item.year}</p>}
-
-                                                    {item.in_collection && (
-                                                        <div className="mt-2 text-emerald-400 text-xs">Already in collection</div>
-                                                    )}
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-slate-400 text-center py-8">
-                                    {searchQuery ? "No results found" : "Enter a search term to find items"}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="p-6 border-t border-slate-800/80 flex items-center justify-between gap-3 bg-slate-950/50">
-                            <p className="text-sm text-slate-400">
-                                {selectedItems.size === 0
-                                    ? "Click items to select them"
-                                    : `${selectedItems.size} item(s) selected`}
-                            </p>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={closeAddModal}
-                                    disabled={adding}
-                                    className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
-                                >
-                                    Close
-                                </button>
-                                <button
-                                    onClick={handleAddSelectedItems}
-                                    disabled={adding || selectedItems.size === 0}
-                                    className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {adding ? "Adding..." : `Add Selected (${selectedItems.size})`}
-                                </button>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="text-slate-400 text-center py-8">
+                                {searchQuery ? "No results found" : "Enter a search term to find items"}
+                            </div>
+                        )}
                     </div>
-                </div>
-            )}
 
-            {/* Edit Collection Modal */}
-            {showEditModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto scrollbar-hover-only animate-in zoom-in-95 duration-300">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-slate-800/80 sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
-                            <h2 className="text-xl font-bold text-white">Edit Collection Details (Advanced)</h2>
+                    <DialogFooter className="bg-slate-950/50">
+                        <p className="text-sm text-slate-400">
+                            {selectedItems.size === 0
+                                ? "Click items to select them"
+                                : `${selectedItems.size} item(s) selected`}
+                        </p>
+                        <div className="flex items-center gap-3">
                             <button
-                                onClick={closeEditModal}
-                                className="text-slate-400 hover:text-white transition-colors"
+                                onClick={closeAddModal}
+                                disabled={adding}
+                                className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
                             >
-                                <X size={20} />
+                                Close
+                            </button>
+                            <button
+                                onClick={handleAddSelectedItems}
+                                disabled={adding || selectedItems.size === 0}
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {adding ? "Adding..." : `Add Selected (${selectedItems.size})`}
                             </button>
                         </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-                        {/* Modal Content */}
-                        <div className="p-6">
-                            <div className="grid grid-cols-[200px_1fr] gap-6">
-                                {/* Left Column - Poster Preview */}
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                                        Cover Poster
+            {/* Edit Collection Modal */}
+            <Dialog open={showEditModal} onOpenChange={(isOpen) => !isOpen && closeEditModal()}>
+                <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto scrollbar-hover-only">
+                    <DialogHeader>
+                        <div className="flex flex-col gap-1">
+                            <DialogTitle>Edit Collection Details (Advanced)</DialogTitle>
+                            <DialogDescription>
+                                Update metadata, poster, labels, and display settings
+                            </DialogDescription>
+                        </div>
+                        <DialogCloseButton />
+                    </DialogHeader>
+
+                    {/* Modal Content */}
+                    <div className="p-6">
+                        <div className="grid grid-cols-[200px_1fr] gap-6">
+                            {/* Left Column - Poster Preview */}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                                    Cover Poster
+                                </label>
+
+                                {/* Poster Preview */}
+                                <div className="relative aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-700 mb-2">
+                                    {collection?.poster_url ? (
+                                        <img
+                                            src={collection.poster_url}
+                                            alt="Current poster"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                            No Poster
+                                        </div>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-slate-500 mb-4">
+                                    Recommended: 600×900px (JPG/PNG)
+                                </p>
+
+                                {/* Tab Switcher */}
+                                <div className="flex gap-2 mb-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditPosterMode("upload");
+                                            setEditPosterUrl("");
+                                        }}
+                                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                            editPosterMode === "upload"
+                                                ? "bg-primary text-white"
+                                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
+                                        }`}
+                                    >
+                                        Upload File
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditPosterMode("url");
+                                            setEditPosterFile(null);
+                                        }}
+                                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                            editPosterMode === "url"
+                                                ? "bg-primary text-white"
+                                                : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
+                                        }`}
+                                    >
+                                        From URL
+                                    </button>
+                                </div>
+
+                                {/* Upload Mode */}
+                                {editPosterMode === "upload" && (
+                                    <label className="block cursor-pointer">
+                                        <div className="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center hover:border-slate-600 transition-colors">
+                                            <Image size={20} className="mx-auto mb-2 text-slate-400" />
+                                            <span className="text-xs text-slate-400">
+                                                {editPosterFile ? editPosterFile.name : "Click to select file"}
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleEditFileSelect}
+                                            className="hidden"
+                                        />
                                     </label>
+                                )}
 
-                                    {/* Poster Preview */}
-                                    <div className="relative aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-700 mb-2">
-                                        {collection?.poster_url ? (
-                                            <img
-                                                src={collection.poster_url}
-                                                alt="Current poster"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                                No Poster
+                                {/* URL Mode */}
+                                {editPosterMode === "url" && (
+                                    <div>
+                                        <input
+                                            type="url"
+                                            value={editPosterUrl}
+                                            onChange={(e) => setEditPosterUrl(e.target.value)}
+                                            placeholder="https://example.com/poster.jpg"
+                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            e.g., from ThePosterDB.com
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right Column - All Fields */}
+                            <div className="space-y-4">
+                                {/* Collection Name */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Collection Name <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editTitle}
+                                        onChange={(e) => setEditTitle(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        placeholder="Enter collection title"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {/* Brief Summary */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Brief Summary
+                                    </label>
+                                    <textarea
+                                        value={editSummary}
+                                        onChange={(e) => setEditSummary(e.target.value)}
+                                        rows={4}
+                                        className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 resize-none"
+                                        placeholder="Enter collection summary (optional)"
+                                    />
+                                </div>
+
+                                {/* Sort Title */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Sort Title
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editSortTitle}
+                                        onChange={(e) => setEditSortTitle(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        placeholder="How this collection should be sorted (optional)"
+                                    />
+                                </div>
+
+                                {/* Content Rating */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Content Rating
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editContentRating}
+                                        onChange={(e) => setEditContentRating(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                        placeholder="e.g., PG-13, TV-MA, R (optional)"
+                                    />
+                                </div>
+
+                                {/* Labels */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Labels
+                                    </label>
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            value={labelInput}
+                                            onChange={(e) => setLabelInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && labelInput.trim()) {
+                                                    e.preventDefault();
+                                                    if (!editLabels.includes(labelInput.trim())) {
+                                                        setEditLabels([...editLabels, labelInput.trim()]);
+                                                    }
+                                                    setLabelInput("");
+                                                }
+                                            }}
+                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                            placeholder="Type label and press Enter"
+                                        />
+                                        {editLabels.length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {editLabels.map((label, index) => (
+                                                    <span
+                                                        key={index}
+                                                        className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-full text-xs"
+                                                    >
+                                                        {label}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditLabels(editLabels.filter((_, i) => i !== index))}
+                                                            className="hover:text-red-300"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
+                                </div>
 
-                                    <p className="text-xs text-slate-500 mb-4">
-                                        Recommended: 600×900px (JPG/PNG)
-                                    </p>
+                                {/* Collection Mode */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Collection Mode
+                                    </label>
+                                    <Listbox value={editCollectionMode} onChange={setEditCollectionMode}>
+                                        <div className="relative">
+                                            <Listbox.Button className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
+                                                <span className={editCollectionMode ? "" : "text-slate-500"}>
+                                                    {editCollectionMode === "" && "Library Default"}
+                                                    {editCollectionMode === "hide" && "Hide Collection"}
+                                                    {editCollectionMode === "hideItems" && "Hide Items in this Collection"}
+                                                    {editCollectionMode === "showItems" && "Show this Collection and its Items"}
+                                                </span>
+                                                <ChevronDown size={16} className="text-slate-400" />
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                                {[
+                                                    { value: "", label: "Library Default" },
+                                                    { value: "hide", label: "Hide Collection" },
+                                                    { value: "hideItems", label: "Hide Items in this Collection" },
+                                                    { value: "showItems", label: "Show this Collection and its Items" },
+                                                ].map((option) => (
+                                                    <Listbox.Option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                        className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-700"
+                                                    >
+                                                        {({ selected }) => (
+                                                            <div className="flex items-center justify-between text-white text-sm">
+                                                                <span className={selected ? "font-medium" : ""}>{option.label}</span>
+                                                                {selected && <Check size={16} />}
+                                                            </div>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                </div>
+
+                                {/* Collection Order */}
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Collection Order
+                                    </label>
+                                    <Listbox value={editCollectionOrder} onChange={setEditCollectionOrder}>
+                                        <div className="relative">
+                                            <Listbox.Button className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
+                                                <span className={editCollectionOrder ? "" : "text-slate-500"}>
+                                                    {editCollectionOrder === "" && "Default"}
+                                                    {editCollectionOrder === "release" && "Release Date"}
+                                                    {editCollectionOrder === "alpha" && "Alphabetical"}
+                                                    {editCollectionOrder === "custom" && "Custom Order"}
+                                                </span>
+                                                <ChevronDown size={16} className="text-slate-400" />
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
+                                                {[
+                                                    { value: "", label: "Default" },
+                                                    { value: "release", label: "Release Date" },
+                                                    { value: "alpha", label: "Alphabetical" },
+                                                    { value: "custom", label: "Custom Order" },
+                                                ].map((option) => (
+                                                    <Listbox.Option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                        className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-700"
+                                                    >
+                                                        {({ selected }) => (
+                                                            <div className="flex items-center justify-between text-white text-sm">
+                                                                <span className={selected ? "font-medium" : ""}>{option.label}</span>
+                                                                {selected && <Check size={16} />}
+                                                            </div>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={closeEditModal}
+                            disabled={updating}
+                            className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleUpdateCollection}
+                            disabled={updating || !editTitle.trim()}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {updating ? "Updating..." : "Save Changes"}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Item Poster Edit Modal */}
+            <Dialog open={showItemPosterModal && editingItem !== null} onOpenChange={(isOpen) => !isOpen && closeItemPosterModal()}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <div className="flex flex-col gap-1">
+                            <DialogTitle>Edit Poster</DialogTitle>
+                            <DialogDescription>
+                                {editingItem?.title} {editingItem?.year && `(${editingItem.year})`}
+                            </DialogDescription>
+                        </div>
+                        <DialogCloseButton />
+                    </DialogHeader>
+
+                    {/* Modal Content */}
+                    <div className="p-6">
+                        <div className="grid grid-cols-[200px_1fr] gap-6">
+                            {/* Left Column - Poster Preview */}
+                            <div>
+                                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                                    Current Poster
+                                </label>
+
+                                {/* Poster Preview */}
+                                <div className="relative aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-700">
+                                    {editingItem?.thumb ? (
+                                        <img
+                                            src={editingItem.thumb}
+                                            alt="Current poster"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                            No Poster
+                                        </div>
+                                    )}
+                                </div>
+
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Recommended: 600×900px (JPG/PNG)
+                                </p>
+                            </div>
+
+                            {/* Right Column - Upload Options */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
+                                        Upload New Poster
+                                    </label>
 
                                     {/* Tab Switcher */}
                                     <div className="flex gap-2 mb-3">
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                setEditPosterMode("upload");
-                                                setEditPosterUrl("");
+                                                setItemPosterMode("upload");
+                                                setItemPosterUrl("");
                                             }}
                                             className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                                editPosterMode === "upload"
+                                                itemPosterMode === "upload"
                                                     ? "bg-primary text-white"
                                                     : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
                                             }`}
@@ -708,11 +1044,11 @@ export default function CollectionDetailPage() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                setEditPosterMode("url");
-                                                setEditPosterFile(null);
+                                                setItemPosterMode("url");
+                                                setItemPosterFile(null);
                                             }}
                                             className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                                editPosterMode === "url"
+                                                itemPosterMode === "url"
                                                     ? "bg-primary text-white"
                                                     : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
                                             }`}
@@ -722,397 +1058,63 @@ export default function CollectionDetailPage() {
                                     </div>
 
                                     {/* Upload Mode */}
-                                    {editPosterMode === "upload" && (
+                                    {itemPosterMode === "upload" && (
                                         <label className="block cursor-pointer">
-                                            <div className="border-2 border-dashed border-slate-700 rounded-xl p-4 text-center hover:border-slate-600 transition-colors">
-                                                <Image size={20} className="mx-auto mb-2 text-slate-400" />
-                                                <span className="text-xs text-slate-400">
-                                                    {editPosterFile ? editPosterFile.name : "Click to select file"}
+                                            <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-slate-600 transition-colors">
+                                                <Image size={24} className="mx-auto mb-2 text-slate-400" />
+                                                <span className="text-sm text-slate-400">
+                                                    {itemPosterFile ? itemPosterFile.name : "Click to select file"}
                                                 </span>
                                             </div>
                                             <input
                                                 type="file"
                                                 accept="image/*"
-                                                onChange={handleEditFileSelect}
+                                                onChange={handleItemPosterFileSelect}
                                                 className="hidden"
                                             />
                                         </label>
                                     )}
 
                                     {/* URL Mode */}
-                                    {editPosterMode === "url" && (
+                                    {itemPosterMode === "url" && (
                                         <div>
                                             <input
                                                 type="url"
-                                                value={editPosterUrl}
-                                                onChange={(e) => setEditPosterUrl(e.target.value)}
+                                                value={itemPosterUrl}
+                                                onChange={(e) => setItemPosterUrl(e.target.value)}
                                                 placeholder="https://example.com/poster.jpg"
-                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             />
                                             <p className="text-xs text-slate-500 mt-2">
-                                                e.g., from ThePosterDB.com
+                                                e.g., from ThePosterDB.com or TMDB
                                             </p>
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Right Column - All Fields */}
-                                <div className="space-y-4">
-                                    {/* Collection Name */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Collection Name <span className="text-red-400">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editTitle}
-                                            onChange={(e) => setEditTitle(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                            placeholder="Enter collection title"
-                                            autoFocus
-                                        />
-                                    </div>
-
-                                    {/* Brief Summary */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Brief Summary
-                                        </label>
-                                        <textarea
-                                            value={editSummary}
-                                            onChange={(e) => setEditSummary(e.target.value)}
-                                            rows={4}
-                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 resize-none"
-                                            placeholder="Enter collection summary (optional)"
-                                        />
-                                    </div>
-
-                                    {/* Sort Title */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Sort Title
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editSortTitle}
-                                            onChange={(e) => setEditSortTitle(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                            placeholder="How this collection should be sorted (optional)"
-                                        />
-                                    </div>
-
-                                    {/* Content Rating */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Content Rating
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={editContentRating}
-                                            onChange={(e) => setEditContentRating(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                            placeholder="e.g., PG-13, TV-MA, R (optional)"
-                                        />
-                                    </div>
-
-                                    {/* Labels */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Labels
-                                        </label>
-                                        <div className="space-y-2">
-                                            <input
-                                                type="text"
-                                                value={labelInput}
-                                                onChange={(e) => setLabelInput(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Enter" && labelInput.trim()) {
-                                                        e.preventDefault();
-                                                        if (!editLabels.includes(labelInput.trim())) {
-                                                            setEditLabels([...editLabels, labelInput.trim()]);
-                                                        }
-                                                        setLabelInput("");
-                                                    }
-                                                }}
-                                                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                                placeholder="Type label and press Enter"
-                                            />
-                                            {editLabels.length > 0 && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {editLabels.map((label, index) => (
-                                                        <span
-                                                            key={index}
-                                                            className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-full text-xs"
-                                                        >
-                                                            {label}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setEditLabels(editLabels.filter((_, i) => i !== index))}
-                                                                className="hover:text-red-300"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Collection Mode */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Collection Mode
-                                        </label>
-                                        <Listbox value={editCollectionMode} onChange={setEditCollectionMode}>
-                                            <div className="relative">
-                                                <Listbox.Button className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
-                                                    <span className={editCollectionMode ? "" : "text-slate-500"}>
-                                                        {editCollectionMode === "" && "Library Default"}
-                                                        {editCollectionMode === "hide" && "Hide Collection"}
-                                                        {editCollectionMode === "hideItems" && "Hide Items in this Collection"}
-                                                        {editCollectionMode === "showItems" && "Show this Collection and its Items"}
-                                                    </span>
-                                                    <ChevronDown size={16} className="text-slate-400" />
-                                                </Listbox.Button>
-                                                <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
-                                                    {[
-                                                        { value: "", label: "Library Default" },
-                                                        { value: "hide", label: "Hide Collection" },
-                                                        { value: "hideItems", label: "Hide Items in this Collection" },
-                                                        { value: "showItems", label: "Show this Collection and its Items" },
-                                                    ].map((option) => (
-                                                        <Listbox.Option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                            className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-700"
-                                                        >
-                                                            {({ selected }) => (
-                                                                <div className="flex items-center justify-between text-white text-sm">
-                                                                    <span className={selected ? "font-medium" : ""}>{option.label}</span>
-                                                                    {selected && <Check size={16} />}
-                                                                </div>
-                                                            )}
-                                                        </Listbox.Option>
-                                                    ))}
-                                                </Listbox.Options>
-                                            </div>
-                                        </Listbox>
-                                    </div>
-
-                                    {/* Collection Order */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Collection Order
-                                        </label>
-                                        <Listbox value={editCollectionOrder} onChange={setEditCollectionOrder}>
-                                            <div className="relative">
-                                                <Listbox.Button className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
-                                                    <span className={editCollectionOrder ? "" : "text-slate-500"}>
-                                                        {editCollectionOrder === "" && "Default"}
-                                                        {editCollectionOrder === "release" && "Release Date"}
-                                                        {editCollectionOrder === "alpha" && "Alphabetical"}
-                                                        {editCollectionOrder === "custom" && "Custom Order"}
-                                                    </span>
-                                                    <ChevronDown size={16} className="text-slate-400" />
-                                                </Listbox.Button>
-                                                <Listbox.Options className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none">
-                                                    {[
-                                                        { value: "", label: "Default" },
-                                                        { value: "release", label: "Release Date" },
-                                                        { value: "alpha", label: "Alphabetical" },
-                                                        { value: "custom", label: "Custom Order" },
-                                                    ].map((option) => (
-                                                        <Listbox.Option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                            className="px-3 py-2 cursor-pointer transition-colors data-[focus]:bg-slate-700"
-                                                        >
-                                                            {({ selected }) => (
-                                                                <div className="flex items-center justify-between text-white text-sm">
-                                                                    <span className={selected ? "font-medium" : ""}>{option.label}</span>
-                                                                    {selected && <Check size={16} />}
-                                                                </div>
-                                                            )}
-                                                        </Listbox.Option>
-                                                    ))}
-                                                </Listbox.Options>
-                                            </div>
-                                        </Listbox>
-                                    </div>
-                                </div>
                             </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="p-6 border-t border-slate-800/80 flex items-center justify-end gap-3 sticky bottom-0 bg-slate-900/95 backdrop-blur-sm">
-                            <button
-                                type="button"
-                                onClick={closeEditModal}
-                                disabled={updating}
-                                className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleUpdateCollection}
-                                disabled={updating || !editTitle.trim()}
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {updating ? "Updating..." : "Save Changes"}
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
 
-            {/* Item Poster Edit Modal */}
-            {showItemPosterModal && editingItem && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-300">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-slate-800/80">
-                            <div>
-                                <h2 className="text-xl font-bold text-white">Edit Poster</h2>
-                                <p className="text-slate-400 text-sm mt-1">{editingItem.title} {editingItem.year && `(${editingItem.year})`}</p>
-                            </div>
-                            <button
-                                onClick={closeItemPosterModal}
-                                className="text-slate-400 hover:text-white transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        {/* Modal Content */}
-                        <div className="p-6">
-                            <div className="grid grid-cols-[200px_1fr] gap-6">
-                                {/* Left Column - Poster Preview */}
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                                        Current Poster
-                                    </label>
-
-                                    {/* Poster Preview */}
-                                    <div className="relative aspect-[2/3] bg-slate-800 rounded-xl overflow-hidden border-2 border-dashed border-slate-700">
-                                        {editingItem.thumb ? (
-                                            <img
-                                                src={editingItem.thumb}
-                                                alt="Current poster"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                                No Poster
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <p className="text-xs text-slate-500 mt-2">
-                                        Recommended: 600×900px (JPG/PNG)
-                                    </p>
-                                </div>
-
-                                {/* Right Column - Upload Options */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                            Upload New Poster
-                                        </label>
-
-                                        {/* Tab Switcher */}
-                                        <div className="flex gap-2 mb-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setItemPosterMode("upload");
-                                                    setItemPosterUrl("");
-                                                }}
-                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                                    itemPosterMode === "upload"
-                                                        ? "bg-primary text-white"
-                                                        : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
-                                                }`}
-                                            >
-                                                Upload File
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setItemPosterMode("url");
-                                                    setItemPosterFile(null);
-                                                }}
-                                                className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                                    itemPosterMode === "url"
-                                                        ? "bg-primary text-white"
-                                                        : "bg-slate-800/60 text-slate-400 hover:bg-slate-700"
-                                                }`}
-                                            >
-                                                From URL
-                                            </button>
-                                        </div>
-
-                                        {/* Upload Mode */}
-                                        {itemPosterMode === "upload" && (
-                                            <label className="block cursor-pointer">
-                                                <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:border-slate-600 transition-colors">
-                                                    <Image size={24} className="mx-auto mb-2 text-slate-400" />
-                                                    <span className="text-sm text-slate-400">
-                                                        {itemPosterFile ? itemPosterFile.name : "Click to select file"}
-                                                    </span>
-                                                </div>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleItemPosterFileSelect}
-                                                    className="hidden"
-                                                />
-                                            </label>
-                                        )}
-
-                                        {/* URL Mode */}
-                                        {itemPosterMode === "url" && (
-                                            <div>
-                                                <input
-                                                    type="url"
-                                                    value={itemPosterUrl}
-                                                    onChange={(e) => setItemPosterUrl(e.target.value)}
-                                                    placeholder="https://example.com/poster.jpg"
-                                                    className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                                />
-                                                <p className="text-xs text-slate-500 mt-2">
-                                                    e.g., from ThePosterDB.com or TMDB
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-800/80 bg-slate-950/50">
-                            <button
-                                type="button"
-                                onClick={closeItemPosterModal}
-                                disabled={uploadingItemPoster}
-                                className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleUploadItemPoster}
-                                disabled={uploadingItemPoster || (!itemPosterFile && !itemPosterUrl)}
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {uploadingItemPoster ? "Uploading..." : "Upload Poster"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                    <DialogFooter className="justify-end gap-3 bg-slate-950/50">
+                        <button
+                            type="button"
+                            onClick={closeItemPosterModal}
+                            disabled={uploadingItemPoster}
+                            className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800/60 text-slate-300 text-sm font-medium hover:bg-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleUploadItemPoster}
+                            disabled={uploadingItemPoster || (!itemPosterFile && !itemPosterUrl)}
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {uploadingItemPoster ? "Uploading..." : "Upload Poster"}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Toast Notification */}
             {toast && (
