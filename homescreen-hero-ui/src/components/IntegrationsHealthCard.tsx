@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { Activity, CheckCircle2, AlertCircle, XCircle, HelpCircle, RefreshCw } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogCloseButton,
+    DialogFooter,
+} from "./ui/dialog";
 
 type IntegrationHealth = {
     name: string;
@@ -168,50 +177,41 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
                 </div>
             </div>
 
-            {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800/80 animate-in zoom-in-95 duration-300 max-h-[85vh] overflow-hidden flex flex-col">
-                        <div className="flex items-start justify-between p-6 border-b border-slate-200 dark:border-slate-800/80">
-                            <div className="flex flex-col gap-1">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Integrations Health</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {overall.healthy_count} of {overall.enabled_count} active integrations are healthy
-                                </p>
-                            </div>
-                            <button
-                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-200 text-2xl leading-none px-2"
-                                onClick={() => setShowModal(false)}
-                            >✕</button>
+            <Dialog open={showModal} onOpenChange={(isOpen) => !isOpen && setShowModal(false)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <div className="flex flex-col gap-1">
+                            <DialogTitle>Integrations Health</DialogTitle>
+                            <DialogDescription>
+                                {overall.healthy_count} of {overall.enabled_count} active integrations are healthy
+                            </DialogDescription>
                         </div>
+                        <DialogCloseButton />
+                    </DialogHeader>
 
-                        <div className="p-6 space-y-4 overflow-y-auto scrollbar-hover-only">
-                            {overall.integrations.map((int) => (
-                                <IntegrationItem
-                                    key={int.name}
-                                    integration={int}
-                                    isTesting={testingId === int.name}
-                                    onTest={() => handleTestConnection(int.name)}
-                                />
-                            ))}
-                        </div>
-
-                        <div className="flex justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50">
-                            <button
-                                onClick={loadHealth}
-                                disabled={loading}
-                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
-                            >
-                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                                Refresh All
-                            </button>
-                            <button
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 transition-all active:scale-95"
-                                onClick={() => setShowModal(false)}
-                            >Close</button>
-                        </div>
+                    <div className="p-6 space-y-4 overflow-y-auto max-h-[50vh] scrollbar-hover-only">
+                        {overall.integrations.map((int) => (
+                            <IntegrationItem
+                                key={int.name}
+                                integration={int}
+                                isTesting={testingId === int.name}
+                                onTest={() => handleTestConnection(int.name)}
+                            />
+                        ))}
                     </div>
-                </div>
-            )}
+
+                    <DialogFooter className="justify-end">
+                        <button
+                            onClick={loadHealth}
+                            disabled={loading}
+                            className="px-4 py-2 rounded-lg border border-slate-700 text-slate-200 text-sm font-medium hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                            Refresh All
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

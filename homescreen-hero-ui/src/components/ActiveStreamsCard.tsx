@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { fetchWithAuth } from "../utils/api";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogCloseButton,
+    DialogFooter,
+} from "./ui/dialog";
 
 type ActiveStream = {
     user: string;
@@ -209,99 +219,80 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
             </div>
 
             {/* Modal with detailed stream view */}
-            {showModal && streamCount > 0 && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 px-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-800/80 animate-in zoom-in-95 duration-300 max-h-[80vh] overflow-hidden flex flex-col">
-                        {/* Header */}
-                        <div className="flex items-start justify-between p-5 border-b border-slate-200 dark:border-slate-800/80">
-                            <div className="flex flex-col gap-1">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                                    Active Streams
-                                </h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {streamCount} {streamCount === 1 ? "user is" : "users are"} currently watching
-                                </p>
-                            </div>
-                            <button
-                                className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-200 text-2xl leading-none px-2"
-                                onClick={() => setShowModal(false)}
-                                aria-label="Close"
-                            >
-                                ✕
-                            </button>
+            <Dialog open={showModal && streamCount > 0} onOpenChange={(isOpen) => !isOpen && setShowModal(false)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <div className="flex flex-col gap-1">
+                            <DialogTitle>Active Streams</DialogTitle>
+                            <DialogDescription>
+                                {streamCount} {streamCount === 1 ? "user is" : "users are"} currently watching
+                            </DialogDescription>
                         </div>
+                        <DialogCloseButton />
+                    </DialogHeader>
 
-                        {/* Stream list */}
-                        <div className="p-5 space-y-3 overflow-y-auto">
-                            {streams.map((stream, index) => (
-                                <div
-                                    key={`${stream.user}-${index}`}
-                                    className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition border border-slate-200 dark:border-slate-700/50"
-                                >
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className={`text-sm font-semibold ${getStateColor(stream.state)}`}>
-                                                    {getStateIcon(stream.state)}
-                                                </span>
-                                                <p className="text-base font-bold text-slate-900 dark:text-white">
-                                                    {stream.user}
-                                                </p>
-                                                <span className={`text-xs font-medium ${getStateColor(stream.state)}`}>
-                                                    {stream.state}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                                {stream.title}
+                    {/* Stream list */}
+                    <div className="p-6 space-y-3 overflow-y-auto max-h-[50vh] scrollbar-hover-only">
+                        {streams.map((stream, index) => (
+                            <div
+                                key={`${stream.user}-${index}`}
+                                className="p-4 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition border border-slate-700/50"
+                            >
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-sm font-semibold ${getStateColor(stream.state)}`}>
+                                                {getStateIcon(stream.state)}
+                                            </span>
+                                            <p className="text-base font-bold text-white">
+                                                {stream.user}
                                             </p>
-                                        </div>
-                                        <div className="flex-shrink-0">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase">
-                                                {stream.media_type}
+                                            <span className={`text-xs font-medium ${getStateColor(stream.state)}`}>
+                                                {stream.state}
                                             </span>
                                         </div>
+                                        <p className="text-sm text-slate-400 mt-1">
+                                            {stream.title}
+                                        </p>
                                     </div>
-
-                                    {/* Progress bar */}
-                                    {stream.progress_percent !== null && (
-                                        <div className="mt-3">
-                                            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                                                <span>Progress</span>
-                                                <span>{stream.progress_percent}%</span>
-                                            </div>
-                                            <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                                                <div
-                                                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                                                    style={{ width: `${stream.progress_percent}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div className="flex-shrink-0">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-700 text-slate-300 uppercase">
+                                            {stream.media_type}
+                                        </span>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
 
-                        {/* Footer */}
-                        <div className="flex justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/50">
-                            <button
-                                onClick={loadActivity}
-                                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-all duration-200 active:scale-95 flex items-center gap-2"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Refresh
-                            </button>
-                            <button
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
-                                onClick={() => setShowModal(false)}
-                            >
-                                Close
-                            </button>
-                        </div>
+                                {/* Progress bar */}
+                                {stream.progress_percent !== null && (
+                                    <div className="mt-3">
+                                        <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                                            <span>Progress</span>
+                                            <span>{stream.progress_percent}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-700 rounded-full h-2">
+                                            <div
+                                                className="bg-primary h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `${stream.progress_percent}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                </div>
-            )}
+
+                    <DialogFooter className="justify-end">
+                        <button
+                            onClick={loadActivity}
+                            disabled={activityLoading}
+                            className="px-4 py-2 rounded-lg border border-slate-700 text-slate-200 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${activityLoading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

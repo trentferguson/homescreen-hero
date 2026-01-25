@@ -258,10 +258,12 @@ export default function Dashboard() {
         }
 
         return {
+            id: record.id,
             created_at: record.created_at,
             success: record.success,
             summary,
             error_message: record.error_message,
+            featured_collections: featured_collections ?? [],
         };
     });
 
