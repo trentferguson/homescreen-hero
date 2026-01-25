@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Settings } from "lucide-react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import ActiveCollectionsCard from "../components/ActiveCollectionsCard";
 import AnalyticsCard from "../components/AnalyticsCard";
@@ -10,9 +11,11 @@ import RotationStatusCard from "../components/RotationStatusCard";
 import RecentRotationsCard from "../components/RecentRotationsCard";
 import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
 import SeerrCarouselCard from "../components/SeerrCarouselCard";
+import DashboardSettingsModal from "../components/DashboardSettingsModal";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
+import { useDashboardLayout } from "../hooks/useDashboardLayout";
 
 type RotationHistoryItem = {
     id: number;
@@ -73,12 +76,14 @@ export default function Dashboard() {
     const [busy, setBusy] = useState<null | "simulate" | "apply" | "sync">(null);
     const [simulation, setSimulation] = useState<RotationExecution | null>(null);
     const [showSimulationModal, setShowSimulationModal] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
     const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
-    const [tautulliEnabled, setTautulliEnabled] = useState<boolean | null>(null);
+    const [tautulliEnabled, setTautulliEnabled] = useState<boolean>(false);
+    const [seerrEnabled, setSeerrEnabled] = useState<boolean>(false);
     const [schedulerStatus, setSchedulerStatus] = useState<{
         enabled: boolean;
         interval_hours: number;
@@ -86,6 +91,18 @@ export default function Dashboard() {
         is_running: boolean;
     } | null>(null);
     const [currentTime, setCurrentTime] = useState(Date.now());
+
+    // Dashboard layout customization
+    const {
+        visibilityMap,
+        visibleStatusBarWidgets,
+        visibleMainWidgets,
+        toggleVisibility,
+        resetToDefaults,
+        isWidgetAvailable,
+        canEnableWidget,
+        enabledStatusBarCount,
+    } = useDashboardLayout({ tautulli: tautulliEnabled, seerr: seerrEnabled });
 
     const plex = health.plex;
 
@@ -210,10 +227,26 @@ export default function Dashboard() {
         }
     };
 
+    const loadSeerrConfig = async () => {
+        try {
+            const response = await fetchWithAuth("/api/admin/config/seerr");
+            if (response.ok) {
+                const config = await response.json();
+                setSeerrEnabled(config.enabled ?? false);
+            } else {
+                setSeerrEnabled(false);
+            }
+        } catch (e) {
+            console.error("Failed to load Seerr config:", e);
+            setSeerrEnabled(false);
+        }
+    };
+
     useEffect(() => {
         void loadActiveCollections();
         void loadSchedulerStatus();
         void loadTautulliConfig();
+        void loadSeerrConfig();
     }, []);
 
     // Update current time every second for live countdown
@@ -365,6 +398,81 @@ export default function Dashboard() {
         }
     }
 
+    // Render individual widgets based on ID
+    const renderWidget = (widgetId: string) => {
+        switch (widgetId) {
+            case "plex-health":
+                return (
+                    <HealthCard
+                        key={widgetId}
+                        title="Plex"
+                        ok={plex?.ok}
+                        loading={!plex && healthLoading}
+                        subtitleOk="Online"
+                        subtitleBad="Offline"
+                        detail={
+                            !plex && healthLoading
+                                ? "Checking health…"
+                                : plex?.ok
+                                    ? plexDetail
+                                    : plex?.error ?? "Connection failed"
+                        }
+                        icon={
+                            <img src="/plex_icon_white.png" alt="Plex" className="w-12 h-12 object-contain" />
+                        }
+                    />
+                );
+            case "active-streams":
+                return <ActiveStreamsCard key={widgetId} loading={healthLoading} />;
+            case "integrations-health":
+                return <IntegrationsHealthCard key={widgetId} loading={healthLoading} />;
+            case "rotation-status":
+                return (
+                    <RotationStatusCard
+                        key={widgetId}
+                        enabled={schedulerStatus?.enabled ?? false}
+                        nextRunTime={schedulerStatus?.next_run_time ?? null}
+                        loading={schedulerStatus === null}
+                        currentTime={currentTime}
+                    />
+                );
+            case "active-collections":
+                return (
+                    <div key={widgetId} className="col-span-full w-full">
+                        <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
+                    </div>
+                );
+            case "analytics":
+                return <AnalyticsCard key={widgetId} loading={healthLoading} />;
+            case "most-active-users":
+                return <MostActiveUsersCard key={widgetId} loading={healthLoading} />;
+            case "graph-carousel":
+                return (
+                    <div key={widgetId} className="sm:col-span-2 h-full">
+                        <GraphCarouselCard loading={healthLoading} />
+                    </div>
+                );
+            case "recent-rotations":
+                return (
+                    <div key={widgetId} className="sm:col-span-2">
+                        <RecentRotationsCard
+                            items={rotationItems}
+                            lastRun={lastRun}
+                            loading={historyLoading}
+                            formatTimeAgo={timeAgo}
+                        />
+                    </div>
+                );
+            case "seerr-carousel":
+                return (
+                    <div key={widgetId} className="sm:col-span-2 h-full">
+                        <SeerrCarouselCard loading={healthLoading} />
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
 
     return (
         <>
@@ -499,6 +607,17 @@ export default function Dashboard() {
                 </div>
             ) : null}
 
+            <DashboardSettingsModal
+                open={showSettingsModal}
+                onOpenChange={setShowSettingsModal}
+                visibilityMap={visibilityMap}
+                onToggle={toggleVisibility}
+                onReset={resetToDefaults}
+                isWidgetAvailable={isWidgetAvailable}
+                canEnableWidget={canEnableWidget}
+                enabledStatusBarCount={enabledStatusBarCount}
+            />
+
             <div className="max-w-8xl mx-auto flex flex-col gap-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -510,6 +629,14 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex gap-3 flex-wrap">
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95"
+                            title="Customize dashboard"
+                        >
+                            <Settings size={18} />
+                        </button>
+
                         <button
                             onClick={refreshHealth}
                             disabled={healthLoading}
@@ -552,64 +679,19 @@ export default function Dashboard() {
                     </pre>
                 ) : null}
 
-                {/* Health Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <HealthCard
-                        title="Plex"
-                        ok={plex?.ok}
-                        loading={!plex && healthLoading}
-                        subtitleOk="Online"
-                        subtitleBad="Offline"
-                        detail={
-                            !plex && healthLoading
-                                ? "Checking health…"
-                                : plex?.ok
-                                    ? plexDetail
-                                    : plex?.error ?? "Connection failed"
-                        }
-                        icon={
-                            <img src="/plex_icon_white.png" alt="Plex" className="w-12 h-12 object-contain" />
-                        }
-                    />
-
-                    <ActiveStreamsCard loading={healthLoading} />
-
-                    <IntegrationsHealthCard loading={healthLoading} />
-
-                    <RotationStatusCard
-                        enabled={schedulerStatus?.enabled ?? false}
-                        nextRunTime={schedulerStatus?.next_run_time ?? null}
-                        loading={schedulerStatus === null}
-                        currentTime={currentTime}
-                    />
-
-                    {/* Active Collections */}
-                    <div className="col-span-full w-full">
-                        <ActiveCollectionsCard collections={activeCollections} loading={activeLoading} />
+                {/* Status Bar - always 4 columns for 1x1 health widgets */}
+                {visibleStatusBarWidgets.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {visibleStatusBarWidgets.map((widgetId) => renderWidget(widgetId))}
                     </div>
+                )}
 
-                    {/* Analytics - only show when Tautulli is enabled */}
-                    {tautulliEnabled && (
-                        <>
-                            <AnalyticsCard loading={healthLoading} />
-                            <MostActiveUsersCard loading={healthLoading} />
-                            <div className="sm:col-span-2">
-                                <GraphCarouselCard loading={healthLoading} />
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Recent Rotations + Seerr Requests - Half Width */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <RecentRotationsCard
-                        items={rotationItems}
-                        lastRun={lastRun}
-                        loading={historyLoading}
-                        formatTimeAgo={timeAgo}
-                    />
-                    <SeerrCarouselCard loading={healthLoading} />
-                </div>
+                {/* Main Widget Grid */}
+                {visibleMainWidgets.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {visibleMainWidgets.map((widgetId) => renderWidget(widgetId))}
+                    </div>
+                )}
 
                 {/* Footer */}
                 <div className="border-t border-slate-200 dark:border-slate-800 mt-4 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-500">

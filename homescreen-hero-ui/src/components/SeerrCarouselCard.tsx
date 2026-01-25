@@ -194,7 +194,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
     // Loading state
     if (loading || (requestsLoading && seerrEnabled === null)) {
         return (
-            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-white tracking-tight">Seerr Requests</h3>
@@ -213,7 +213,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
     // Seerr not enabled state
     if (seerrEnabled === false) {
         return (
-            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-white tracking-tight">Seerr Requests</h3>
@@ -239,7 +239,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
     // Error state
     if (error && requests.length === 0) {
         return (
-            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300">
+            <div className="rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 space-y-4 transition-all duration-300 h-[420px] flex flex-col">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-white tracking-tight">Seerr Requests</h3>
@@ -261,7 +261,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
 
     // Main render - Requests page
     return (
-        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-5 space-y-4 transition-all duration-300 hover:bg-slate-800/30">
+        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-5 space-y-4 transition-all duration-300 hover:bg-slate-800/30 h-[420px] flex flex-col">
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -343,7 +343,7 @@ export default function SeerrCarouselCard({ loading }: { loading?: boolean }) {
                             {statusFilter !== "all" && " for this status"}
                         </div>
                     ) : (
-                        <ul className="space-y-2 max-h-[440px] overflow-y-auto scrollbar-hover-only pr-1">
+                        <ul className="space-y-2 flex-1 overflow-y-auto scrollbar-hover-only pr-1">
                             {requests.map((request) => (
                                 <li
                                     key={request.id}
