@@ -3,7 +3,7 @@ services:
     build: .
     container_name: homescreen-hero
     ports:
-      - "8000:8000"
+      - "${HSH_PORT:-8000}:8000"
     environment:
       # Config and data paths
       HOMESCREEN_HERO_CONFIG: /data/config.yaml

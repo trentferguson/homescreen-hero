@@ -64,14 +64,11 @@ export function EditModeBanner({ hiddenWidgets = [], onAddWidget }: EditModeBann
                             <div className="px-3 py-2 border-b border-slate-700">
                                 <p className="text-xs font-medium text-slate-400">Hidden Widgets</p>
                             </div>
-                            <div className="max-h-64 overflow-y-auto">
+                            <div className="max-h-64 overflow-y-auto scrollbar-thin">
                                 {availableToAdd.map((widget) => (
                                     <button
                                         key={widget.id}
-                                        onClick={() => {
-                                            onAddWidget?.(widget.id);
-                                            setIsOpen(false);
-                                        }}
+                                        onClick={() => onAddWidget?.(widget.id)}
                                         className="w-full px-3 py-2.5 text-left hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-b-0"
                                     >
                                         <p className="text-sm font-medium text-slate-200">{widget.name}</p>
