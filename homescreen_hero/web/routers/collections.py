@@ -13,7 +13,19 @@ from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.config.schema import HealthResponse
 from homescreen_hero.core.db.history import init_db
 from homescreen_hero.core.db.tools import list_rotations
-from homescreen_hero.core.integrations.plex_client import get_plex_server
+from homescreen_hero.core.db.pinning import (
+    get_pinned_collections,
+    get_pinned_collection_names,
+    is_collection_pinned,
+    pin_collection,
+    unpin_collection,
+    get_display_order,
+    update_display_order,
+)
+from homescreen_hero.core.integrations.plex_client import (
+    get_plex_server,
+    reorder_homescreen_collections,
+)
 
 
 class ActiveCollectionOut(BaseModel):
@@ -23,10 +35,43 @@ class ActiveCollectionOut(BaseModel):
     promoted_to_own_home: bool = False
     promoted_to_shared: bool = False
     promoted_to_recommended: bool = False
+    is_pinned: bool = False
+    display_order: int = 0
 
 
 class ActiveCollectionsResponse(BaseModel):
     collections: List[ActiveCollectionOut]
+
+
+class PinnedCollectionOut(BaseModel):
+    collection_name: str
+    library_name: str
+    display_order: int
+    pinned_at: datetime
+
+
+class PinnedCollectionsResponse(BaseModel):
+    pinned: List[PinnedCollectionOut]
+
+
+class TogglePinRequest(BaseModel):
+    collection_name: str
+    library: str
+
+
+class TogglePinResponse(BaseModel):
+    success: bool
+    is_pinned: bool
+    message: str
+
+
+class ReorderCollectionsRequest(BaseModel):
+    ordered_collections: List[str]
+
+
+class ReorderResponse(BaseModel):
+    success: bool
+    message: str
 
 
 class CollectionOut(BaseModel):
@@ -174,41 +219,40 @@ def invalidate_cache_endpoint() -> dict:
 # Return the collections currently featured on the Plex home screen
 @router.get("/active", response_model=ActiveCollectionsResponse)
 def get_active_collections() -> ActiveCollectionsResponse:
+    init_db()
     config = load_config()
     server = get_plex_server(config)
 
+    # Get pinning and ordering info from database
+    pinned_names = get_pinned_collection_names()
+    display_order_map = get_display_order()
+
     out: List[ActiveCollectionOut] = []
 
-    # Iterate through all library sections and find collections visible on home
     for section in server.library.sections():
         try:
             for col in section.collections():
                 try:
-                    # Get the visibility/hub settings for this collection
                     hub = col.visibility()
-
-                    # Get all three visibility flags
-                    # Note: The correct attribute name is "promotedToSharedHome" not "promotedToShared"
                     promoted_own = getattr(hub, "promotedToOwnHome", False)
                     promoted_shared = getattr(hub, "promotedToSharedHome", False)
                     promoted_recommended = getattr(hub, "promotedToRecommended", False)
 
-                    # Include if ANY visibility is enabled
                     if promoted_own or promoted_shared or promoted_recommended:
                         poster_url = None
                         if getattr(col, "thumb", None):
                             try:
-                                # Use full URL for the source image to ensure authentication works
-                                full_thumb_url = server.url(col.thumb, includeToken=True)
+                                full_thumb_url = server.url(
+                                    col.thumb, includeToken=True
+                                )
                                 poster_url = server.transcodeImage(
-                                    full_thumb_url,
-                                    height=450,
-                                    width=300,
-                                    minSize=1
+                                    full_thumb_url, height=450, width=300, minSize=1
                                 )
                             except Exception:
-                                # Fallback if transcode fails
                                 poster_url = server.url(col.thumb, includeToken=True)
+
+                        is_pinned = col.title in pinned_names
+                        display_order = display_order_map.get(col.title, 9999)
 
                         out.append(
                             ActiveCollectionOut(
@@ -218,14 +262,21 @@ def get_active_collections() -> ActiveCollectionsResponse:
                                 promoted_to_own_home=promoted_own,
                                 promoted_to_shared=promoted_shared,
                                 promoted_to_recommended=promoted_recommended,
+                                is_pinned=is_pinned,
+                                display_order=display_order,
                             )
                         )
                 except Exception as e:
-                    logger.warning(f"Could not get visibility for collection {col.title}: {e}")
-                    continue
+                    logger.warning(
+                        f"Could not get visibility for collection {col.title}: {e}"
+                    )
         except Exception as e:
-            logger.error(f"Error retrieving collections from section {section.title}: {e}")
-            continue
+            logger.error(
+                f"Error retrieving collections from section {section.title}: {e}"
+            )
+
+    # Sort: pinned first, then by display_order
+    out.sort(key=lambda c: (0 if c.is_pinned else 1, c.display_order, c.title))
 
     return ActiveCollectionsResponse(collections=out)
 
@@ -1071,3 +1122,58 @@ async def upload_item_poster(
         raise HTTPException(
             status_code=500, detail=f"Failed to upload poster: {str(e)}"
         )
+    
+
+@router.get("/pinned", response_model=PinnedCollectionsResponse)
+def get_pinned_collections_endpoint() -> PinnedCollectionsResponse:
+    init_db()
+    pinned = get_pinned_collections()
+    return PinnedCollectionsResponse(
+        pinned=[
+            PinnedCollectionOut(
+                collection_name=p.collection_name,
+                library_name=p.library_name,
+                display_order=p.display_order,
+                pinned_at=p.pinned_at,
+            )
+            for p in pinned
+        ]
+    )
+
+
+@router.post("/toggle-pin", response_model=TogglePinResponse)
+def toggle_pin_collection_endpoint(request: TogglePinRequest) -> TogglePinResponse:
+    init_db()
+    currently_pinned = is_collection_pinned(request.collection_name)
+
+    if currently_pinned:
+        unpin_collection(request.collection_name)
+        return TogglePinResponse(
+            success=True,
+            is_pinned=False,
+            message=f"Unpinned collection '{request.collection_name}'",
+        )
+    else:
+        pin_collection(request.collection_name, request.library)
+        return TogglePinResponse(
+            success=True,
+            is_pinned=True,
+            message=f"Pinned collection '{request.collection_name}'",
+        )
+
+
+@router.post("/reorder", response_model=ReorderResponse)
+def reorder_collections_endpoint(request: ReorderCollectionsRequest) -> ReorderResponse:
+    init_db()
+    try:
+        update_display_order(request.ordered_collections)
+        config = load_config()
+        server = get_plex_server(config)
+        reorder_homescreen_collections(server, config, request.ordered_collections)
+        return ReorderResponse(
+            success=True,
+            message=f"Reordered {len(request.ordered_collections)} collections",
+        )
+    except Exception as e:
+        logger.error(f"Error reordering collections: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reorder: {str(e)}")

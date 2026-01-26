@@ -13,7 +13,6 @@ from .integrations import (
     apply_home_screen_selection,
 )
 from .integrations.plex_client import cleanup_deleted_integration_sources
-
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
 from .rotation import run_rotation_with_history, build_collection_visibility_map
@@ -24,6 +23,7 @@ from .db import (
     create_simulation,
     get_simulation_by_id,
     mark_simulation_applied,
+    get_pinned_collection_names,
 )
 
 
@@ -110,10 +110,12 @@ def run_rotation_once(
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")
         max_rotation_id, usage_map = get_rotation_history_context()
+        pinned_names = get_pinned_collection_names()
         rotation_result = run_rotation_with_history(
             config,
             max_rotation_id=max_rotation_id,
             usage_map=usage_map,
+            pinned_names=pinned_names,
         )
 
         # Now sync only the selected collections
@@ -122,10 +124,12 @@ def run_rotation_once(
     # If we did a full sync, now select collections
     if config.rotation.sync_all_on_rotation:
         max_rotation_id, usage_map = get_rotation_history_context()
+        pinned_names = get_pinned_collection_names()
         rotation_result = run_rotation_with_history(
             config,
             max_rotation_id=max_rotation_id,
             usage_map=usage_map,
+            pinned_names=pinned_names,
         )
 
     # Build visibility map from group settings
@@ -195,10 +199,13 @@ def simulate_rotation_once(
 
     logger.info("Simulating next rotation (no Plex write, no history write)")
 
+    pinned_names = get_pinned_collection_names()
+
     rotation_result = run_rotation_with_history(
         config,
         max_rotation_id=max_rotation_id,
         usage_map=usage_map,
+        pinned_names=pinned_names,
     )
 
     simulation_id = create_simulation(rotation_result)

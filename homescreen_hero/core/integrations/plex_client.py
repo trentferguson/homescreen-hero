@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable, List, Set
+from typing import Any, Dict, Iterable, List, Set
 
 from plexapi.server import PlexServer
 
@@ -304,4 +304,57 @@ def apply_home_screen_selection(
     if dry_run:
         logger.info("Dry run — no changes were sent to Plex")
 
+    # Reorder collections on the homescreen to match the selection order
+    if applied and not dry_run:
+        reorder_homescreen_collections(server, config, applied)
+
     return applied
+
+
+def reorder_homescreen_collections(
+    server: PlexServer,
+    config: AppConfig,
+    ordered_collection_names: List[str],
+    *,
+    dry_run: bool = False,
+) -> List[str]:
+    # Reorder collections on the Plex homescreen using ManagedHub.move().
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+    # Build map: collection_name -> ManagedHub
+    hub_map: Dict[str, Any] = {}
+    for library_name in enabled_libraries:
+        try:
+            library = server.library.section(library_name)
+            for hub in library.managedHubs():
+                if hasattr(hub, "title"):
+                    hub_map[hub.title] = hub
+        except Exception as e:
+            logger.warning(
+                "Could not get managed hubs for library %s: %s", library_name, e
+            )
+
+    if dry_run:
+        logger.info("Dry run - would reorder collections: %s", ordered_collection_names)
+        return ordered_collection_names
+
+    # Move collections in reverse order, each to the top
+    applied_order: List[str] = []
+
+    for name in reversed(ordered_collection_names):
+        hub = hub_map.get(name)
+        if hub is None:
+            logger.debug("Collection '%s' not found in managed hubs, skipping reorder", name)
+            continue
+
+        try:
+            hub.move(after=None)  # Move to top
+            applied_order.insert(0, name)
+            logger.debug("Moved collection '%s' to top", name)
+        except Exception as e:
+            logger.warning("Failed to move collection '%s': %s", name, e)
+
+    if applied_order:
+        logger.info("Reordered %d collections on homescreen", len(applied_order))
+
+    return applied_order

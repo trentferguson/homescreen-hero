@@ -5,20 +5,45 @@ from .analytics import (
     get_top_collections_by_plays,
     record_collection_analytics,
 )
-from .base import Base, get_engine, get_session, session_scope
+from .base import (
+    Base,
+    get_engine,
+    get_session,
+    session_scope
+)
 from .history import (
     get_recent_rotations,
     get_rotation_history_context,
     init_db,
     record_rotation,
 )
-from .models import CollectionAnalytics, CollectionUsage, PendingSimulation, RotationRecord
+from .models import (
+    CollectionAnalytics,
+    CollectionDisplayOrder,
+    CollectionUsage,
+    PendingSimulation,
+    PinnedCollection,
+    RotationRecord,
+)
 from .simulations import (
     create_simulation,
     get_simulation_by_id,
     mark_simulation_applied,
 )
-from .tools import clear_history, list_rotations, list_usage
+from .tools import (
+    clear_history,
+    list_rotations,
+    list_usage
+    )
+from .pinning import (
+    get_display_order,
+    get_pinned_collection_names,
+    get_pinned_collections,
+    is_collection_pinned,
+    pin_collection,
+    unpin_collection,
+    update_display_order,
+)
 
 __all__ = (
     "Base",
@@ -44,4 +69,13 @@ __all__ = (
     "record_collection_analytics",
     "record_rotation",
     "session_scope",
+    "CollectionDisplayOrder",
+    "PinnedCollection",
+    "get_display_order",
+    "get_pinned_collection_names",
+    "get_pinned_collections",
+    "is_collection_pinned",
+    "pin_collection",
+    "unpin_collection",
+    "update_display_order",
 )

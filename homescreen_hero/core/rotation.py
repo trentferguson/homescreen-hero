@@ -161,6 +161,7 @@ def run_rotation_with_history(
     *,
     max_rotation_id: int,
     usage_map: Dict[str, CollectionUsage],
+    pinned_names: Optional[Set[str]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
 ) -> RotationResult:
@@ -175,6 +176,23 @@ def run_rotation_with_history(
     selected: List[str] = []
     selected_set: Set[str] = set()
     group_results: List[GroupSelectionResult] = []
+
+    # Handle pinned collections - they go first and don't count against max_collections
+    pinned_names = pinned_names or set()
+    blacklist = config.rotation.blacklisted_collections
+
+    pinned_selected: List[str] = []
+    for name in sorted(pinned_names):
+        if name not in blacklist:
+            pinned_selected.append(name)
+            selected_set.add(name)
+
+    if pinned_selected:
+        logger.info(
+            "Including %d pinned collections (not counted against max_collections): %s",
+            len(pinned_selected),
+            pinned_selected,
+        )
 
     logger.info(
         "Starting rotation with history: %d max rotations observed", max_rotation_id
@@ -274,8 +292,11 @@ def run_rotation_with_history(
         if remaining_global <= 0:
             break
 
+    # Prepend pinned collections to ensure they're at the front
+    final_selected = pinned_selected + selected
+
     rotation_result = RotationResult(
-        selected_collections=selected,
+        selected_collections=final_selected,
         groups=group_results,
         max_global=max_global,
         remaining_global=remaining_global,

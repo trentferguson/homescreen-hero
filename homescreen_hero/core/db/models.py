@@ -184,3 +184,24 @@ class CollectionAnalytics(Base):
 
     # Optional extra data (JSON for flexibility - can store additional stats)
     extra_data = Column(JSON, nullable=True)
+
+
+class PinnedCollection(Base):
+    # Collections permanently pinned to the homescreen (don't count against max_collections)
+    __tablename__ = "pinned_collections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    collection_name = Column(String, nullable=False, unique=True, index=True)
+    library_name = Column(String, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0, index=True)
+    pinned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class CollectionDisplayOrder(Base):
+    # Tracks the display order of active collections on the homescreen
+    __tablename__ = "collection_display_order"
+
+    id = Column(Integer, primary_key=True, index=True)
+    collection_name = Column(String, nullable=False, unique=True, index=True)
+    display_order = Column(Integer, nullable=False, default=0, index=True)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
