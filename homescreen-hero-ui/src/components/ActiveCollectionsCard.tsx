@@ -17,8 +17,9 @@ import {
     horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pin } from "lucide-react";
+import { GripVertical, Pin, Home, Users, Star } from "lucide-react";
 import { fetchWithAuth } from "../utils/api";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 
 export type ActiveCollection = {
     title: string;
@@ -31,22 +32,38 @@ export type ActiveCollection = {
     display_order?: number;
 };
 
+// Visibility options type for pin popover
+type VisibilityOptions = {
+    home: boolean;
+    shared: boolean;
+    recommended: boolean;
+};
+
 // Sortable collection card component
 function SortableCollectionCard({
     collection,
     index,
     onClick,
-    onTogglePin,
+    onPinWithVisibility,
+    onUnpin,
     isPinning,
     animate,
 }: {
     collection: ActiveCollection;
     index: number;
     onClick: () => void;
-    onTogglePin: (e: React.MouseEvent) => void;
+    onPinWithVisibility: (visibility: VisibilityOptions) => void;
+    onUnpin: () => void;
     isPinning: boolean;
     animate: boolean;
 }) {
+    const [popoverOpen, setPopoverOpen] = useState(false);
+    const [visibility, setVisibility] = useState<VisibilityOptions>({
+        home: collection.promoted_to_own_home ?? true,
+        shared: collection.promoted_to_shared ?? false,
+        recommended: collection.promoted_to_recommended ?? false,
+    });
+
     const {
         attributes,
         listeners,
@@ -60,6 +77,28 @@ function SortableCollectionCard({
         transform: CSS.Transform.toString(transform),
         transition: transition ?? "transform 200ms ease",
         animationDelay: animate ? `${index * 0.1}s` : undefined,
+    };
+
+    const handlePin = () => {
+        onPinWithVisibility(visibility);
+        setPopoverOpen(false);
+    };
+
+    const handleUnpin = () => {
+        onUnpin();
+        setPopoverOpen(false);
+    };
+
+    // Reset visibility state when popover opens
+    const handleOpenChange = (open: boolean) => {
+        if (open) {
+            setVisibility({
+                home: collection.promoted_to_own_home ?? true,
+                shared: collection.promoted_to_shared ?? false,
+                recommended: collection.promoted_to_recommended ?? false,
+            });
+        }
+        setPopoverOpen(open);
     };
 
     return (
@@ -79,19 +118,95 @@ function SortableCollectionCard({
                     <GripVertical size={14} />
                 </button>
 
-                {/* Pin button */}
-                <button
-                    onClick={onTogglePin}
-                    disabled={isPinning}
-                    className={`absolute top-1 right-1 z-20 p-1 rounded transition-all ${
-                        collection.is_pinned
-                            ? "bg-primary/80 text-white"
-                            : "bg-black/60 text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100"
-                    } ${isPinning ? "opacity-50 cursor-wait" : ""}`}
-                    title={collection.is_pinned ? "Unpin collection" : "Pin collection"}
-                >
-                    <Pin size={14} className={collection.is_pinned ? "fill-current" : ""} />
-                </button>
+                {/* Pin button with popover */}
+                <Popover open={popoverOpen} onOpenChange={handleOpenChange}>
+                    <PopoverTrigger asChild>
+                        <button
+                            disabled={isPinning}
+                            className={`absolute top-1 right-1 z-20 p-1 rounded transition-all ${
+                                collection.is_pinned
+                                    ? "bg-primary/80 text-white"
+                                    : "bg-black/60 text-white/70 hover:text-white hover:bg-black/80 opacity-0 group-hover:opacity-100"
+                            } ${isPinning ? "opacity-50 cursor-wait" : ""}`}
+                            title={collection.is_pinned ? "Edit pin settings" : "Pin collection"}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Pin size={14} className={collection.is_pinned ? "fill-current" : ""} />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="end"
+                        className="w-44 p-2.5 bg-slate-900/90 backdrop-blur-md border-slate-700/50"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="space-y-1.5">
+                            {/* My Home checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.home}
+                                    onChange={(e) => setVisibility(v => ({ ...v, home: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Home size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">My Home</span>
+                            </label>
+
+                            {/* Shared checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.shared}
+                                    onChange={(e) => setVisibility(v => ({ ...v, shared: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Users size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">Shared</span>
+                            </label>
+
+                            {/* Recommended checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.recommended}
+                                    onChange={(e) => setVisibility(v => ({ ...v, recommended: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Star size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">Recommended</span>
+                            </label>
+
+                            <div className="pt-1.5 flex gap-1.5">
+                                {collection.is_pinned ? (
+                                    <>
+                                        <button
+                                            onClick={handleUnpin}
+                                            disabled={isPinning}
+                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md border border-slate-600/50 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-colors disabled:opacity-50"
+                                        >
+                                            Unpin
+                                        </button>
+                                        <button
+                                            onClick={handlePin}
+                                            disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                                        >
+                                            Update
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={handlePin}
+                                        disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                        className="w-full px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                                    >
+                                        Pin
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
 
                 {/* Clickable poster area */}
                 <button
@@ -241,9 +356,58 @@ export default function ActiveCollectionsCard({
         }
     };
 
-    const handleTogglePin = async (collection: ActiveCollection, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handlePinWithVisibility = async (collection: ActiveCollection, visibility: VisibilityOptions) => {
+        if (!collection.library || pinningCollection) return;
 
+        setPinningCollection(collection.title);
+
+        try {
+            const response = await fetchWithAuth("/api/collections/toggle-pin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    collection_name: collection.title,
+                    library: collection.library,
+                    home: visibility.home,
+                    shared: visibility.shared,
+                    recommended: visibility.recommended,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to pin collection");
+            }
+
+            // Optimistically update local state with new visibility and re-sort
+            setLocalCollections(prev => {
+                const updated = prev.map(c =>
+                    c.title === collection.title
+                        ? {
+                            ...c,
+                            is_pinned: true,
+                            promoted_to_own_home: visibility.home,
+                            promoted_to_shared: visibility.shared,
+                            promoted_to_recommended: visibility.recommended,
+                        }
+                        : c
+                );
+                // Sort: pinned first, then by display_order, then by title
+                return updated.sort((a, b) => {
+                    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+                    if ((a.display_order ?? 9999) !== (b.display_order ?? 9999)) {
+                        return (a.display_order ?? 9999) - (b.display_order ?? 9999);
+                    }
+                    return a.title.localeCompare(b.title);
+                });
+            });
+        } catch (error) {
+            console.error("Failed to pin collection:", error);
+        } finally {
+            setPinningCollection(null);
+        }
+    };
+
+    const handleUnpin = async (collection: ActiveCollection) => {
         if (!collection.library || pinningCollection) return;
 
         setPinningCollection(collection.title);
@@ -259,27 +423,13 @@ export default function ActiveCollectionsCard({
             });
 
             if (!response.ok) {
-                throw new Error("Failed to toggle pin");
+                throw new Error("Failed to unpin collection");
             }
 
-            // Optimistically update local state and re-sort (pinned first)
-            setLocalCollections(prev => {
-                const updated = prev.map(c =>
-                    c.title === collection.title
-                        ? { ...c, is_pinned: !c.is_pinned }
-                        : c
-                );
-                // Sort: pinned first, then by display_order, then by title
-                return updated.sort((a, b) => {
-                    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                    if ((a.display_order ?? 9999) !== (b.display_order ?? 9999)) {
-                        return (a.display_order ?? 9999) - (b.display_order ?? 9999);
-                    }
-                    return a.title.localeCompare(b.title);
-                });
-            });
+            // Remove from local state since it's no longer on homescreen
+            setLocalCollections(prev => prev.filter(c => c.title !== collection.title));
         } catch (error) {
-            console.error("Failed to toggle pin:", error);
+            console.error("Failed to unpin collection:", error);
         } finally {
             setPinningCollection(null);
         }
@@ -373,7 +523,8 @@ export default function ActiveCollectionsCard({
                                     collection={c}
                                     index={index}
                                     onClick={() => handleCollectionClick(c)}
-                                    onTogglePin={(e) => handleTogglePin(c, e)}
+                                    onPinWithVisibility={(visibility) => handlePinWithVisibility(c, visibility)}
+                                    onUnpin={() => handleUnpin(c)}
                                     isPinning={pinningCollection === c.title}
                                     animate={!hasAnimated.current}
                                 />

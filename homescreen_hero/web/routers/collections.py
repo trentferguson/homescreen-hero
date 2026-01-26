@@ -25,6 +25,7 @@ from homescreen_hero.core.db.pinning import (
 from homescreen_hero.core.integrations.plex_client import (
     get_plex_server,
     reorder_homescreen_collections,
+    get_library_collections,
 )
 
 
@@ -57,12 +58,20 @@ class PinnedCollectionsResponse(BaseModel):
 class TogglePinRequest(BaseModel):
     collection_name: str
     library: str
+    # Visibility options (only used when pinning, ignored when unpinning)
+    home: Optional[bool] = True
+    shared: Optional[bool] = False
+    recommended: Optional[bool] = False
 
 
 class TogglePinResponse(BaseModel):
     success: bool
     is_pinned: bool
     message: str
+    # Return the visibility state after the operation
+    home: Optional[bool] = None
+    shared: Optional[bool] = None
+    recommended: Optional[bool] = None
 
 
 class ReorderCollectionsRequest(BaseModel):
@@ -1161,17 +1170,58 @@ def toggle_pin_collection_endpoint(request: TogglePinRequest) -> TogglePinRespon
 
     if currently_pinned:
         unpin_collection(request.collection_name)
+
+        # Also remove the collection from the Plex homescreen
+        try:
+            config = load_config()
+            server = get_plex_server(config)
+            library_collections = get_library_collections(server, request.library)
+            collection = library_collections.get(request.collection_name)
+
+            if collection:
+                hub = collection.visibility()
+                hub.updateVisibility(home=False, shared=False, recommended=False)
+                logger.info(f"Removed unpinned collection '{request.collection_name}' from Plex homescreen")
+        except Exception as e:
+            logger.error(f"Failed to remove collection from Plex homescreen: {e}")
+
         return TogglePinResponse(
             success=True,
             is_pinned=False,
             message=f"Unpinned collection '{request.collection_name}'",
+            home=False,
+            shared=False,
+            recommended=False,
         )
     else:
         pin_collection(request.collection_name, request.library)
+
+        # Use visibility options from request (defaults: home=True, shared=False, recommended=False)
+        home = request.home if request.home is not None else True
+        shared = request.shared if request.shared is not None else False
+        recommended = request.recommended if request.recommended is not None else False
+
+        # Also add the collection to the Plex homescreen with specified visibility
+        try:
+            config = load_config()
+            server = get_plex_server(config)
+            library_collections = get_library_collections(server, request.library)
+            collection = library_collections.get(request.collection_name)
+
+            if collection:
+                hub = collection.visibility()
+                hub.updateVisibility(home=home, shared=shared, recommended=recommended)
+                logger.info(f"Added pinned collection '{request.collection_name}' to Plex homescreen (home={home}, shared={shared}, recommended={recommended})")
+        except Exception as e:
+            logger.error(f"Failed to add collection to Plex homescreen: {e}")
+
         return TogglePinResponse(
             success=True,
             is_pinned=True,
             message=f"Pinned collection '{request.collection_name}'",
+            home=home,
+            shared=shared,
+            recommended=recommended,
         )
 
 
