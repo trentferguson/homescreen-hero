@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image } from "lucide-react";
+import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image, Pin, Home, Users, Star } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
 import {
@@ -45,6 +46,221 @@ type CollectionsCache = {
     version: number;
 };
 
+type VisibilityOptions = {
+    home: boolean;
+    shared: boolean;
+    recommended: boolean;
+};
+
+// Collection card component with pin popover
+function CollectionCard({
+    collection,
+    index,
+    isPinned,
+    isPinning,
+    onPinWithVisibility,
+    onUnpin,
+    onClick,
+    onEdit,
+    onDelete,
+}: {
+    collection: Collection;
+    index: number;
+    isPinned: boolean;
+    isPinning: boolean;
+    onPinWithVisibility: (visibility: VisibilityOptions) => void;
+    onUnpin: () => void;
+    onClick: () => void;
+    onEdit: (e: React.MouseEvent) => void;
+    onDelete: (e: React.MouseEvent) => void;
+}) {
+    const [popoverOpen, setPopoverOpen] = useState(false);
+    const [visibility, setVisibility] = useState<VisibilityOptions>({
+        home: true,
+        shared: false,
+        recommended: false,
+    });
+
+    const handlePin = () => {
+        onPinWithVisibility(visibility);
+        setPopoverOpen(false);
+    };
+
+    const handleUnpin = () => {
+        onUnpin();
+        setPopoverOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (open) {
+            setVisibility({ home: true, shared: false, recommended: false });
+        }
+        setPopoverOpen(open);
+    };
+
+    return (
+        <button
+            key={`${collection.library}-${collection.title}`}
+            onClick={onClick}
+            className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up text-left"
+            style={{ animationDelay: `${index * 0.03}s` }}
+        >
+            {/* Poster Image */}
+            <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
+                {collection.poster_url ? (
+                    <img
+                        src={collection.poster_url}
+                        alt={collection.title}
+                        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                        loading="lazy"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-600">
+                        No Poster
+                    </div>
+                )}
+
+                {/* Edit Button (shown on hover, top-left) */}
+                <button
+                    onClick={onEdit}
+                    className="absolute top-2 left-2 p-2 bg-primary/70 hover:bg-primary/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    title="Edit collection"
+                >
+                    <Edit size={16} />
+                </button>
+
+                {/* Item Count Badge Overlay */}
+                <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-900/60 text-slate-300 border border-slate-700/50 backdrop-blur-sm">
+                        {collection.item_count} items
+                    </span>
+                </div>
+
+                {/* Active Badge Overlay */}
+                {collection.is_active && (
+                    <div className="absolute bottom-2 left-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-emerald-900/70 text-emerald-400 border border-emerald-800/50 backdrop-blur-sm">
+                            Active
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Action Buttons (shown on hover, top-right) */}
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                {/* Pin Button with Popover */}
+                <Popover open={popoverOpen} onOpenChange={handleOpenChange}>
+                    <PopoverTrigger asChild>
+                        <button
+                            disabled={isPinning}
+                            className={`p-2 rounded-lg transition-colors ${
+                                isPinned
+                                    ? "bg-primary/80 hover:bg-primary text-white"
+                                    : "bg-slate-800/70 hover:bg-slate-700/90 text-slate-300"
+                            } disabled:opacity-50`}
+                            title={isPinned ? "Edit pin settings" : "Pin to home"}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Pin size={16} className={isPinned ? "fill-current" : ""} />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="end"
+                        className="w-44 p-2.5 bg-slate-900/90 backdrop-blur-md border-slate-700/50"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="space-y-1.5">
+                            {/* My Home checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.home}
+                                    onChange={(e) => setVisibility(v => ({ ...v, home: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Home size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">My Home</span>
+                            </label>
+
+                            {/* Shared checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.shared}
+                                    onChange={(e) => setVisibility(v => ({ ...v, shared: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Users size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">Shared</span>
+                            </label>
+
+                            {/* Recommended checkbox */}
+                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={visibility.recommended}
+                                    onChange={(e) => setVisibility(v => ({ ...v, recommended: e.target.checked }))}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                                />
+                                <Star size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-300">Recommended</span>
+                            </label>
+
+                            <div className="pt-1.5 flex gap-1.5">
+                                {isPinned ? (
+                                    <>
+                                        <button
+                                            onClick={handleUnpin}
+                                            disabled={isPinning}
+                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md border border-slate-600/50 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-colors disabled:opacity-50"
+                                        >
+                                            Unpin
+                                        </button>
+                                        <button
+                                            onClick={handlePin}
+                                            disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                                        >
+                                            Update
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={handlePin}
+                                        disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                        className="w-full px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                                    >
+                                        Pin
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {/* Delete Button */}
+                <button
+                    onClick={onDelete}
+                    className="p-2 bg-red-600/70 hover:bg-red-600/90 text-white rounded-lg"
+                    title="Delete collection"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            {/* Collection Info */}
+            <div className="p-3">
+                <h3 className="text-white font-medium text-sm truncate text-center">
+                    {collection.title}
+                </h3>
+                <p className="text-slate-400 text-xs text-center mt-1">
+                    {collection.library}
+                </p>
+            </div>
+        </button>
+    );
+}
+
 export default function CollectionsPage() {
     const [collections, setCollections] = useState<Collection[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,6 +271,10 @@ export default function CollectionsPage() {
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
     const [lastCacheCheck, setLastCacheCheck] = useState<number | null>(null);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    // Pinned collections
+    const [pinnedCollections, setPinnedCollections] = useState<Set<string>>(new Set());
+    const [pinningCollection, setPinningCollection] = useState<string | null>(null);
 
     // Create collection modal
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -88,6 +308,7 @@ export default function CollectionsPage() {
 
     useEffect(() => {
         loadCollections();
+        loadPinnedCollections();
     }, []);
 
     // Debounce collections search
@@ -128,6 +349,94 @@ export default function CollectionsPage() {
             setToast({ message: "Failed to load available libraries", type: "error" });
         } finally {
             setLoadingLibraries(false);
+        }
+    };
+
+    const loadPinnedCollections = async () => {
+        try {
+            const response = await fetchWithAuth("/api/collections/pinned");
+            const data = await response.json();
+            const pinnedNames = new Set<string>(data.pinned.map((p: { collection_name: string }) => p.collection_name));
+            setPinnedCollections(pinnedNames);
+        } catch (err) {
+            console.error("Failed to load pinned collections:", err);
+        }
+    };
+
+    const handlePinWithVisibility = async (collection: Collection, visibility: VisibilityOptions) => {
+        setPinningCollection(collection.title);
+
+        // Optimistic update
+        const newPinned = new Set(pinnedCollections);
+        newPinned.add(collection.title);
+        setPinnedCollections(newPinned);
+
+        try {
+            const response = await fetchWithAuth("/api/collections/toggle-pin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    collection_name: collection.title,
+                    library: collection.library,
+                    home: visibility.home,
+                    shared: visibility.shared,
+                    recommended: visibility.recommended,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setToast({ message: "Collection pinned to home", type: "success" });
+            } else {
+                setPinnedCollections(pinnedCollections);
+                setToast({ message: data.message || "Failed to pin collection", type: "error" });
+            }
+        } catch (err) {
+            setPinnedCollections(pinnedCollections);
+            setToast({
+                message: err instanceof Error ? err.message : "Failed to pin collection",
+                type: "error",
+            });
+        } finally {
+            setPinningCollection(null);
+        }
+    };
+
+    const handleUnpin = async (collection: Collection) => {
+        setPinningCollection(collection.title);
+
+        // Optimistic update
+        const newPinned = new Set(pinnedCollections);
+        newPinned.delete(collection.title);
+        setPinnedCollections(newPinned);
+
+        try {
+            const response = await fetchWithAuth("/api/collections/toggle-pin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    collection_name: collection.title,
+                    library: collection.library,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setToast({ message: "Collection unpinned", type: "success" });
+            } else {
+                setPinnedCollections(pinnedCollections);
+                setToast({ message: data.message || "Failed to unpin collection", type: "error" });
+            }
+        } catch (err) {
+            setPinnedCollections(pinnedCollections);
+            setToast({
+                message: err instanceof Error ? err.message : "Failed to unpin collection",
+                type: "error",
+            });
+        } finally {
+            setPinningCollection(null);
         }
     };
 
@@ -687,72 +996,18 @@ export default function CollectionsPage() {
                 ) : (
                     <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                         {filteredCollections.map((collection, index) => (
-                            <button
+                            <CollectionCard
                                 key={`${collection.library}-${collection.title}`}
+                                collection={collection}
+                                index={index}
+                                isPinned={pinnedCollections.has(collection.title)}
+                                isPinning={pinningCollection === collection.title}
+                                onPinWithVisibility={(visibility) => handlePinWithVisibility(collection, visibility)}
+                                onUnpin={() => handleUnpin(collection)}
                                 onClick={() => handleCollectionClick(collection)}
-                                className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up"
-                                style={{ animationDelay: `${index * 0.03}s` }}
-                            >
-                                {/* Poster Image */}
-                                <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
-                                    {collection.poster_url ? (
-                                        <img
-                                            src={collection.poster_url}
-                                            alt={collection.title}
-                                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
-                                            loading="lazy"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                            No Poster
-                                        </div>
-                                    )}
-
-                                    {/* Edit Button (shown on hover, top-left) */}
-                                    <button
-                                        onClick={(e) => openQuickEditModal(collection, e)}
-                                        className="absolute top-2 left-2 p-2 bg-primary/70 hover:bg-primary/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                        title="Edit collection"
-                                    >
-                                        <Edit size={16} />
-                                    </button>
-
-                                    {/* Item Count Badge Overlay */}
-                                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-900/60 text-slate-300 border border-slate-700/50 backdrop-blur-sm">
-                                            {collection.item_count} items
-                                        </span>
-                                    </div>
-
-                                    {/* Active Badge Overlay */}
-                                    {collection.is_active && (
-                                        <div className="absolute bottom-2 left-2">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-emerald-900/70 text-emerald-400 border border-emerald-800/50 backdrop-blur-sm">
-                                                Active
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Delete Button (shown on hover, top-right) */}
-                                <button
-                                    onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
-                                    className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                    title="Delete collection"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-
-                                {/* Collection Info */}
-                                <div className="p-3">
-                                    <h3 className="text-white font-medium text-sm truncate text-center">
-                                        {collection.title}
-                                    </h3>
-                                    <p className="text-slate-400 text-xs text-center mt-1">
-                                        {collection.library}
-                                    </p>
-                                </div>
-                            </button>
+                                onEdit={(e) => openQuickEditModal(collection, e)}
+                                onDelete={(e) => handleDeleteCollection(collection.library, collection.title, e)}
+                            />
                         ))}
                     </div>
                 )}
