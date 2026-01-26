@@ -319,40 +319,71 @@ def reorder_homescreen_collections(
     dry_run: bool = False,
 ) -> List[str]:
     # Reorder collections on the Plex homescreen using ManagedHub.move().
+    # Plex keeps libraries separate, so we reorder within each library.
     enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
 
-    # Build map: collection_name -> ManagedHub
-    hub_map: Dict[str, Any] = {}
+    # Build map: collection_name -> (ManagedHub, library_name)
+    hub_map: Dict[str, tuple[Any, str]] = {}
     for library_name in enabled_libraries:
         try:
             library = server.library.section(library_name)
-            for hub in library.managedHubs():
+            hubs = library.managedHubs()
+            for hub in hubs:
                 if hasattr(hub, "title"):
-                    hub_map[hub.title] = hub
+                    hub_map[hub.title] = (hub, library_name)
         except Exception as e:
             logger.warning(
                 "Could not get managed hubs for library %s: %s", library_name, e
             )
 
+    logger.debug("Found %d collections available for reordering", len(hub_map))
+
     if dry_run:
         logger.info("Dry run - would reorder collections: %s", ordered_collection_names)
         return ordered_collection_names
 
-    # Move collections in reverse order, each to the top
-    applied_order: List[str] = []
+    # Group requested collections by library, preserving order within each library
+    library_orders: Dict[str, List[tuple[str, Any]]] = {}
+    for name in ordered_collection_names:
+        if name not in hub_map:
+            # Collection might be a built-in Plex hub (not a custom collection)
+            logger.debug("Skipping '%s' - not a custom collection or not found", name)
+            continue
+        hub, library_name = hub_map[name]
+        if library_name not in library_orders:
+            library_orders[library_name] = []
+        library_orders[library_name].append((name, hub))
 
-    for name in reversed(ordered_collection_names):
-        hub = hub_map.get(name)
-        if hub is None:
-            logger.debug("Collection '%s' not found in managed hubs, skipping reorder", name)
+    # Reorder within each library
+    applied_order: List[str] = []
+    for library_name, collections in library_orders.items():
+        logger.debug("Reordering %d collections in '%s'", len(collections), library_name)
+
+        if len(collections) < 2:
+            for name, _ in collections:
+                applied_order.append(name)
             continue
 
+        # Move first item to top, then position others relative to it
+        first_name, first_hub = collections[0]
         try:
-            hub.move(after=None)  # Move to top
-            applied_order.insert(0, name)
-            logger.debug("Moved collection '%s' to top", name)
+            first_hub.move(after=None)
+            applied_order.append(first_name)
+            logger.debug("Moved '%s' to top", first_name)
         except Exception as e:
-            logger.warning("Failed to move collection '%s': %s", name, e)
+            logger.warning("Failed to move collection '%s': %s", first_name, e)
+            continue
+
+        # Move subsequent items after the previous one
+        prev_hub = first_hub
+        for name, hub in collections[1:]:
+            try:
+                hub.move(after=prev_hub)
+                applied_order.append(name)
+                logger.debug("Moved '%s' after '%s'", name, prev_hub.title)
+                prev_hub = hub
+            except Exception as e:
+                logger.warning("Failed to move collection '%s': %s", name, e)
 
     if applied_order:
         logger.info("Reordered %d collections on homescreen", len(applied_order))

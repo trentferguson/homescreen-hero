@@ -223,9 +223,21 @@ def get_active_collections() -> ActiveCollectionsResponse:
     config = load_config()
     server = get_plex_server(config)
 
-    # Get pinning and ordering info from database
+    # Get pinning info from database
     pinned_names = get_pinned_collection_names()
-    display_order_map = get_display_order()
+
+    # Get actual order from Plex's managed hubs (returns in homescreen order)
+    plex_order_map: dict[str, int] = {}
+    order_counter = 0
+    for section in server.library.sections():
+        try:
+            for hub in section.managedHubs():
+                if hasattr(hub, "title"):
+                    # Assign order based on position in managedHubs() results
+                    plex_order_map[hub.title] = order_counter
+                    order_counter += 1
+        except Exception as e:
+            logger.warning(f"Could not get managed hubs for section {section.title}: {e}")
 
     out: List[ActiveCollectionOut] = []
 
@@ -252,7 +264,8 @@ def get_active_collections() -> ActiveCollectionsResponse:
                                 poster_url = server.url(col.thumb, includeToken=True)
 
                         is_pinned = col.title in pinned_names
-                        display_order = display_order_map.get(col.title, 9999)
+                        # Use Plex's actual order, fallback to 9999 for unknown
+                        display_order = plex_order_map.get(col.title, 9999)
 
                         out.append(
                             ActiveCollectionOut(
@@ -275,7 +288,7 @@ def get_active_collections() -> ActiveCollectionsResponse:
                 f"Error retrieving collections from section {section.title}: {e}"
             )
 
-    # Sort: pinned first, then by display_order
+    # Sort: pinned first, then by Plex's actual display order
     out.sort(key=lambda c: (0 if c.is_pinned else 1, c.display_order, c.title))
 
     return ActiveCollectionsResponse(collections=out)
