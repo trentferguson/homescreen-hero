@@ -15,15 +15,15 @@ rotation:
   enabled: true
   interval_hours: 12
   max_collections: 5
-  strategy: random
+  strategy: random # random, weighted, lru (see repo for explanation on how each strategy works)
   allow_repeats: false
   sync_all_on_rotation: true # Default: true
-  # If true, sync all third-party lists on each rotation run (good if < 10 lists)
-  # If false, only sync lists when they are selected during a rotation (runs faster if you have many lists)
+  # If true, sync all third-party lists on each rotation run (good if < 15 lists)
+  # If false, only sync lists when they're selected during a rotation (runs faster if you have a bunch of lists)
 
 # Optional: Authentication settings
 auth:
-  enabled: false
+  enabled: true
   username: "admin"
   # password: ""  # RECOMMENDED: Use HSH_AUTH_PASSWORD environment variable instead
   # secret_key: ""  # RECOMMENDED: Use HSH_AUTH_SECRET_KEY environment variable instead
@@ -51,7 +51,6 @@ mdblist:
   enabled: false
   # api_key: "YOUR_MDBLIST_API_KEY"  # RECOMMENDED: Use HSH_MDBLIST_API_KEY environment variable instead
   # Get your API key from: https://mdblist.com/preferences/
-  # Free tier: 1,000 requests per day
   base_url: https://api.mdblist.com
   sources:
   - name: "MDBLIST_LIST_NAME"  # This is the name that will show up in Plex
@@ -84,9 +83,9 @@ groups:
   max_picks: 1
   weight: 1
   min_gap_rotations: 0
-  visibility_home: true        # Promote to admin's Home page
-  visibility_shared: false     # Promote to shared users' Home pages
-  visibility_recommended: false  # Promote to Library Recommended section
+  visibility_home: true        # Show collections on server owner's Home page
+  visibility_shared: false     # Show collections on shared users' Home pages
+  visibility_recommended: false  # Show collections on Library Recommended section
   collections:
   - Example Collection 1
   - Example Collection 2
