@@ -266,7 +266,19 @@ def apply_home_screen_selection(
         dry_run,
     )
 
-    for name in sorted(all_names_to_process):
+    # Get pinned collections to ensure they come first in the applied order
+    from ..db import get_pinned_collections
+    pinned_collections = get_pinned_collections()
+    pinned_order = {p.collection_name: p.display_order for p in pinned_collections}
+    pinned_names = set(pinned_order.keys())
+
+    # Sort: pinned first (by pin order), then non-pinned (alphabetically)
+    def sort_key(name: str) -> tuple:
+        if name in pinned_names:
+            return (0, pinned_order[name], name)
+        return (1, 0, name)
+
+    for name in sorted(all_names_to_process, key=sort_key):
         coll = all_collections.get(name)
         if coll is None:
             # Collection not found in Plex - might have been deleted from Plex library
