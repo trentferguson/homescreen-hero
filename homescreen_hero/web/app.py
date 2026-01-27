@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
             "Failed to load config during startup, using default logging: %s", exc
         )
 
-    app = FastAPI(title="HomeScreen Hero API", version="0.2.0")
+    app = FastAPI(title="homescreen-hero API", version="0.2.0")
 
 
     app.include_router(health_router, prefix="/api")

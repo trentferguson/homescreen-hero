@@ -37,7 +37,7 @@ export default function TopNav() {
                     <NavLink to="/" className="flex items-center group">
                         <img
                             src="/logo.svg"
-                            alt="HomeScreen Hero"
+                            alt="homescreen-hero"
                             className="h-10 w-auto select-none transition-transform duration-200 group-hover:scale-105"
                         />
                     </NavLink>

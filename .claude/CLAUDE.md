@@ -1,4 +1,4 @@
-# HomeScreen Hero
+# homescreen-hero
 
 A self-hosted Plex companion app that automatically rotates collections on the homescreen via a FastAPI + React dashboard.
 

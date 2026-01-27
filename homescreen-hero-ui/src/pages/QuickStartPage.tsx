@@ -132,7 +132,7 @@ function WelcomeStep() {
             <div className="flex flex-col items-center gap-3">
                 <img
                     src="/logo_text.png"
-                    alt="HomeScreen Hero"
+                    alt="homescreen-hero"
                     className="h-auto w-auto select-none scale-90"
                 />
                 <Sparkles className="h-10 w-10 text-primary" />
@@ -140,7 +140,7 @@ function WelcomeStep() {
 
             <div className="text-center space-y-3">
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    Welcome to HomeScreen Hero
+                    Welcome to homescreen-hero
                 </h1>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                     Let's get you set up in just a few quick steps. We'll configure your Plex connection, select your libraries, and optionally set up authentication, Trakt, and MDBList integrations.
@@ -445,7 +445,7 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                                 Select Libraries
                             </h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                Choose which Plex libraries to use with HomeScreen Hero
+                                Choose which Plex libraries to use with homescreen-hero
                             </p>
                         </div>
 

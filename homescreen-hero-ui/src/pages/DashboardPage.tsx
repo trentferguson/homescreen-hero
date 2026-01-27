@@ -788,7 +788,7 @@ export default function Dashboard() {
 
                 {/* Footer */}
                 <div className="border-t border-slate-200 dark:border-slate-800 mt-4 pt-6 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-500">
-                    <p>© {new Date().getFullYear()} HomeScreen Hero</p>
+                    <p>© {new Date().getFullYear()} homescreen-hero </p>
                     <div className="flex gap-4 mt-2 md:mt-0">
                         <button onClick={refresh} className="hover:text-slate-800 dark:hover:text-slate-300 transition-colors">
                             Refresh

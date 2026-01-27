@@ -1,4 +1,4 @@
-# HomeScreen Hero Design System
+# homescreen-hero Design System
 
 ## Direction & Feel
 **Data & Analysis with approachability** — This is a media management dashboard that combines technical precision with visual warmth. Users manage Plex collections and view analytics, so it needs clear hierarchy and readable data displays, but the media context (posters, artwork) keeps it from feeling sterile.

@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob, Write, Edit
 
 # Tautulli Analytics Integration
 
-This skill helps with Tautulli analytics features in HomeScreen Hero. Tautulli provides streaming metrics and watch history from Plex servers.
+This skill helps with Tautulli analytics features in homescreen-hero. Tautulli provides streaming metrics and watch history from Plex servers.
 
 ## Key Files
 

@@ -1,4 +1,4 @@
-# Contributing to HomeScreen Hero
+# Contributing to homescreen-hero
 
 Thanks for your interest in contributing! This guide covers how to set up a local development environment.
 

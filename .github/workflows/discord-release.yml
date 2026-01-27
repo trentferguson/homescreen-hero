@@ -13,11 +13,11 @@ jobs:
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          embed-title: " HomeScreen Hero ${{ github.event.release.tag_name }}"
+          embed-title: " homescreen-hero ${{ github.event.release.tag_name }}"
           embed-description: |
             **${{ github.event.release.name }}**
 
             ${{ github.event.release.body }}
           embed-url: ${{ github.event.release.html_url }}
           embed-color: 5814783
-          embed-footer-text: "GitHub Releases • HomeScreen Hero"
+          embed-footer-text: "GitHub Releases • homescreen-hero"

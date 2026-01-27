@@ -25,4 +25,4 @@ jobs:
             **Author:** @${{ github.event.pull_request.user.login }}
           embed-url: ${{ github.event.pull_request.html_url }}
           embed-color: 7506394
-          embed-footer-text: "Nightly Build Notes • HomeScreen Hero"
+          embed-footer-text: "Nightly Build Notes • homescreen-hero"

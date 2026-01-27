@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document describes how to run tests for HomeScreen Hero.
+This document describes how to run tests for homescreen-hero.
 
 ## Backend Tests (Python/pytest)
 

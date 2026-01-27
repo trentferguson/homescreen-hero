@@ -57,7 +57,7 @@ export default function LoginPage() {
                     <div className="flex flex-col items-center gap-4">
                         <img
                             src="/logo_text.png"
-                            alt="HomeScreen Hero"
+                            alt="homescreen-hero"
                             className="h-auto w-auto select-none"
                         />
                     </div>
