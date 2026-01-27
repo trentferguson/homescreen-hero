@@ -28,6 +28,21 @@ def get_pinned_collection_names() -> Set[str]:
         return set(rows)
 
 
+def get_pinned_visibility_map() -> Dict[str, Dict[str, bool]]:
+    # Return visibility settings for all pinned collections
+    with session_scope() as db:
+        stmt = select(PinnedCollection)
+        rows = db.execute(stmt).scalars().all()
+        return {
+            p.collection_name: {
+                "home": p.visibility_home,
+                "shared": p.visibility_shared,
+                "recommended": p.visibility_recommended,
+            }
+            for p in rows
+        }
+
+
 def is_collection_pinned(collection_name: str) -> bool:
     # Check if a specific collection is pinned
     with session_scope() as db:
@@ -42,8 +57,11 @@ def pin_collection(
     collection_name: str,
     library_name: str,
     display_order: Optional[int] = None,
+    visibility_home: bool = True,
+    visibility_shared: bool = False,
+    visibility_recommended: bool = False,
 ) -> PinnedCollection:
-    # Pin a collection. If already pinned, update the library/order.
+    # Pin a collection. If already pinned, update the library/order/visibility.
     with session_scope() as db:
         stmt = select(PinnedCollection).where(
             PinnedCollection.collection_name == collection_name
@@ -54,7 +72,11 @@ def pin_collection(
             existing.library_name = library_name
             if display_order is not None:
                 existing.display_order = display_order
-            logger.info("Updated pin for collection: %s", collection_name)
+            existing.visibility_home = visibility_home
+            existing.visibility_shared = visibility_shared
+            existing.visibility_recommended = visibility_recommended
+            logger.info("Updated pin for collection: %s (home=%s, shared=%s, recommended=%s)",
+                       collection_name, visibility_home, visibility_shared, visibility_recommended)
             return existing
 
         if display_order is None:
@@ -67,9 +89,13 @@ def pin_collection(
             library_name=library_name,
             display_order=display_order,
             pinned_at=datetime.utcnow(),
+            visibility_home=visibility_home,
+            visibility_shared=visibility_shared,
+            visibility_recommended=visibility_recommended,
         )
         db.add(pinned)
-        logger.info("Pinned collection: %s (order=%d)", collection_name, display_order)
+        logger.info("Pinned collection: %s (order=%d, home=%s, shared=%s, recommended=%s)",
+                   collection_name, display_order, visibility_home, visibility_shared, visibility_recommended)
         return pinned
 
 
@@ -116,10 +142,26 @@ def get_display_order() -> Dict[str, int]:
 
 def update_display_order(ordered_names: List[str]) -> None:
     # Update the display order for a list of collection names
+    # Also updates pinned collection order if any are pinned
     with session_scope() as db:
         now = datetime.utcnow()
 
+        # Track pinned collections separately to maintain their relative order
+        pinned_order = 0
+
         for idx, name in enumerate(ordered_names):
+            # Check if this is a pinned collection
+            pinned_stmt = select(PinnedCollection).where(
+                PinnedCollection.collection_name == name
+            )
+            pinned = db.execute(pinned_stmt).scalar_one_or_none()
+
+            if pinned is not None:
+                # Update pinned collection order
+                pinned.display_order = pinned_order
+                pinned_order += 1
+
+            # Also update general display order
             stmt = select(CollectionDisplayOrder).where(
                 CollectionDisplayOrder.collection_name == name
             )

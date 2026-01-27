@@ -58,10 +58,11 @@ class PinnedCollectionsResponse(BaseModel):
 class TogglePinRequest(BaseModel):
     collection_name: str
     library: str
-    # Visibility options (only used when pinning, ignored when unpinning)
-    home: Optional[bool] = True
-    shared: Optional[bool] = False
-    recommended: Optional[bool] = False
+    # Visibility options - if all None, this is an unpin request
+    # If any are provided, this is a pin or update request
+    home: Optional[bool] = None
+    shared: Optional[bool] = None
+    recommended: Optional[bool] = None
 
 
 class TogglePinResponse(BaseModel):
@@ -232,8 +233,10 @@ def get_active_collections() -> ActiveCollectionsResponse:
     config = load_config()
     server = get_plex_server(config)
 
-    # Get pinning info from database
-    pinned_names = get_pinned_collection_names()
+    # Get pinning info from database (with display order)
+    pinned_collections = get_pinned_collections()
+    pinned_order_map = {p.collection_name: p.display_order for p in pinned_collections}
+    pinned_names = set(pinned_order_map.keys())
 
     # Get actual order from Plex's managed hubs (returns in homescreen order)
     plex_order_map: dict[str, int] = {}
@@ -297,8 +300,13 @@ def get_active_collections() -> ActiveCollectionsResponse:
                 f"Error retrieving collections from section {section.title}: {e}"
             )
 
-    # Sort: pinned first, then by Plex's actual display order
-    out.sort(key=lambda c: (0 if c.is_pinned else 1, c.display_order, c.title))
+    # Sort: group by library, pinned first (by pin order), then non-pinned (by Plex order)
+    out.sort(key=lambda c: (
+        c.library or "",
+        0 if c.is_pinned else 1,
+        pinned_order_map.get(c.title, 0) if c.is_pinned else c.display_order,
+        c.title
+    ))
 
     return ActiveCollectionsResponse(collections=out)
 
@@ -1168,7 +1176,11 @@ def toggle_pin_collection_endpoint(request: TogglePinRequest) -> TogglePinRespon
     init_db()
     currently_pinned = is_collection_pinned(request.collection_name)
 
-    if currently_pinned:
+    # Determine if this is an unpin request (all visibility options are None AND already pinned)
+    visibility_provided = request.home is not None or request.shared is not None or request.recommended is not None
+    should_unpin = currently_pinned and not visibility_provided
+
+    if should_unpin:
         unpin_collection(request.collection_name)
 
         # Also remove the collection from the Plex homescreen
@@ -1194,12 +1206,19 @@ def toggle_pin_collection_endpoint(request: TogglePinRequest) -> TogglePinRespon
             recommended=False,
         )
     else:
-        pin_collection(request.collection_name, request.library)
-
-        # Use visibility options from request (defaults: home=True, shared=False, recommended=False)
+        # Pin or update visibility - use provided values or defaults
         home = request.home if request.home is not None else True
         shared = request.shared if request.shared is not None else False
         recommended = request.recommended if request.recommended is not None else False
+
+        # Store pin with visibility settings (creates or updates)
+        pin_collection(
+            request.collection_name,
+            request.library,
+            visibility_home=home,
+            visibility_shared=shared,
+            visibility_recommended=recommended,
+        )
 
         # Also add the collection to the Plex homescreen with specified visibility
         try:
@@ -1211,14 +1230,16 @@ def toggle_pin_collection_endpoint(request: TogglePinRequest) -> TogglePinRespon
             if collection:
                 hub = collection.visibility()
                 hub.updateVisibility(home=home, shared=shared, recommended=recommended)
-                logger.info(f"Added pinned collection '{request.collection_name}' to Plex homescreen (home={home}, shared={shared}, recommended={recommended})")
+                action = "Updated" if currently_pinned else "Added"
+                logger.info(f"{action} pinned collection '{request.collection_name}' on Plex homescreen (home={home}, shared={shared}, recommended={recommended})")
         except Exception as e:
-            logger.error(f"Failed to add collection to Plex homescreen: {e}")
+            logger.error(f"Failed to update collection on Plex homescreen: {e}")
 
+        action = "Updated" if currently_pinned else "Pinned"
         return TogglePinResponse(
             success=True,
             is_pinned=True,
-            message=f"Pinned collection '{request.collection_name}'",
+            message=f"{action} collection '{request.collection_name}'",
             home=home,
             shared=shared,
             recommended=recommended,

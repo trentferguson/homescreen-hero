@@ -195,6 +195,10 @@ class PinnedCollection(Base):
     library_name = Column(String, nullable=False)
     display_order = Column(Integer, nullable=False, default=0, index=True)
     pinned_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    # Visibility settings - what screens this collection should appear on
+    visibility_home = Column(Boolean, nullable=False, default=True)
+    visibility_shared = Column(Boolean, nullable=False, default=False)
+    visibility_recommended = Column(Boolean, nullable=False, default=False)
 
 
 class CollectionDisplayOrder(Base):

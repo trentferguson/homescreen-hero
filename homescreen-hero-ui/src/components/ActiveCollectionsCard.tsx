@@ -378,9 +378,10 @@ export default function ActiveCollectionsCard({
                 throw new Error("Failed to pin collection");
             }
 
-            // Optimistically update local state with new visibility and re-sort
-            setLocalCollections(prev => {
-                const updated = prev.map(c =>
+            // Optimistically update local state with new visibility
+            // Don't re-sort - keep current position, backend will assign pin order
+            setLocalCollections(prev =>
+                prev.map(c =>
                     c.title === collection.title
                         ? {
                             ...c,
@@ -390,16 +391,8 @@ export default function ActiveCollectionsCard({
                             promoted_to_recommended: visibility.recommended,
                         }
                         : c
-                );
-                // Sort: pinned first, then by display_order, then by title
-                return updated.sort((a, b) => {
-                    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                    if ((a.display_order ?? 9999) !== (b.display_order ?? 9999)) {
-                        return (a.display_order ?? 9999) - (b.display_order ?? 9999);
-                    }
-                    return a.title.localeCompare(b.title);
-                });
-            });
+                )
+            );
         } catch (error) {
             console.error("Failed to pin collection:", error);
         } finally {

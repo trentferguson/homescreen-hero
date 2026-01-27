@@ -22,6 +22,7 @@ def init_db() -> None:
 
     # Run schema migrations for existing tables
     _migrate_collection_analytics(engine)
+    _migrate_pinned_collections_visibility(engine)
 
 
 def _migrate_collection_analytics(engine) -> None:
@@ -43,6 +44,37 @@ def _migrate_collection_analytics(engine) -> None:
     logger.info("Migrating collection_analytics: adding media_type column")
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE collection_analytics ADD COLUMN media_type VARCHAR"))
+        conn.commit()
+
+
+def _migrate_pinned_collections_visibility(engine) -> None:
+    # Add visibility columns to pinned_collections if they don't exist
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    # Check if table exists
+    if "pinned_collections" not in inspector.get_table_names():
+        return
+
+    # Check which columns need to be added
+    columns = [col["name"] for col in inspector.get_columns("pinned_collections")]
+    columns_to_add = []
+
+    if "visibility_home" not in columns:
+        columns_to_add.append(("visibility_home", "BOOLEAN", "1"))  # default True
+    if "visibility_shared" not in columns:
+        columns_to_add.append(("visibility_shared", "BOOLEAN", "0"))  # default False
+    if "visibility_recommended" not in columns:
+        columns_to_add.append(("visibility_recommended", "BOOLEAN", "0"))  # default False
+
+    if not columns_to_add:
+        return
+
+    logger.info("Migrating pinned_collections: adding visibility columns")
+    with engine.connect() as conn:
+        for col_name, col_type, default_val in columns_to_add:
+            conn.execute(text(f"ALTER TABLE pinned_collections ADD COLUMN {col_name} {col_type} NOT NULL DEFAULT {default_val}"))
         conn.commit()
 
 

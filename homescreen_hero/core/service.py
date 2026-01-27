@@ -94,10 +94,11 @@ def run_rotation_once(
     # Connect to Plex
     server = get_plex_server(config)
 
-    # Clean up deleted integration sources (removes collections from Plex)
-    cleanup_result = cleanup_deleted_integration_sources(server, config)
-    if cleanup_result['deleted_from_plex']:
-        logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
+    # DISABLED: Auto-cleanup was too aggressive and deleting user's collections
+    # TODO: Redesign cleanup to only delete collections that HSH created (not native Plex collections)
+    # cleanup_result = cleanup_deleted_integration_sources(server, config)
+    # if cleanup_result['deleted_from_plex']:
+    #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
@@ -134,6 +135,11 @@ def run_rotation_once(
 
     # Build visibility map from group settings
     collection_visibility = build_collection_visibility_map(config)
+
+    # Add pinned collection visibility (overrides group settings for pinned collections)
+    from .db import get_pinned_visibility_map
+    pinned_visibility = get_pinned_visibility_map()
+    collection_visibility.update(pinned_visibility)
 
     # Apply the selection (or simulate if dry_run=True)
     applied = apply_home_screen_selection(
@@ -290,6 +296,12 @@ def apply_simulation(
     # Apply collections to Plex
     server = get_plex_server(config)
     collection_visibility = build_collection_visibility_map(config)
+
+    # Add pinned collection visibility (overrides group settings for pinned collections)
+    from .db import get_pinned_visibility_map
+    pinned_visibility = get_pinned_visibility_map()
+    collection_visibility.update(pinned_visibility)
+
     applied = apply_home_screen_selection(
         server,
         config,

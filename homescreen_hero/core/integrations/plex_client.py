@@ -77,11 +77,13 @@ def cleanup_deleted_integration_sources(
     1. Identifies collections that were previously rotated but are no longer in:
        - Integration sources (Trakt/Letterboxd/MDBList)
        - Groups (manual collections or integration-backed collections)
+       - Pinned collections
     2. Deletes those collections from Plex
 
-    IMPORTANT: Collections that are still in groups will NEVER be deleted, even if
-    they have no integration source. This preserves manually created Plex collections
-    that users have added to their groups.
+    IMPORTANT: Collections are protected from deletion if they are:
+    - Still in groups (manual or integration-backed)
+    - Pinned by the user
+    This preserves manually created Plex collections and user-pinned collections.
 
     Args:
         server: PlexServer instance
@@ -123,19 +125,32 @@ def cleanup_deleted_integration_sources(
         for name in group.collections:
             group_collections.add(name)
 
+    # Get pinned collections - users explicitly want these preserved
+    from ..db import get_pinned_collection_names
+    pinned_collections = get_pinned_collection_names()
+
+    logger.info(f"Cleanup check - Previously rotated: {sorted(previously_rotated)}")
+    logger.info(f"Cleanup check - Integration sources: {sorted(current_integration_sources)}")
+    logger.info(f"Cleanup check - Group collections: {sorted(group_collections)}")
+    logger.info(f"Cleanup check - Pinned collections: {sorted(pinned_collections)}")
+
     # Find collections that were from integration sources but have been deleted
     # CRITICAL: Only delete collections if they meet ALL criteria:
     # 1. Previously rotated (in history)
     # 2. NOT in current integration sources (source was removed)
     # 3. NOT in current groups (not a manual collection)
+    # 4. NOT pinned by the user
     #
-    # If a collection is still in a group, it's either:
+    # If a collection is still in a group or pinned, it's either:
     # - A manual Plex collection that should be preserved
     # - An integration source that will be synced later
+    # - A collection the user explicitly pinned
     # Either way, we should NEVER delete it.
 
-    # Collections that were rotated but are no longer in integration sources OR groups
-    deleted_sources = previously_rotated - current_integration_sources - group_collections
+    # Collections that were rotated but are no longer protected
+    deleted_sources = previously_rotated - current_integration_sources - group_collections - pinned_collections
+
+    logger.info(f"Cleanup check - Will delete (not protected): {sorted(deleted_sources)}")
 
     deleted_from_plex = []
     orphaned_in_groups = []
@@ -146,7 +161,7 @@ def cleanup_deleted_integration_sources(
     logger.info("Checking for deleted integration sources to clean up...")
 
     if deleted_sources:
-        logger.info(f"Found {len(deleted_sources)} deleted integration sources to clean up")
+        logger.warning(f"DELETING {len(deleted_sources)} collections: {sorted(deleted_sources)}")
 
         for collection_name in sorted(deleted_sources):
             # These collections are no longer in config at all, safe to delete

@@ -11,6 +11,7 @@ export function SeerrIntegration() {
         <ConfigPanel
             title="Seerr Configuration"
             description="Configure your Seerr/Jellyseerr/Overseerr API credentials."
+            defaultExpanded
         >
             <FieldRow
                 label="Enable Seerr"

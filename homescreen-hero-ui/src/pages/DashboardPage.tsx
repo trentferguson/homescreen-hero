@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
-import { Lock, Unlock } from "lucide-react";
+import { Lock, Unlock, ChevronDown } from "lucide-react";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import { DraggableWidget, DroppableSection, EditModeBanner } from "../components/dashboard";
 import { widgetRegistry } from "../widgets/registry";
@@ -83,7 +83,6 @@ export default function Dashboard() {
 
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
-    const [lastHealthCheck, setLastHealthCheck] = useState<number | null>(null);
     const [tautulliEnabled, setTautulliEnabled] = useState<boolean>(false);
     const [seerrEnabled, setSeerrEnabled] = useState<boolean>(false);
     const [schedulerStatus, setSchedulerStatus] = useState<{
@@ -93,6 +92,8 @@ export default function Dashboard() {
         is_running: boolean;
     } | null>(null);
     const [currentTime, setCurrentTime] = useState(Date.now());
+    const [rotationDropdownOpen, setRotationDropdownOpen] = useState(false);
+    const rotationDropdownRef = useRef<HTMLDivElement>(null);
 
     // Dashboard layout customization
     const {
@@ -192,7 +193,6 @@ export default function Dashboard() {
                 timestamp: Date.now(),
             };
             localStorage.setItem(HEALTH_CACHE_KEY, JSON.stringify(cache));
-            setLastHealthCheck(Date.now());
         } catch {
             // Ignore cache save errors
         }
@@ -204,7 +204,6 @@ export default function Dashboard() {
             const cached = loadHealthFromCache();
             if (cached) {
                 setHealth(cached.data);
-                setLastHealthCheck(cached.timestamp);
                 setHealthLoading(false);
                 return;
             }
@@ -309,10 +308,6 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    const refreshHealth = async () => {
-        await loadHealth(true);
-    };
-
     const refresh = () => {
         setError(null);
         setHistoryLoading(true);
@@ -331,6 +326,17 @@ export default function Dashboard() {
 
     useEffect(() => {
         refresh();
+    }, []);
+
+    // Close rotation dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (rotationDropdownRef.current && !rotationDropdownRef.current.contains(event.target as Node)) {
+                setRotationDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const rotationItems = history.map((record) => {
@@ -669,23 +675,6 @@ export default function Dashboard() {
                         </button>
 
                         <button
-                            onClick={refreshHealth}
-                            disabled={healthLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
-                            title={lastHealthCheck ? `Last checked: ${new Date(lastHealthCheck).toLocaleTimeString()}` : undefined}
-                        >
-                            {healthLoading ? "Checking…" : "Refresh Health"}
-                        </button>
-
-                        <button
-                            onClick={simulateRotation}
-                            disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
-                        >
-                            {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
-                        </button>
-
-                        <button
                             onClick={syncAllLists}
                             disabled={busy !== null}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
@@ -693,13 +682,39 @@ export default function Dashboard() {
                             {busy === "sync" ? "Syncing…" : "Sync All Lists"}
                         </button>
 
-                        <button
-                            onClick={forceRunRotation}
-                            disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
-                        >
-                            {busy === "sync" ? "Running…" : "Run Rotation Now"}
-                        </button>
+                        {/* Split button for Run Rotation */}
+                        <div className="relative" ref={rotationDropdownRef}>
+                            <div className="flex">
+                                <button
+                                    onClick={forceRunRotation}
+                                    disabled={busy !== null}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-l-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                >
+                                    {busy === "apply" ? "Running…" : "Run Rotation Now"}
+                                </button>
+                                <button
+                                    onClick={() => setRotationDropdownOpen(!rotationDropdownOpen)}
+                                    disabled={busy !== null}
+                                    className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 border-l border-blue-400/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                >
+                                    <ChevronDown size={16} className={`transition-transform ${rotationDropdownOpen ? "rotate-180" : ""}`} />
+                                </button>
+                            </div>
+                            {rotationDropdownOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-48 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden">
+                                    <button
+                                        onClick={() => {
+                                            simulateRotation();
+                                            setRotationDropdownOpen(false);
+                                        }}
+                                        disabled={busy !== null}
+                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-60"
+                                    >
+                                        {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
