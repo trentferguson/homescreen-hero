@@ -14,7 +14,7 @@ def get_plex_server(config: AppConfig) -> PlexServer:
     base_url = config.plex.base_url
     token = config.plex.token
 
-    logger.info("Connecting to Plex at %s", base_url)
+    logger.debug("Connecting to Plex at %s", base_url)
 
     # Raises if connection fails, which is good for early detection
     server = PlexServer(base_url, token)

@@ -107,7 +107,7 @@ class TautulliClient:
         # Health check for Tautulli connection using get_activity command
         try:
             self._request("get_activity")
-            logger.info("Tautulli API ping successful at %s", self.cfg.base_url)
+            logger.debug("Tautulli API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
             return False, "Connection timed out. Check that the URL is correct and the server is responding."
@@ -330,16 +330,16 @@ class TautulliClient:
                 "time_range": str(time_range),
                 "stats_type": stats_type,
             }
-            logger.info(f"Requesting home stats with params: {params}")
+            logger.debug(f"Requesting home stats with params: {params}")
             data = self._request("get_home_stats", params=params)
 
-            logger.info(f"Received home stats data type: {type(data)}")
+            logger.debug(f"Received home stats data type: {type(data)}")
             if isinstance(data, dict):
-                logger.info(f"Home stats keys: {list(data.keys()) if hasattr(data, 'keys') else 'N/A'}")
+                logger.debug(f"Home stats keys: {list(data.keys()) if hasattr(data, 'keys') else 'N/A'}")
             elif isinstance(data, list):
-                logger.info(f"Home stats is a list with {len(data)} items")
+                logger.debug(f"Home stats is a list with {len(data)} items")
                 if data and len(data) > 0:
-                    logger.info(f"First home stats item: {data[0]}")
+                    logger.debug(f"First home stats item: {data[0]}")
 
             # Return data as-is, whether it's a dict or list
             return data

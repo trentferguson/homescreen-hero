@@ -97,7 +97,7 @@ class TraktClient:
         # Public endpoint used for health check
         try:
             self._request("GET", "/movies/popular", params={"page": 1, "limit": 1})
-            logger.info("Trakt API ping successful at %s", self.cfg.base_url)
+            logger.debug("Trakt API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
             return False, "Connection timed out. Check your network connection."

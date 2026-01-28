@@ -21,7 +21,7 @@ router = APIRouter(prefix="/history")
 # Return rotation history records
 @router.get("/all", response_model=List[RotationRecordOut])
 def get_history(limit: int = 20) -> List[RotationRecordOut]:
-    logger.info("Fetching rotation history (limit=%s)", limit)
+    logger.debug("Fetching rotation history (limit=%s)", limit)
 
     rows = list_rotations(limit=limit)
 

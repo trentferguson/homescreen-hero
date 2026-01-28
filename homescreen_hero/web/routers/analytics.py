@@ -340,35 +340,26 @@ def get_most_active_users(
         home_stats = tautulli.get_home_stats(time_range=query_days, stats_type="plays")
         user_stats = []
 
-        logger.info(f"Home stats type: {type(home_stats)}")
+        logger.debug(f"Home stats type: {type(home_stats)}")
 
         # Handle both dict and list responses
         if isinstance(home_stats, dict):
-            logger.info(f"Home stats keys: {list(home_stats.keys())}")
+            logger.debug(f"Home stats keys: {list(home_stats.keys())}")
             # get_home_stats returns various top lists, look for top_users
             if "top_users" in home_stats:
                 user_stats = home_stats["top_users"]
-                logger.info(f"Retrieved {len(user_stats)} users from home_stats top_users")
-                if user_stats and len(user_stats) > 0:
-                    logger.info(f"Sample user data: {user_stats[0]}")
             else:
                 logger.warning(f"top_users not found in home_stats. Available keys: {list(home_stats.keys())}")
         elif isinstance(home_stats, list):
             # home_stats is a list of stat groups, each with stat_id and rows
-            logger.info(f"Home stats is a list with {len(home_stats)} stat groups")
-
             # Find the stat group with stat_id == 'top_users'
             for stat_group in home_stats:
                 if isinstance(stat_group, dict):
                     stat_id = stat_group.get("stat_id")
-                    logger.info(f"Found stat group: {stat_id}")
 
                     if stat_id == "top_users":
                         # Extract the rows array which contains the actual user data
                         user_stats = stat_group.get("rows", [])
-                        logger.info(f"Found top_users stat group with {len(user_stats)} users")
-                        if user_stats and len(user_stats) > 0:
-                            logger.info(f"First user in top_users: {user_stats[0]}")
                         break
 
             if not user_stats:
@@ -393,7 +384,7 @@ def get_most_active_users(
             if int(u.get("total_plays", u.get("plays", 0))) > 0
         ]
 
-        logger.info(f"After filtering users with 0 plays: {len(filtered_users)} users remain")
+        logger.debug(f"After filtering users with 0 plays: {len(filtered_users)} users remain")
 
         # Format response
         # get_home_stats returns: total_plays, total_duration (seconds), friendly_name/user
@@ -406,7 +397,7 @@ def get_most_active_users(
             for user in filtered_users
         ]
 
-        logger.info(f"Returning {len(result)} active users")
+        logger.debug(f"Returning {len(result)} active users")
         return result
 
     except HTTPException:

@@ -93,7 +93,7 @@ class SeerrClient:
         # Health check using the public /status endpoint (no auth required)
         try:
             data = self._request("GET", "/status")
-            logger.info("Seerr API ping successful at %s", self.cfg.base_url)
+            logger.debug("Seerr API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
             return False, "Connection timed out. Check that the URL is correct and the server is responding."

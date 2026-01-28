@@ -181,7 +181,7 @@ def sync_single_trakt_source(
     # Future plan: automatically send requests to Sonarr/Radarr to add them
     if missing_items:
         for m in missing_items:
-            logger.info(
+            logger.debug(
                 "Trakt missing in Plex: %s (%s) ids=%s",
                 m.get("title"),
                 m.get("year"),

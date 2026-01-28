@@ -99,10 +99,13 @@ function CollectionCard({
     };
 
     return (
-        <button
+        <div
             key={`${collection.library}-${collection.title}`}
+            role="button"
+            tabIndex={0}
             onClick={onClick}
-            className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up text-left"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+            className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up text-left cursor-pointer"
             style={{ animationDelay: `${index * 0.03}s` }}
         >
             {/* Poster Image */}
@@ -257,7 +260,7 @@ function CollectionCard({
                     {collection.library}
                 </p>
             </div>
-        </button>
+        </div>
     );
 }
 

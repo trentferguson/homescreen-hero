@@ -118,7 +118,7 @@ class MDBListClient:
             limit = self.session.headers.get("X-RateLimit-Limit", "unknown")
             remaining = self.session.headers.get("X-RateLimit-Remaining", "unknown")
 
-            logger.info("MDBList API ping successful at %s", self.cfg.base_url)
+            logger.debug("MDBList API ping successful at %s", self.cfg.base_url)
             return True, f"API key valid. Rate limit: {remaining}/{limit} remaining"
         except requests.Timeout:
             return False, "Connection timed out. Check your network connection."
