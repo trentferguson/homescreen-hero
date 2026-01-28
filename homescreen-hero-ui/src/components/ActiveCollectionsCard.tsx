@@ -317,28 +317,24 @@ export default function ActiveCollectionsCard({
 
         if (!over || active.id === over.id) return;
 
-        const oldIndex = filteredCollections.findIndex(c => c.title === active.id);
-        const newIndex = filteredCollections.findIndex(c => c.title === over.id);
+        // Find items in the full list (not just filtered) to compute correct order
+        const activeItem = localCollections.find(c => c.title === active.id);
+        const overItem = localCollections.find(c => c.title === over.id);
 
-        if (oldIndex === -1 || newIndex === -1) return;
+        if (!activeItem || !overItem) return;
+
+        const activeIdx = localCollections.indexOf(activeItem);
+        const overIdx = localCollections.indexOf(overItem);
+
+        // Compute the full reordered list
+        const reorderedCollections = arrayMove([...localCollections], activeIdx, overIdx);
 
         // Optimistically update local state
-        const newFiltered = arrayMove(filteredCollections, oldIndex, newIndex);
+        setLocalCollections(reorderedCollections);
 
-        // Update local collections maintaining the full list order
-        const newLocalCollections = [...localCollections];
-        const activeItem = newLocalCollections.find(c => c.title === active.id);
-        const overItem = newLocalCollections.find(c => c.title === over.id);
-
-        if (activeItem && overItem) {
-            const activeIdx = newLocalCollections.indexOf(activeItem);
-            const overIdx = newLocalCollections.indexOf(overItem);
-            setLocalCollections(arrayMove(newLocalCollections, activeIdx, overIdx));
-        }
-
-        // Send reorder request to backend
+        // Send full reordered list to backend (not just the filtered subset)
         try {
-            const orderedNames = newFiltered.map(c => c.title);
+            const orderedNames = reorderedCollections.map(c => c.title);
             const response = await fetchWithAuth("/api/collections/reorder", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -348,7 +344,6 @@ export default function ActiveCollectionsCard({
             if (!response.ok) {
                 throw new Error("Failed to reorder collections");
             }
-            // Optimistic update is sufficient - no need to refresh
         } catch (error) {
             console.error("Failed to reorder collections:", error);
             // Revert to original order on failure
