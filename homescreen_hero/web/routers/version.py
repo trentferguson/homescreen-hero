@@ -28,7 +28,6 @@ class VersionResponse(BaseModel):
 
 def get_current_version() -> str:
     # Look for VERSION file relative to the package root
-    # In production, it's at the repo root; we traverse up from this file
     version_paths = [
         Path(__file__).resolve().parents[3] / "VERSION",  # repo root from routers/
         Path("/app/VERSION"),  # Docker container path
@@ -78,7 +77,6 @@ def _fetch_latest_release() -> Optional[str]:
 
 def _compare_versions(current: str, latest: str) -> bool:
     # Simple version comparison - returns True if latest > current
-    # Handles versions like "0.4.0", "1.0.0", etc.
     try:
         def parse_version(v: str) -> tuple[int, ...]:
             # Strip 'v' prefix if present and split on dots
