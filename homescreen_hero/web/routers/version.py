@@ -27,9 +27,10 @@ class VersionResponse(BaseModel):
 
 
 def get_current_version() -> str:
-    # Look for VERSION file relative to the package root
+    # Look for VERSION file in various locations depending on deployment type
     version_paths = [
-        Path(__file__).resolve().parents[3] / "VERSION",  # repo root from routers/
+        Path(__file__).resolve().parents[3] / "VERSION",  # Dev: repo root from routers/
+        Path(__file__).resolve().parents[4] / "VERSION",  # Windows portable: parents[4] is portable root
         Path("/app/VERSION"),  # Docker container path
         Path("VERSION"),  # Current working directory fallback
     ]

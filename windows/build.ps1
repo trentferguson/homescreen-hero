@@ -89,10 +89,11 @@ if (-not $SkipFrontend) {
     Copy-Item -Recurse "$RepoRoot\homescreen-hero-ui\dist" $frontendDest
 }
 
-# Copy start script, launcher, and example config
+# Copy start script, launcher, version file, and example config
 Write-Host "Copying launcher and config..."
 Copy-Item "$PSScriptRoot\start.bat" "$OutputDir\start.bat"
 Copy-Item "$PSScriptRoot\launcher.py" "$OutputDir\launcher.py"
+Copy-Item "$RepoRoot\VERSION" "$OutputDir\VERSION"
 Copy-Item "$RepoRoot\example.config.yaml" "$OutputDir\data\config.yaml"
 Copy-Item "$RepoRoot\.env.example" "$OutputDir\.env.example" -ErrorAction SilentlyContinue
 
