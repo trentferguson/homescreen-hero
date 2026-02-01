@@ -8,11 +8,12 @@ import {
     Loader2,
     Pencil,
     Plus,
+    RefreshCw,
     Search,
     SlidersHorizontal,
     Trash2,
 } from "lucide-react";
-import { Listbox } from "@headlessui/react";
+import { Listbox, Switch } from "@headlessui/react";
 
 import GroupCoverMosaic from "../components/GroupCoverMosaic";
 import { getGroupStatus, isGroupCurrentlyActive } from "../utils/dates";
@@ -31,6 +32,23 @@ type CollectionGroup = {
     min_gap_rotations: number;
     date_range?: DateRange | null;
     collections: string[];
+};
+
+type PlexLibrary = {
+    name: string;
+    enabled: boolean;
+};
+
+type RotationSettings = {
+    enabled: boolean;
+    interval_hours: number;
+    max_collections: number;
+    strategy: string;
+    allow_repeats: boolean;
+    sync_all_on_rotation: boolean;
+    blacklisted_collections: string[];
+    auto_rotate_all: boolean;
+    auto_rotate_library: string | null;
 };
 
 const emptyGroup: CollectionGroup = {
@@ -70,6 +88,13 @@ export default function GroupsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [message, setMessage] = useState<string | null>(null);
 
+    // Auto-rotate state
+    const [autoRotateAll, setAutoRotateAll] = useState(false);
+    const [autoRotateLibrary, setAutoRotateLibrary] = useState<string | null>(null);
+    const [libraries, setLibraries] = useState<PlexLibrary[]>([]);
+    const [savingAutoRotate, setSavingAutoRotate] = useState(false);
+    const [rotationSettings, setRotationSettings] = useState<RotationSettings | null>(null);
+
     const activeCount = groups.filter((g) => isGroupCurrentlyActive(g)).length;
 
     const refreshGroups = async () => {
@@ -85,8 +110,75 @@ export default function GroupsPage() {
         }
     };
 
+    const fetchRotationSettings = async () => {
+        try {
+            const data = await fetchWithAuth("/api/admin/config/rotation").then((r) => r.json());
+            setRotationSettings(data);
+            setAutoRotateAll(data.auto_rotate_all ?? false);
+            setAutoRotateLibrary(data.auto_rotate_library ?? null);
+        } catch (e) {
+            console.error("Failed to fetch rotation settings:", e);
+        }
+    };
+
+    const fetchLibraries = async () => {
+        try {
+            const data = await fetchWithAuth("/api/admin/config/plex").then((r) => r.json());
+            setLibraries(data.libraries ?? []);
+            // If no library is selected yet, default to first enabled one
+            if (!autoRotateLibrary && data.libraries?.length > 0) {
+                const firstEnabled = data.libraries.find((lib: PlexLibrary) => lib.enabled);
+                if (firstEnabled) {
+                    setAutoRotateLibrary(firstEnabled.name);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch libraries:", e);
+        }
+    };
+
+    const saveAutoRotateSettings = async (enabled: boolean, library: string | null) => {
+        if (!rotationSettings) return;
+        setSavingAutoRotate(true);
+        try {
+            const payload = {
+                ...rotationSettings,
+                auto_rotate_all: enabled,
+                auto_rotate_library: library,
+            };
+            const r = await fetchWithAuth("/api/admin/config/rotation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!r.ok) {
+                const text = await r.text();
+                throw new Error(text || "Failed to save auto-rotate settings");
+            }
+            setRotationSettings(payload);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setSavingAutoRotate(false);
+        }
+    };
+
+    const handleAutoRotateToggle = async (enabled: boolean) => {
+        setAutoRotateAll(enabled);
+        await saveAutoRotateSettings(enabled, autoRotateLibrary);
+    };
+
+    const handleLibraryChange = async (library: string) => {
+        setAutoRotateLibrary(library);
+        if (autoRotateAll) {
+            await saveAutoRotateSettings(autoRotateAll, library);
+        }
+    };
+
     useEffect(() => {
         refreshGroups();
+        fetchRotationSettings();
+        fetchLibraries();
     }, []);
 
     const filteredGroups = useMemo(() => {
@@ -231,7 +323,78 @@ export default function GroupsPage() {
                 </div>
             ) : null}
 
-            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6">
+            {/* Auto-rotate toggle section */}
+            <section className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-amber-500/5 p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+                            <RefreshCw className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-white">Auto-rotate all collections</h3>
+                            <p className="text-sm text-slate-400 max-w-lg">
+                                Skip groups and rotate through all collections in a library automatically.
+                                Great for simple setups where you just want variety.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 sm:flex-shrink-0">
+                        {libraries.length > 0 && (
+                            <Listbox value={autoRotateLibrary ?? ""} onChange={handleLibraryChange} disabled={savingAutoRotate}>
+                                <div className="relative">
+                                    <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/70 transition-colors min-w-[140px] disabled:opacity-60">
+                                        <span className="flex-1 text-left truncate">
+                                            {autoRotateLibrary || "Select library"}
+                                        </span>
+                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    </Listbox.Button>
+                                    <Listbox.Options className="absolute right-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
+                                        {libraries.filter(lib => lib.enabled).map((lib) => (
+                                            <Listbox.Option
+                                                key={lib.name}
+                                                value={lib.name}
+                                                className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-amber-600 data-[selected]:font-semibold flex items-center justify-between"
+                                            >
+                                                {({ selected }) => (
+                                                    <>
+                                                        <span>{lib.name}</span>
+                                                        {selected && <Check className="h-4 w-4 text-white" />}
+                                                    </>
+                                                )}
+                                            </Listbox.Option>
+                                        ))}
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
+                        )}
+                        <Switch
+                            checked={autoRotateAll}
+                            onChange={handleAutoRotateToggle}
+                            disabled={savingAutoRotate}
+                            className={`${
+                                autoRotateAll ? "bg-amber-500" : "bg-slate-700"
+                            } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/70 disabled:opacity-60`}
+                        >
+                            <span
+                                className={`${
+                                    autoRotateAll ? "translate-x-6" : "translate-x-1"
+                                } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                            />
+                        </Switch>
+                        {savingAutoRotate && <Loader2 className="h-4 w-4 animate-spin text-amber-400" />}
+                    </div>
+                </div>
+                {autoRotateAll && (
+                    <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+                        <p className="text-sm text-amber-200">
+                            Auto-rotate is enabled. The groups below are currently being ignored.
+                            Rotations will cycle through all collections in <span className="font-semibold">{autoRotateLibrary}</span>.
+                        </p>
+                    </div>
+                )}
+            </section>
+
+            <section className={`rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6 transition-opacity duration-300 ${autoRotateAll ? "opacity-50 pointer-events-none" : ""}`}>
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-white">Groups</h3>
@@ -411,7 +574,7 @@ export default function GroupsPage() {
                 </div>
             </section>
 
-            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 hover:border-primary/50 px-6 py-8 text-center transition-all duration-300">
+            <div className={`flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 hover:border-primary/50 px-6 py-8 text-center transition-all duration-300 ${autoRotateAll ? "opacity-50 pointer-events-none transition-opacity" : ""}`}>
                 <button
                     type="button"
                     onClick={() => navigate('/groups/new')}

@@ -57,6 +57,14 @@ class RotationSettings(BaseModel):
         default_factory=list,
         description="Collections that will never be selected during rotation",
     )
+    auto_rotate_all: bool = Field(
+        default=False,
+        description="Rotate all collections from a library instead of using groups",
+    )
+    auto_rotate_library: Optional[str] = Field(
+        default=None,
+        description="Library name to auto-rotate from when auto_rotate_all is enabled (e.g., 'Movies')",
+    )
 
 
 class CollectionGroupConfig(BaseModel):

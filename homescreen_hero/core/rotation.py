@@ -309,7 +309,96 @@ def run_rotation_with_history(
             remaining_global,
         )
     logger.debug("Group selection details: %s", group_results)
-    
+
+    return rotation_result
+
+
+def run_auto_rotation_with_history(
+    all_collections: List[str],
+    *,
+    max_collections: int,
+    strategy: str,
+    blacklisted_collections: List[str],
+    max_rotation_id: int,
+    usage_map: Dict[str, CollectionUsage],
+    pinned_names: Optional[Set[str]] = None,
+    today: Optional[date] = None,
+    rng: Optional[random.Random] = None,
+) -> RotationResult:
+    # Run rotation using all collections from a library instead of defined groups.
+    # This is the "simple mode" for users who just want to rotate everything.
+    if today is None:
+        today = date.today()
+    if rng is None:
+        rng = random.Random()
+
+    pinned_names = pinned_names or set()
+
+    # Handle pinned collections first - they don't count against max_collections
+    pinned_selected: List[str] = []
+    for name in sorted(pinned_names):
+        if name not in blacklisted_collections and name in all_collections:
+            pinned_selected.append(name)
+
+    if pinned_selected:
+        logger.info(
+            "Auto-rotate: Including %d pinned collections: %s",
+            len(pinned_selected),
+            pinned_selected,
+        )
+
+    # Filter out blacklisted and already-pinned collections
+    available = [
+        c for c in all_collections
+        if c not in blacklisted_collections and c not in pinned_selected
+    ]
+
+    logger.info(
+        "Auto-rotate: %d collections available after filtering (%d blacklisted, %d pinned)",
+        len(available),
+        len([c for c in all_collections if c in blacklisted_collections]),
+        len(pinned_selected),
+    )
+
+    # Select collections using the configured strategy
+    k = min(max_collections, len(available))
+    if k > 0:
+        selected = _select_collections_from_group(
+            available, k, strategy, usage_map, rng
+        )
+    else:
+        selected = []
+
+    # Create a virtual group result for reporting
+    group_result = GroupSelectionResult(
+        group_name="All Collections (Auto-Rotate)",
+        active=True,
+        min_picks=0,
+        max_picks=max_collections,
+        available_collections=available,
+        chosen_collections=selected,
+        picked_count=len(selected),
+        reason_skipped=None if selected else "No collections available after filtering",
+    )
+
+    # Prepend pinned collections
+    final_selected = pinned_selected + selected
+
+    rotation_result = RotationResult(
+        selected_collections=final_selected,
+        groups=[group_result],
+        max_global=max_collections,
+        remaining_global=max_collections - len(selected),
+        today=today,
+    )
+
+    logger.info(
+        "Auto-rotate complete: %d selected (%d pinned + %d rotated)",
+        len(final_selected),
+        len(pinned_selected),
+        len(selected),
+    )
+
     return rotation_result
 
 

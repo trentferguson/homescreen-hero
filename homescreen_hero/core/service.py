@@ -12,10 +12,10 @@ from .integrations import (
     sync_all_mdblist_sources,
     apply_home_screen_selection,
 )
-from .integrations.plex_client import cleanup_deleted_integration_sources
+from .integrations.plex_client import cleanup_deleted_integration_sources, get_library_collections
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
-from .rotation import run_rotation_with_history, build_collection_visibility_map
+from .rotation import run_rotation_with_history, run_auto_rotation_with_history, build_collection_visibility_map
 from .db import (
     init_db,
     get_rotation_history_context,
@@ -28,6 +28,51 @@ from .db import (
 
 
 logger = logging.getLogger(__name__)
+
+# Default visibility for auto-rotated collections (no group settings available)
+AUTO_ROTATE_DEFAULT_VISIBILITY = {
+    "home": True,
+    "shared": False,
+    "recommended": False,
+}
+
+
+def _run_auto_rotation(
+    server,
+    config: AppConfig,
+    max_rotation_id: int,
+    usage_map: Dict,
+    pinned_names: set,
+) -> RotationResult:
+    # Run auto-rotation mode: rotate through all collections in a library
+    library_name = config.rotation.auto_rotate_library
+    if not library_name:
+        # Fall back to first enabled library
+        for lib in config.plex.libraries:
+            if lib.enabled:
+                library_name = lib.name
+                break
+
+    if not library_name:
+        raise ValueError("Auto-rotate enabled but no library specified or available")
+
+    logger.info("Auto-rotate mode: fetching all collections from library '%s'", library_name)
+
+    # Get all collections from the library
+    all_collections_map = get_library_collections(server, library_name)
+    all_collection_names = list(all_collections_map.keys())
+
+    logger.info("Found %d collections in library '%s'", len(all_collection_names), library_name)
+
+    return run_auto_rotation_with_history(
+        all_collection_names,
+        max_collections=config.rotation.max_collections,
+        strategy=config.rotation.strategy,
+        blacklisted_collections=config.rotation.blacklisted_collections,
+        max_rotation_id=max_rotation_id,
+        usage_map=usage_map,
+        pinned_names=pinned_names,
+    )
 
 
 def _sync_selected_collections(
@@ -100,6 +145,9 @@ def run_rotation_once(
     # if cleanup_result['deleted_from_plex']:
     #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
+    # Check if auto-rotate mode is enabled
+    use_auto_rotate = config.rotation.auto_rotate_all
+
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
         # Sync all Trakt, Letterboxd, and MDBList sources
@@ -112,12 +160,18 @@ def run_rotation_once(
         logger.info("Selective sync mode: will only sync collections selected for rotation")
         max_rotation_id, usage_map = get_rotation_history_context()
         pinned_names = get_pinned_collection_names()
-        rotation_result = run_rotation_with_history(
-            config,
-            max_rotation_id=max_rotation_id,
-            usage_map=usage_map,
-            pinned_names=pinned_names,
-        )
+
+        if use_auto_rotate:
+            rotation_result = _run_auto_rotation(
+                server, config, max_rotation_id, usage_map, pinned_names
+            )
+        else:
+            rotation_result = run_rotation_with_history(
+                config,
+                max_rotation_id=max_rotation_id,
+                usage_map=usage_map,
+                pinned_names=pinned_names,
+            )
 
         # Now sync only the selected collections
         _sync_selected_collections(server, config, rotation_result.selected_collections)
@@ -126,15 +180,28 @@ def run_rotation_once(
     if config.rotation.sync_all_on_rotation:
         max_rotation_id, usage_map = get_rotation_history_context()
         pinned_names = get_pinned_collection_names()
-        rotation_result = run_rotation_with_history(
-            config,
-            max_rotation_id=max_rotation_id,
-            usage_map=usage_map,
-            pinned_names=pinned_names,
-        )
 
-    # Build visibility map from group settings
-    collection_visibility = build_collection_visibility_map(config)
+        if use_auto_rotate:
+            rotation_result = _run_auto_rotation(
+                server, config, max_rotation_id, usage_map, pinned_names
+            )
+        else:
+            rotation_result = run_rotation_with_history(
+                config,
+                max_rotation_id=max_rotation_id,
+                usage_map=usage_map,
+                pinned_names=pinned_names,
+            )
+
+    # Build visibility map from group settings (or use defaults for auto-rotate)
+    if use_auto_rotate:
+        # For auto-rotate, apply default visibility to all selected collections
+        collection_visibility = {
+            name: AUTO_ROTATE_DEFAULT_VISIBILITY.copy()
+            for name in rotation_result.selected_collections
+        }
+    else:
+        collection_visibility = build_collection_visibility_map(config)
 
     # Add pinned collection visibility (overrides group settings for pinned collections)
     from .db import get_pinned_visibility_map
@@ -207,12 +274,19 @@ def simulate_rotation_once(
 
     pinned_names = get_pinned_collection_names()
 
-    rotation_result = run_rotation_with_history(
-        config,
-        max_rotation_id=max_rotation_id,
-        usage_map=usage_map,
-        pinned_names=pinned_names,
-    )
+    # Check if auto-rotate mode is enabled
+    if config.rotation.auto_rotate_all:
+        server = get_plex_server(config)
+        rotation_result = _run_auto_rotation(
+            server, config, max_rotation_id, usage_map, pinned_names
+        )
+    else:
+        rotation_result = run_rotation_with_history(
+            config,
+            max_rotation_id=max_rotation_id,
+            usage_map=usage_map,
+            pinned_names=pinned_names,
+        )
 
     simulation_id = create_simulation(rotation_result)
 
