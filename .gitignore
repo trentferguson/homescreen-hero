@@ -41,6 +41,9 @@ logs/
 build/
 dist/
 *.egg-info/
+windows/dist/
+windows/get-pip.py
+windows/python-*.zip
 
 # Test artifacts
 htmlcov/
