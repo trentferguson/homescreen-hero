@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import httpx
+import requests
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -53,7 +53,7 @@ def _fetch_latest_release() -> Optional[str]:
 
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-        response = httpx.get(url, timeout=5.0, follow_redirects=True)
+        response = requests.get(url, timeout=5.0, allow_redirects=True)
 
         if response.status_code == 200:
             data = response.json()
