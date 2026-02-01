@@ -90,9 +90,12 @@ class SeerrClient:
         return resp.text
 
     def ping(self) -> Tuple[bool, Optional[str]]:
-        # Health check using the public /status endpoint (no auth required)
+        # Health check using the /request endpoint to validate API key has proper permissions.
+        # This requires admin-level access, which ensures the API key can actually be used
+        # for the features we need (viewing requests, etc.)
         try:
-            data = self._request("GET", "/status")
+            # Try to fetch just 1 request to validate permissions
+            self._request("GET", "/request", params={"take": "1", "skip": "0"})
             logger.debug("Seerr API ping successful at %s", self.cfg.base_url)
             return True, None
         except requests.Timeout:
@@ -104,7 +107,7 @@ class SeerrClient:
             if status == 401:
                 return False, "Unauthorized: invalid Seerr API key"
             if status == 403:
-                return False, "Forbidden: API key lacks required permissions"
+                return False, "Forbidden: API key lacks required permissions. Use the main API key from Settings → General (not a user API key)"
             if status == 404:
                 return False, "Server responded but API endpoint not found. Is this an Overseerr/Jellyseerr instance?"
             return False, f"Server returned error {status}"
