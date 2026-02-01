@@ -11,6 +11,7 @@ from .auth import router as auth_router
 from .analytics import router as analytics_router
 from .tools import router as tools_router
 from .seerr import router as seerr_router
+from .version import router as version_router
 
 __all__ = [
     "analytics_router",
@@ -24,4 +25,5 @@ __all__ = [
     "rotation_router",
     "seerr_router",
     "tools_router",
+    "version_router",
 ]

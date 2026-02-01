@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { User, LogOut, Settings } from "lucide-react";
 import IconButton from "./IconButton";
+import VersionBadge from "./VersionBadge";
 import { useAuth } from "../utils/auth";
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -53,8 +54,9 @@ export default function TopNav() {
                     <NavItem to="/tools" label="Tools" />
                 </nav>
 
-                {/* RIGHT: Icons */}
+                {/* RIGHT: Version + Icons */}
                 <div className="flex items-center gap-3">
+                    <VersionBadge />
                     <IconButton label="Settings" onClick={() => navigate("/settings")}>
                         <Settings size={20} />
                     </IconButton>

@@ -27,7 +27,9 @@ from homescreen_hero.web.routers import (
     integrations_router,
     tools_router,
     seerr_router,
+    version_router,
 )
+from homescreen_hero.web.routers.version import get_current_version
 from homescreen_hero.web.routers.collections import invalidate_collections_cache
 
 logger = logging.getLogger(__name__)
@@ -47,7 +49,7 @@ def create_app() -> FastAPI:
             "Failed to load config during startup, using default logging: %s", exc
         )
 
-    app = FastAPI(title="homescreen-hero API", version="0.2.0")
+    app = FastAPI(title="homescreen-hero API", version=get_current_version())
 
 
     app.include_router(health_router, prefix="/api")
@@ -61,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(integrations_router, prefix="/api")
     app.include_router(tools_router, prefix="/api")
     app.include_router(seerr_router, prefix="/api")
+    app.include_router(version_router, prefix="/api")
 
     # Frontend (serve only if build exists)
     logger.info(
