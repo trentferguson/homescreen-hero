@@ -445,8 +445,7 @@ def save_rotation_settings(
             allow_repeats=payload.allow_repeats,
             sync_all_on_rotation=payload.sync_all_on_rotation,
             blacklisted_collections=payload.blacklisted_collections,
-            auto_rotate_all=payload.auto_rotate_all,
-            auto_rotate_library=payload.auto_rotate_library,
+            auto_rotate=payload.auto_rotate.model_dump(),
         )
 
         data["rotation"] = rotation_section

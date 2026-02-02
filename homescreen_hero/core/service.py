@@ -18,6 +18,7 @@ from .config.schema import AppConfig, RotationExecution, RotationResult
 from .rotation import run_rotation_with_history, run_auto_rotation_with_history, build_collection_visibility_map
 from .db import (
     init_db,
+    get_last_rotation_collections,
     get_rotation_history_context,
     record_rotation,
     create_simulation,
@@ -29,46 +30,58 @@ from .db import (
 
 logger = logging.getLogger(__name__)
 
-# Default visibility for auto-rotated collections (no group settings available)
-AUTO_ROTATE_DEFAULT_VISIBILITY = {
-    "home": True,
-    "shared": False,
-    "recommended": False,
-}
-
-
 def _run_auto_rotation(
     server,
     config: AppConfig,
     max_rotation_id: int,
     usage_map: Dict,
     pinned_names: set,
+    last_rotation_collections: List[str],
 ) -> RotationResult:
-    # Run auto-rotation mode: rotate through all collections in a library
-    library_name = config.rotation.auto_rotate_library
-    if not library_name:
-        # Fall back to first enabled library
-        for lib in config.plex.libraries:
-            if lib.enabled:
-                library_name = lib.name
-                break
+    # Run auto-rotation mode: rotate through collections from selected libraries
+    auto_rotate = config.rotation.auto_rotate
 
-    if not library_name:
-        raise ValueError("Auto-rotate enabled but no library specified or available")
+    # Determine which libraries to use
+    if auto_rotate.libraries:
+        # Use explicitly configured libraries
+        library_names = auto_rotate.libraries
+    else:
+        # Fall back to all enabled libraries
+        library_names = [lib.name for lib in config.plex.libraries if lib.enabled]
 
-    logger.info("Auto-rotate mode: fetching all collections from library '%s'", library_name)
+    if not library_names:
+        raise ValueError("Auto-rotate enabled but no libraries specified or available")
 
-    # Get all collections from the library
-    all_collections_map = get_library_collections(server, library_name)
-    all_collection_names = list(all_collections_map.keys())
+    logger.info("Auto-rotate mode: fetching collections from libraries: %s", library_names)
 
-    logger.info("Found %d collections in library '%s'", len(all_collection_names), library_name)
+    # Pool collections from all selected libraries
+    all_collection_names: List[str] = []
+    for library_name in library_names:
+        try:
+            collections_map = get_library_collections(server, library_name)
+            all_collection_names.extend(collections_map.keys())
+            logger.info("Found %d collections in library '%s'", len(collections_map), library_name)
+        except Exception as e:
+            logger.warning("Failed to get collections from library '%s': %s", library_name, e)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_collections = []
+    for name in all_collection_names:
+        if name not in seen:
+            seen.add(name)
+            unique_collections.append(name)
+    all_collection_names = unique_collections
+
+    logger.info("Total: %d unique collections across %d libraries", len(all_collection_names), len(library_names))
 
     return run_auto_rotation_with_history(
         all_collection_names,
         max_collections=config.rotation.max_collections,
         strategy=config.rotation.strategy,
         blacklisted_collections=config.rotation.blacklisted_collections,
+        allow_repeats=config.rotation.allow_repeats,
+        last_rotation_collections=last_rotation_collections,
         max_rotation_id=max_rotation_id,
         usage_map=usage_map,
         pinned_names=pinned_names,
@@ -146,7 +159,7 @@ def run_rotation_once(
     #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
     # Check if auto-rotate mode is enabled
-    use_auto_rotate = config.rotation.auto_rotate_all
+    use_auto_rotate = config.rotation.auto_rotate.enabled
 
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
@@ -160,16 +173,18 @@ def run_rotation_once(
         logger.info("Selective sync mode: will only sync collections selected for rotation")
         max_rotation_id, usage_map = get_rotation_history_context()
         pinned_names = get_pinned_collection_names()
+        last_rotation_collections = get_last_rotation_collections()
 
         if use_auto_rotate:
             rotation_result = _run_auto_rotation(
-                server, config, max_rotation_id, usage_map, pinned_names
+                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
             )
         else:
             rotation_result = run_rotation_with_history(
                 config,
                 max_rotation_id=max_rotation_id,
                 usage_map=usage_map,
+                last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
             )
 
@@ -180,24 +195,32 @@ def run_rotation_once(
     if config.rotation.sync_all_on_rotation:
         max_rotation_id, usage_map = get_rotation_history_context()
         pinned_names = get_pinned_collection_names()
+        last_rotation_collections = get_last_rotation_collections()
 
         if use_auto_rotate:
             rotation_result = _run_auto_rotation(
-                server, config, max_rotation_id, usage_map, pinned_names
+                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
             )
         else:
             rotation_result = run_rotation_with_history(
                 config,
                 max_rotation_id=max_rotation_id,
                 usage_map=usage_map,
+                last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
             )
 
-    # Build visibility map from group settings (or use defaults for auto-rotate)
+    # Build visibility map from group settings (or use auto-rotate config)
     if use_auto_rotate:
-        # For auto-rotate, apply default visibility to all selected collections
+        # For auto-rotate, apply visibility settings from config
+        auto_rotate = config.rotation.auto_rotate
+        auto_visibility = {
+            "home": auto_rotate.visibility_home,
+            "shared": auto_rotate.visibility_shared,
+            "recommended": auto_rotate.visibility_recommended,
+        }
         collection_visibility = {
-            name: AUTO_ROTATE_DEFAULT_VISIBILITY.copy()
+            name: auto_visibility.copy()
             for name in rotation_result.selected_collections
         }
     else:
@@ -269,22 +292,24 @@ def simulate_rotation_once(
 
     init_db()
     max_rotation_id, usage_map = get_rotation_history_context()
+    last_rotation_collections = get_last_rotation_collections()
 
     logger.info("Simulating next rotation (no Plex write, no history write)")
 
     pinned_names = get_pinned_collection_names()
 
     # Check if auto-rotate mode is enabled
-    if config.rotation.auto_rotate_all:
+    if config.rotation.auto_rotate.enabled:
         server = get_plex_server(config)
         rotation_result = _run_auto_rotation(
-            server, config, max_rotation_id, usage_map, pinned_names
+            server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
         )
     else:
         rotation_result = run_rotation_with_history(
             config,
             max_rotation_id=max_rotation_id,
             usage_map=usage_map,
+            last_rotation_collections=last_rotation_collections,
             pinned_names=pinned_names,
         )
 
@@ -369,7 +394,21 @@ def apply_simulation(
 
     # Apply collections to Plex
     server = get_plex_server(config)
-    collection_visibility = build_collection_visibility_map(config)
+
+    # Build visibility map (auto-rotate uses its own settings)
+    if config.rotation.auto_rotate.enabled:
+        auto_rotate = config.rotation.auto_rotate
+        auto_visibility = {
+            "home": auto_rotate.visibility_home,
+            "shared": auto_rotate.visibility_shared,
+            "recommended": auto_rotate.visibility_recommended,
+        }
+        collection_visibility = {
+            name: auto_visibility.copy()
+            for name in rotation_result.selected_collections
+        }
+    else:
+        collection_visibility = build_collection_visibility_map(config)
 
     # Add pinned collection visibility (overrides group settings for pinned collections)
     from .db import get_pinned_visibility_map

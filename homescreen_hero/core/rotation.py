@@ -161,6 +161,7 @@ def run_rotation_with_history(
     *,
     max_rotation_id: int,
     usage_map: Dict[str, CollectionUsage],
+    last_rotation_collections: Optional[List[str]] = None,
     pinned_names: Optional[Set[str]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
@@ -172,6 +173,8 @@ def run_rotation_with_history(
 
     max_global = config.rotation.max_collections
     remaining_global = max_global
+    allow_repeats = config.rotation.allow_repeats
+    last_rotation_set = set(last_rotation_collections or [])
 
     selected: List[str] = []
     selected_set: Set[str] = set()
@@ -241,11 +244,15 @@ def run_rotation_with_history(
         blacklist = config.rotation.blacklisted_collections
         available = [c for c in available if not _is_blacklisted(c, blacklist)]
 
+        # If allow_repeats is False, filter out collections from the last rotation
+        if not allow_repeats and last_rotation_set:
+            available = [c for c in available if c not in last_rotation_set]
+
         result.available_collections = available
 
         if not available:
             result.reason_skipped = (
-                "No available collections after applying gap rule and duplicates filter"
+                "No available collections after applying gap rule, blacklist, and repeats filter"
             )
             group_results.append(result)
             continue
@@ -319,6 +326,8 @@ def run_auto_rotation_with_history(
     max_collections: int,
     strategy: str,
     blacklisted_collections: List[str],
+    allow_repeats: bool,
+    last_rotation_collections: List[str],
     max_rotation_id: int,
     usage_map: Dict[str, CollectionUsage],
     pinned_names: Optional[Set[str]] = None,
@@ -333,6 +342,7 @@ def run_auto_rotation_with_history(
         rng = random.Random()
 
     pinned_names = pinned_names or set()
+    last_rotation_set = set(last_rotation_collections)
 
     # Handle pinned collections first - they don't count against max_collections
     pinned_selected: List[str] = []
@@ -353,11 +363,23 @@ def run_auto_rotation_with_history(
         if c not in blacklisted_collections and c not in pinned_selected
     ]
 
+    # If allow_repeats is False, filter out collections from the last rotation
+    if not allow_repeats and last_rotation_set:
+        before_count = len(available)
+        available = [c for c in available if c not in last_rotation_set]
+        filtered_count = before_count - len(available)
+        if filtered_count > 0:
+            logger.info(
+                "Auto-rotate: Filtered out %d collections from last rotation (allow_repeats=False)",
+                filtered_count,
+            )
+
     logger.info(
-        "Auto-rotate: %d collections available after filtering (%d blacklisted, %d pinned)",
+        "Auto-rotate: %d collections available after filtering (%d blacklisted, %d pinned%s)",
         len(available),
         len([c for c in all_collections if c in blacklisted_collections]),
         len(pinned_selected),
+        ", repeats excluded" if not allow_repeats else "",
     )
 
     # Select collections using the configured strategy

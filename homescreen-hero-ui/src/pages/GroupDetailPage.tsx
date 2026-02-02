@@ -141,8 +141,20 @@ export default function GroupDetailPage() {
     };
 
     const handleNumberChange = (key: keyof CollectionGroup, value: string) => {
-        const num = value === "" ? 0 : Number(value);
+        // Allow empty string temporarily during editing (coerce to 0 on blur)
+        if (value === "") {
+            setForm((prev) => ({ ...prev, [key]: "" as unknown as number }));
+            return;
+        }
+        const num = Number(value);
         setForm((prev) => ({ ...prev, [key]: Number.isNaN(num) ? 0 : num } as CollectionGroup));
+    };
+
+    const handleNumberBlur = (key: keyof CollectionGroup) => {
+        const val = form[key];
+        if (val === "" || val === undefined || val === null) {
+            setForm((prev) => ({ ...prev, [key]: 0 } as CollectionGroup));
+        }
     };
 
     const handleDateChange = (key: keyof DateRange, value: string) => {
@@ -469,6 +481,7 @@ export default function GroupDetailPage() {
                                                 type="number"
                                                 value={form.min_picks}
                                                 onChange={(e) => handleNumberChange("min_picks", e.target.value)}
+                                                onBlur={() => handleNumberBlur("min_picks")}
                                                 className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             />
                                         </div>
@@ -478,6 +491,7 @@ export default function GroupDetailPage() {
                                                 type="number"
                                                 value={form.max_picks}
                                                 onChange={(e) => handleNumberChange("max_picks", e.target.value)}
+                                                onBlur={() => handleNumberBlur("max_picks")}
                                                 className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             />
                                         </div>
@@ -495,6 +509,7 @@ export default function GroupDetailPage() {
                                                 min={1}
                                                 value={form.weight}
                                                 onChange={(e) => handleNumberChange("weight", e.target.value)}
+                                                onBlur={() => handleNumberBlur("weight")}
                                                 className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             />
                                         </div>
@@ -505,6 +520,7 @@ export default function GroupDetailPage() {
                                                 min={0}
                                                 value={form.min_gap_rotations}
                                                 onChange={(e) => handleNumberChange("min_gap_rotations", e.target.value)}
+                                                onBlur={() => handleNumberBlur("min_gap_rotations")}
                                                 className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                             />
                                         </div>

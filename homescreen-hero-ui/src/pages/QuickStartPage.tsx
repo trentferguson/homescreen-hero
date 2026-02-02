@@ -4,6 +4,7 @@ import { Wizard, useWizard } from "react-use-wizard";
 import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, List, BarChart2, Film } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
+import { Checkbox } from "../components/ui/checkbox";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
 
 type EnvVars = {
@@ -464,12 +465,10 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                                         key={lib.title}
                                         className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 hover:border-primary/50 transition-colors"
                                     >
-                                        <input
-                                            type="checkbox"
+                                        <Checkbox
                                             id={`lib-${lib.title}`}
                                             checked={selectedLibraries.includes(lib.title)}
-                                            onChange={() => toggleLibrary(lib.title)}
-                                            className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                                            onCheckedChange={() => toggleLibrary(lib.title)}
                                         />
                                         <label htmlFor={`lib-${lib.title}`} className="flex-1 cursor-pointer">
                                             <div className="text-sm font-medium text-slate-900 dark:text-white">
@@ -607,12 +606,10 @@ function TraktStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
 
             <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <input
+                    <Checkbox
                         id="traktEnabled"
-                        type="checkbox"
                         checked={localTraktEnabled}
-                        onChange={(e) => setLocalTraktEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                        onCheckedChange={(checked) => setLocalTraktEnabled(checked === true)}
                     />
                     <label htmlFor="traktEnabled" className="flex-1 cursor-pointer">
                         <div className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -822,12 +819,10 @@ function MDBListStep({ wizardData, setWizardData, envVars }: { wizardData: Wizar
 
             <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <input
+                    <Checkbox
                         id="mdblistEnabled"
-                        type="checkbox"
                         checked={localMDBListEnabled}
-                        onChange={(e) => setLocalMDBListEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                        onCheckedChange={(checked) => setLocalMDBListEnabled(checked === true)}
                     />
                     <label htmlFor="mdblistEnabled" className="flex-1 cursor-pointer">
                         <div className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -1038,12 +1033,10 @@ function TautulliStep({ wizardData, setWizardData, envVars }: { wizardData: Wiza
 
             <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <input
+                    <Checkbox
                         id="tautulliEnabled"
-                        type="checkbox"
                         checked={localTautulliEnabled}
-                        onChange={(e) => setLocalTautulliEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                        onCheckedChange={(checked) => setLocalTautulliEnabled(checked === true)}
                     />
                     <label htmlFor="tautulliEnabled" className="flex-1 cursor-pointer">
                         <div className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -1256,12 +1249,10 @@ function SeerrStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
 
             <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <input
+                    <Checkbox
                         id="seerrEnabled"
-                        type="checkbox"
                         checked={localSeerrEnabled}
-                        onChange={(e) => setLocalSeerrEnabled(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-2 focus:ring-primary"
+                        onCheckedChange={(checked) => setLocalSeerrEnabled(checked === true)}
                     />
                     <label htmlFor="seerrEnabled" className="flex-1 cursor-pointer">
                         <div className="text-sm font-semibold text-slate-900 dark:text-white">
@@ -1541,9 +1532,13 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                             <Switch
                                 checked={localAllowRepeats}
                                 onChange={setLocalAllowRepeats}
-                                className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                className={`${
+                                    localAllowRepeats ? "bg-primary" : "bg-slate-600"
+                                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
                             >
-                                <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
+                                <span className={`${
+                                    localAllowRepeats ? "translate-x-5" : "translate-x-1"
+                                } inline-block h-5 w-5 transform rounded-full bg-white transition-transform`} />
                             </Switch>
                             <label className="flex-1 cursor-pointer" onClick={() => setLocalAllowRepeats(!localAllowRepeats)}>
                                 <div className="text-sm font-semibold text-slate-900 dark:text-white">

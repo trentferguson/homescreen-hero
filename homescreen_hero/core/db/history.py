@@ -170,3 +170,17 @@ def get_recent_rotations(limit: int = 10) -> List[RotationRecord]:
         )
         rows = db.execute(stmt).scalars().all()
         return list(rows)
+
+
+def get_last_rotation_collections() -> List[str]:
+    # Get the collections from the most recent rotation (for allow_repeats logic)
+    with session_scope() as db:
+        stmt = (
+            select(RotationRecord)
+            .order_by(RotationRecord.id.desc())
+            .limit(1)
+        )
+        record = db.execute(stmt).scalar_one_or_none()
+        if record is None:
+            return []
+        return list(record.featured_collections or [])

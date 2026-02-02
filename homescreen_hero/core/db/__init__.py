@@ -12,6 +12,7 @@ from .base import (
     session_scope
 )
 from .history import (
+    get_last_rotation_collections,
     get_recent_rotations,
     get_rotation_history_context,
     init_db,
@@ -56,6 +57,7 @@ __all__ = (
     "create_simulation",
     "get_collection_analytics_history",
     "get_engine",
+    "get_last_rotation_collections",
     "get_latest_analytics_for_collection",
     "get_recent_rotations",
     "get_rotation_analytics",
