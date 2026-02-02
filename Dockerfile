@@ -32,8 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY homescreen_hero/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy backend code
+# Copy backend code and version file
 COPY homescreen_hero/ /app/homescreen_hero/
+COPY VERSION /app/VERSION
 
 # Copy built frontend into the exact folder FastAPI serves
 # (your FastAPI expects: homescreen_hero/web/frontend/index.html)
