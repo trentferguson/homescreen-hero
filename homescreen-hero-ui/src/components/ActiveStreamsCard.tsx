@@ -17,6 +17,8 @@ type ActiveStream = {
     title: string;
     media_type: string;
     progress_percent: number | null;
+    season_number: number | null;
+    episode_number: number | null;
 };
 
 type CurrentActivity = {
@@ -254,6 +256,11 @@ export default function ActiveStreamsCard({ loading }: { loading?: boolean }) {
                                         <p className="text-sm text-slate-400 mt-1">
                                             {stream.title}
                                         </p>
+                                        {stream.season_number !== null && stream.episode_number !== null && (
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                Season {stream.season_number}, Episode {stream.episode_number}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="flex-shrink-0">
                                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-700 text-slate-300 uppercase">

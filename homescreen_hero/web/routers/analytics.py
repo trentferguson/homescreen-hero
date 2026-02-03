@@ -81,6 +81,8 @@ class ActiveStreamOut(BaseModel):
     title: str
     media_type: str  # movie, episode, etc
     progress_percent: Optional[int] = None
+    season_number: Optional[int] = None
+    episode_number: Optional[int] = None
 
 
 class CurrentActivityOut(BaseModel):
@@ -462,13 +464,18 @@ def get_current_activity(
             # Get title
             title = getattr(session, 'title', 'Unknown')
 
-            # Determine media type
+            # Determine media type and extract season/episode info
             media_type = getattr(session, 'type', 'unknown')
+            season_number = None
+            episode_number = None
             if media_type == "episode":
                 # For TV shows, include show name
                 grandparent_title = getattr(session, 'grandparentTitle', '')
                 if grandparent_title:
                     title = f"{grandparent_title} - {title}"
+                # Extract season and episode numbers
+                season_number = getattr(session, 'parentIndex', None)
+                episode_number = getattr(session, 'index', None)
 
             # Calculate progress percentage
             progress_percent = None
@@ -489,6 +496,8 @@ def get_current_activity(
                     title=title,
                     media_type=media_type,
                     progress_percent=progress_percent,
+                    season_number=season_number,
+                    episode_number=episode_number,
                 )
             )
 
