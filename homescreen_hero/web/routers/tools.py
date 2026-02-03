@@ -11,7 +11,11 @@ from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel
 
 from homescreen_hero.core.config.loader import load_config
-from homescreen_hero.core.integrations.plex_client import get_plex_server
+from homescreen_hero.core.integrations.plex_client import (
+    get_plex_server,
+    get_home_users,
+    get_server_for_user,
+)
 from homescreen_hero.core.integrations.tautulli_client import get_tautulli_client
 from homescreen_hero.core.auth import get_current_user
 
@@ -114,6 +118,55 @@ class UnwatchedReportResponse(BaseModel):
     page_size: int
     total_pages: int
     time_period_description: str
+
+
+# Copy Watch History models
+class HomeUser(BaseModel):
+    id: int
+    username: str
+    title: str
+    thumb: Optional[str] = None
+    is_admin: bool = False
+
+
+class HomeUsersResponse(BaseModel):
+    users: List[HomeUser]
+
+
+class CopyWatchHistoryPreviewRequest(BaseModel):
+    source_user: str  # username
+    target_user: str  # username
+
+
+class WatchHistoryPreviewCounts(BaseModel):
+    movies_to_mark_watched: int = 0
+    movies_to_mark_unwatched: int = 0
+    episodes_to_mark_watched: int = 0
+    episodes_to_mark_unwatched: int = 0
+    shows_affected: int = 0
+
+
+class CopyWatchHistoryPreviewResponse(BaseModel):
+    source_user: str
+    target_user: str
+    counts: WatchHistoryPreviewCounts
+    libraries_processed: List[str]
+
+
+ConflictMode = Literal["only_add", "mirror"]
+
+
+class CopyWatchHistoryApplyRequest(BaseModel):
+    source_user: str  # username
+    target_user: str  # username
+    conflict_mode: ConflictMode
+
+
+class CopyWatchHistoryApplyResponse(BaseModel):
+    success: bool
+    movies_updated: int
+    episodes_updated: int
+    errors: List[str]
 
 
 @router.get("/recent-media", response_model=SearchMediaResponse)
@@ -688,4 +741,210 @@ def export_unwatched_report(
         content=csv_content,
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# Copy Watch History endpoints
+
+@router.get("/home-users", response_model=HomeUsersResponse)
+def get_home_users_endpoint(
+    current_user: str = Depends(get_current_user),
+) -> HomeUsersResponse:
+    # Get list of Plex Home users available for watch history operations
+    config = load_config()
+    try:
+        users = get_home_users(config)
+        return HomeUsersResponse(users=[HomeUser(**u) for u in users])
+    except Exception as e:
+        logger.error(f"Failed to get home users: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get Plex Home users. Ensure your Plex token has account access: {str(e)}"
+        )
+
+
+@router.post("/copy-watch-history/preview", response_model=CopyWatchHistoryPreviewResponse)
+def preview_copy_watch_history(
+    request: CopyWatchHistoryPreviewRequest,
+    current_user: str = Depends(get_current_user),
+) -> CopyWatchHistoryPreviewResponse:
+    # Preview what would be changed when copying watch history
+    config = load_config()
+
+    try:
+        source_server = get_server_for_user(config, request.source_user)
+        target_server = get_server_for_user(config, request.target_user)
+    except Exception as e:
+        logger.error(f"Failed to connect to servers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to connect to Plex: {str(e)}")
+
+    # Get enabled libraries
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+    counts = WatchHistoryPreviewCounts()
+    shows_affected = set()
+
+    for lib_name in enabled_libraries:
+        try:
+            source_section = source_server.library.section(lib_name)
+            target_section = target_server.library.section(lib_name)
+
+            if source_section.type == "movie":
+                # Compare movie watch status by GUID
+                source_movies = {m.guid: m for m in source_section.all()}
+                target_movies = {m.guid: m for m in target_section.all()}
+
+                for guid, source_movie in source_movies.items():
+                    if guid in target_movies:
+                        target_movie = target_movies[guid]
+                        source_watched = getattr(source_movie, "isWatched", False)
+                        target_watched = getattr(target_movie, "isWatched", False)
+
+                        if source_watched and not target_watched:
+                            counts.movies_to_mark_watched += 1
+                        elif not source_watched and target_watched:
+                            counts.movies_to_mark_unwatched += 1
+
+            elif source_section.type == "show":
+                # Compare at episode level
+                source_shows = {s.guid: s for s in source_section.all()}
+                target_shows = {s.guid: s for s in target_section.all()}
+
+                for guid, source_show in source_shows.items():
+                    if guid not in target_shows:
+                        continue
+
+                    target_show = target_shows[guid]
+                    show_has_changes = False
+
+                    # Get episodes and match by guid
+                    source_episodes = {e.guid: e for e in source_show.episodes()}
+                    target_episodes = {e.guid: e for e in target_show.episodes()}
+
+                    for ep_guid, source_ep in source_episodes.items():
+                        if ep_guid in target_episodes:
+                            target_ep = target_episodes[ep_guid]
+                            source_watched = getattr(source_ep, "isWatched", False)
+                            target_watched = getattr(target_ep, "isWatched", False)
+
+                            if source_watched and not target_watched:
+                                counts.episodes_to_mark_watched += 1
+                                show_has_changes = True
+                            elif not source_watched and target_watched:
+                                counts.episodes_to_mark_unwatched += 1
+                                show_has_changes = True
+
+                    if show_has_changes:
+                        shows_affected.add(source_show.title)
+
+        except Exception as e:
+            logger.warning(f"Error processing library {lib_name}: {e}")
+            continue
+
+    counts.shows_affected = len(shows_affected)
+
+    return CopyWatchHistoryPreviewResponse(
+        source_user=request.source_user,
+        target_user=request.target_user,
+        counts=counts,
+        libraries_processed=enabled_libraries,
+    )
+
+
+@router.post("/copy-watch-history/apply", response_model=CopyWatchHistoryApplyResponse)
+def apply_copy_watch_history(
+    request: CopyWatchHistoryApplyRequest,
+    current_user: str = Depends(get_current_user),
+) -> CopyWatchHistoryApplyResponse:
+    # Apply watch history copy from source to target user
+    config = load_config()
+
+    try:
+        source_server = get_server_for_user(config, request.source_user)
+        target_server = get_server_for_user(config, request.target_user)
+    except Exception as e:
+        logger.error(f"Failed to connect to servers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to connect to Plex: {str(e)}")
+
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+    movies_updated = 0
+    episodes_updated = 0
+    errors: List[str] = []
+
+    for lib_name in enabled_libraries:
+        try:
+            source_section = source_server.library.section(lib_name)
+            target_section = target_server.library.section(lib_name)
+
+            if source_section.type == "movie":
+                source_movies = {m.guid: m for m in source_section.all()}
+                target_movies = {m.guid: m for m in target_section.all()}
+
+                for guid, source_movie in source_movies.items():
+                    if guid not in target_movies:
+                        continue
+
+                    target_movie = target_movies[guid]
+                    source_watched = getattr(source_movie, "isWatched", False)
+                    target_watched = getattr(target_movie, "isWatched", False)
+
+                    try:
+                        if source_watched and not target_watched:
+                            target_movie.markPlayed()
+                            movies_updated += 1
+                        elif not source_watched and target_watched:
+                            # Only mark unwatched in mirror mode
+                            if request.conflict_mode == "mirror":
+                                target_movie.markUnplayed()
+                                movies_updated += 1
+                    except Exception as e:
+                        errors.append(f"Failed to update '{source_movie.title}': {str(e)}")
+
+            elif source_section.type == "show":
+                source_shows = {s.guid: s for s in source_section.all()}
+                target_shows = {s.guid: s for s in target_section.all()}
+
+                for guid, source_show in source_shows.items():
+                    if guid not in target_shows:
+                        continue
+
+                    target_show = target_shows[guid]
+
+                    source_episodes = {e.guid: e for e in source_show.episodes()}
+                    target_episodes = {e.guid: e for e in target_show.episodes()}
+
+                    for ep_guid, source_ep in source_episodes.items():
+                        if ep_guid not in target_episodes:
+                            continue
+
+                        target_ep = target_episodes[ep_guid]
+                        source_watched = getattr(source_ep, "isWatched", False)
+                        target_watched = getattr(target_ep, "isWatched", False)
+
+                        try:
+                            if source_watched and not target_watched:
+                                target_ep.markPlayed()
+                                episodes_updated += 1
+                            elif not source_watched and target_watched:
+                                if request.conflict_mode == "mirror":
+                                    target_ep.markUnplayed()
+                                    episodes_updated += 1
+                        except Exception as e:
+                            errors.append(
+                                f"Failed to update '{source_show.title}' - {source_ep.title}: {str(e)}"
+                            )
+
+        except Exception as e:
+            errors.append(f"Failed to process library '{lib_name}': {str(e)}")
+
+    logger.info(
+        f"Copy watch history complete: {movies_updated} movies, {episodes_updated} episodes updated, {len(errors)} errors"
+    )
+
+    return CopyWatchHistoryApplyResponse(
+        success=len(errors) == 0,
+        movies_updated=movies_updated,
+        episodes_updated=episodes_updated,
+        errors=errors,
     )

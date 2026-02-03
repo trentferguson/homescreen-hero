@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Calendar, Wrench, History, FileSearch } from "lucide-react";
+import { Calendar, Wrench, History, FileSearch, Users } from "lucide-react";
 import ToolCard from "../components/tools/ToolCard";
 import DateAddedEditor from "../components/tools/DateAddedEditor";
 import WatchHistoryCleaner from "../components/tools/WatchHistoryCleaner";
 import UnwatchedReport from "../components/tools/UnwatchedReport";
+import CopyWatchHistory from "../components/tools/CopyWatchHistory";
 
 type Tool = {
     id: string;
@@ -30,6 +31,12 @@ const tools: Tool[] = [
         title: "Unwatched Report",
         description: "Find movies and shows that haven't been watched",
         icon: FileSearch,
+    },
+    {
+        id: "copy-watch-history",
+        title: "Copy Watch History",
+        description: "Copy watched status between Plex Home users",
+        icon: Users,
     },
 ];
 
@@ -76,6 +83,9 @@ export default function ToolsPage() {
             )}
             {activeTool === "unwatched-report" && (
                 <UnwatchedReport onClose={() => setActiveTool(null)} />
+            )}
+            {activeTool === "copy-watch-history" && (
+                <CopyWatchHistory onClose={() => setActiveTool(null)} />
             )}
         </div>
     );

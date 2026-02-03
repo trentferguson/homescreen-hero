@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Set
 
 from plexapi.server import PlexServer
+from plexapi.myplex import MyPlexAccount
 
 from ..config.schema import AppConfig
 
@@ -416,3 +417,76 @@ def reorder_homescreen_collections(
         logger.info("Reordered %d collections on homescreen", len(applied_order))
 
     return applied_order
+
+
+# Home user functions for watch history copying
+
+def get_plex_account(config: AppConfig) -> MyPlexAccount:
+    # Create MyPlexAccount from configured token for home user access
+    # This requires a Plex.tv account token, not a local server token
+    return MyPlexAccount(token=config.plex.token)
+
+
+def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
+    # Return list of home users with id, username, title, thumb, is_admin
+    # Note: For managed users, username may be empty - use title for switchHomeUser()
+    account = get_plex_account(config)
+    users = []
+
+    # Include the main account owner
+    # Use title as the primary identifier for consistency with managed users
+    users.append({
+        "id": account.id,
+        "username": account.title or account.username,  # Use title as username for consistency
+        "title": account.title or account.username,
+        "thumb": account.thumb,
+        "is_admin": True,
+    })
+
+    # Add managed/home users (filter out friends - only include home users)
+    for user in account.users():
+        if user.home:
+            users.append({
+                "id": user.id,
+                "username": user.title or user.username,  # Use title as username for managed users
+                "title": user.title or user.username,
+                "thumb": user.thumb,
+                "is_admin": False,
+            })
+
+    logger.debug(f"Found {len(users)} home users")
+    return users
+
+
+def get_server_for_user(config: AppConfig, username: str) -> PlexServer:
+    # Get PlexServer authenticated as a specific home user
+    # Uses switchHomeUser to switch context, then connects via resource
+    account = get_plex_account(config)
+
+    # If it's the admin account, just return normal server
+    if username == account.username or username == account.title:
+        return get_plex_server(config)
+
+    # Switch to the home user's context
+    logger.debug(f"Switching to home user: {username}")
+    user_account = account.switchHomeUser(username)
+
+    # Find the server resource and connect
+    # For managed users, we need to go through the resource to get proper auth
+    for resource in user_account.resources():
+        if resource.product == "Plex Media Server":
+            try:
+                # Try to connect - it will use the best available connection
+                logger.debug(f"Connecting to server as {username} via resource")
+                return resource.connect(timeout=30)
+            except Exception as e:
+                logger.warning(f"Failed to connect via resource: {e}")
+                # If that fails, try forcing the configured base_url
+                try:
+                    logger.debug(f"Retrying with configured base_url")
+                    return PlexServer(config.plex.base_url, resource.accessToken)
+                except Exception as e2:
+                    logger.error(f"Failed with configured base_url: {e2}")
+                    raise
+
+    raise ValueError(f"Could not find Plex server for user '{username}'")
