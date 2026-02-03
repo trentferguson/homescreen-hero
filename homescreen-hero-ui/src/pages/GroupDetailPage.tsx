@@ -783,20 +783,58 @@ export default function GroupDetailPage() {
                                     Previous
                                 </button>
                                 <div className="flex items-center gap-1">
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                        <button
-                                            key={page}
-                                            type="button"
-                                            onClick={() => setCurrentPage(page)}
-                                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                                currentPage === page
-                                                    ? "bg-primary text-white"
-                                                    : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                            }`}
-                                        >
-                                            {page}
-                                        </button>
-                                    ))}
+                                    {(() => {
+                                        // Build smart page list: 1 ... (current-1) current (current+1) ... totalPages
+                                        const pages: (number | "ellipsis")[] = [];
+                                        const showEllipsisThreshold = 7;
+
+                                        if (totalPages <= showEllipsisThreshold) {
+                                            // Show all pages if there aren't many
+                                            for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                        } else {
+                                            // Always show first page
+                                            pages.push(1);
+
+                                            // Left ellipsis if current page is far from start
+                                            if (currentPage > 3) {
+                                                pages.push("ellipsis");
+                                            }
+
+                                            // Pages around current
+                                            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                                                pages.push(i);
+                                            }
+
+                                            // Right ellipsis if current page is far from end
+                                            if (currentPage < totalPages - 2) {
+                                                pages.push("ellipsis");
+                                            }
+
+                                            // Always show last page
+                                            if (!pages.includes(totalPages)) {
+                                                pages.push(totalPages);
+                                            }
+                                        }
+
+                                        return pages.map((page, idx) =>
+                                            page === "ellipsis" ? (
+                                                <span key={`ellipsis-${idx}`} className="px-2 text-xs text-slate-500">…</span>
+                                            ) : (
+                                                <button
+                                                    key={page}
+                                                    type="button"
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                                        currentPage === page
+                                                            ? "bg-primary text-white"
+                                                            : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            )
+                                        );
+                                    })()}
                                 </div>
                                 <button
                                     type="button"
