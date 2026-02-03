@@ -157,8 +157,9 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             )
 
         # Tautulli base URL override (optional)
+        # Skip placeholder value from Unraid template
         tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
-        if tautulli_base_url:
+        if tautulli_base_url and tautulli_base_url != "http://your-tautulli-url:8181":
             logger.info("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
             config.tautulli.base_url = tautulli_base_url
 
@@ -174,8 +175,9 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             )
 
         # Seerr base URL override (optional)
+        # Skip placeholder value from Unraid template
         seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
-        if seerr_base_url:
+        if seerr_base_url and seerr_base_url != "http://your-seerr-url:5055":
             logger.info("Using Seerr base URL from HSH_SEERR_BASE_URL environment variable")
             config.seerr.base_url = seerr_base_url
 
