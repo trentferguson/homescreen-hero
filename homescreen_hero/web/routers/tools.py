@@ -5,9 +5,11 @@ from typing import List, Optional, Literal
 import logging
 import csv
 import io
+import json
 import math
 
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Response, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from homescreen_hero.core.config.loader import load_config
@@ -947,4 +949,125 @@ def apply_copy_watch_history(
         movies_updated=movies_updated,
         episodes_updated=episodes_updated,
         errors=errors,
+    )
+
+
+@router.post("/copy-watch-history/apply-stream")
+async def apply_copy_watch_history_stream(
+    request: CopyWatchHistoryApplyRequest,
+    req: Request,
+    current_user: str = Depends(get_current_user),
+):
+    # SSE streaming version of apply - sends progress updates
+    config = load_config()
+
+    def generate_events():
+        try:
+            source_server = get_server_for_user(config, request.source_user)
+            target_server = get_server_for_user(config, request.target_user)
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to connect to Plex: {str(e)}'})}\n\n"
+            return
+
+        enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+
+        movies_updated = 0
+        episodes_updated = 0
+        errors: List[str] = []
+
+        for lib_idx, lib_name in enumerate(enabled_libraries):
+            # Send library start event
+            yield f"data: {json.dumps({'type': 'library_start', 'library': lib_name, 'library_index': lib_idx, 'total_libraries': len(enabled_libraries)})}\n\n"
+
+            try:
+                source_section = source_server.library.section(lib_name)
+                target_section = target_server.library.section(lib_name)
+
+                if source_section.type == "movie":
+                    source_movies = {m.guid: m for m in source_section.all()}
+                    target_movies = {m.guid: m for m in target_section.all()}
+                    total_items = len(source_movies)
+                    processed = 0
+
+                    for guid, source_movie in source_movies.items():
+                        processed += 1
+
+                        # Send progress every 10 items or on last item
+                        if processed % 10 == 0 or processed == total_items:
+                            yield f"data: {json.dumps({'type': 'progress', 'library': lib_name, 'processed': processed, 'total': total_items, 'item_type': 'movies'})}\n\n"
+
+                        if guid not in target_movies:
+                            continue
+
+                        target_movie = target_movies[guid]
+                        source_watched = getattr(source_movie, "isWatched", False)
+                        target_watched = getattr(target_movie, "isWatched", False)
+
+                        try:
+                            if source_watched and not target_watched:
+                                target_movie.markPlayed()
+                                movies_updated += 1
+                            elif not source_watched and target_watched:
+                                if request.conflict_mode == "mirror":
+                                    target_movie.markUnplayed()
+                                    movies_updated += 1
+                        except Exception as e:
+                            errors.append(f"Failed to update '{source_movie.title}': {str(e)}")
+
+                elif source_section.type == "show":
+                    source_shows = list(source_section.all())
+                    target_shows = {s.guid: s for s in target_section.all()}
+                    total_shows = len(source_shows)
+
+                    for show_idx, source_show in enumerate(source_shows):
+                        # Send show-level progress
+                        if (show_idx + 1) % 5 == 0 or show_idx == total_shows - 1:
+                            yield f"data: {json.dumps({'type': 'progress', 'library': lib_name, 'processed': show_idx + 1, 'total': total_shows, 'item_type': 'shows'})}\n\n"
+
+                        if source_show.guid not in target_shows:
+                            continue
+
+                        target_show = target_shows[source_show.guid]
+
+                        source_episodes = {e.guid: e for e in source_show.episodes()}
+                        target_episodes = {e.guid: e for e in target_show.episodes()}
+
+                        for ep_guid, source_ep in source_episodes.items():
+                            if ep_guid not in target_episodes:
+                                continue
+
+                            target_ep = target_episodes[ep_guid]
+                            source_watched = getattr(source_ep, "isWatched", False)
+                            target_watched = getattr(target_ep, "isWatched", False)
+
+                            try:
+                                if source_watched and not target_watched:
+                                    target_ep.markPlayed()
+                                    episodes_updated += 1
+                                elif not source_watched and target_watched:
+                                    if request.conflict_mode == "mirror":
+                                        target_ep.markUnplayed()
+                                        episodes_updated += 1
+                            except Exception as e:
+                                errors.append(
+                                    f"Failed to update '{source_show.title}' - {source_ep.title}: {str(e)}"
+                                )
+
+            except Exception as e:
+                errors.append(f"Failed to process library '{lib_name}': {str(e)}")
+
+        # Send completion event
+        logger.info(
+            f"Copy watch history complete: {movies_updated} movies, {episodes_updated} episodes updated, {len(errors)} errors"
+        )
+
+        yield f"data: {json.dumps({'type': 'complete', 'success': len(errors) == 0, 'movies_updated': movies_updated, 'episodes_updated': episodes_updated, 'errors': errors})}\n\n"
+
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )

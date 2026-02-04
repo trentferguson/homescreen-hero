@@ -25,6 +25,8 @@ import {
     DialogDescription,
     DialogCloseButton,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type HomeUser = {
     id: number;
@@ -88,8 +90,21 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
         errors: string[];
     } | null>(null);
 
+    // Progress state for SSE
+    const [progress, setProgress] = useState<{
+        library: string;
+        libraryIndex: number;
+        totalLibraries: number;
+        processed: number;
+        total: number;
+        itemType: string;
+    } | null>(null);
+
     // Toast
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+    // Confirm dialog
+    const [showConfirm, setShowConfirm] = useState(false);
 
     // Fetch home users on mount
     useEffect(() => {
@@ -139,14 +154,15 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
         }
     };
 
-    // Apply changes
+    // Apply changes with SSE streaming for progress
     const handleApply = async () => {
         if (!sourceUser || !targetUser) return;
 
         setStep("applying");
+        setProgress(null);
 
         try {
-            const response = await fetchWithAuth("/api/tools/copy-watch-history/apply", {
+            const response = await fetchWithAuth("/api/tools/copy-watch-history/apply-stream", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -161,9 +177,67 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                 throw new Error(error.detail || "Failed to apply changes");
             }
 
-            const data = await response.json();
-            setApplyResult(data);
-            setStep("complete");
+            // Read the SSE stream
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error("No response body");
+
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete SSE events (each ends with \n\n)
+                const events = buffer.split("\n\n");
+                buffer = events.pop() || ""; // Keep incomplete event in buffer
+
+                for (const event of events) {
+                    if (!event.trim()) continue;
+
+                    // Parse "data: {...}" format
+                    const dataMatch = event.match(/^data: (.+)$/m);
+                    if (!dataMatch) continue;
+
+                    try {
+                        const data = JSON.parse(dataMatch[1]);
+
+                        if (data.type === "library_start") {
+                            setProgress({
+                                library: data.library,
+                                libraryIndex: data.library_index,
+                                totalLibraries: data.total_libraries,
+                                processed: 0,
+                                total: 0,
+                                itemType: "",
+                            });
+                        } else if (data.type === "progress") {
+                            setProgress((prev) => ({
+                                library: data.library,
+                                libraryIndex: prev?.libraryIndex ?? 0,
+                                totalLibraries: prev?.totalLibraries ?? 1,
+                                processed: data.processed,
+                                total: data.total,
+                                itemType: data.item_type,
+                            }));
+                        } else if (data.type === "complete") {
+                            setApplyResult({
+                                success: data.success,
+                                movies_updated: data.movies_updated,
+                                episodes_updated: data.episodes_updated,
+                                errors: data.errors,
+                            });
+                            setStep("complete");
+                        } else if (data.type === "error") {
+                            throw new Error(data.message);
+                        }
+                    } catch (parseError) {
+                        console.error("Failed to parse SSE event:", parseError);
+                    }
+                }
+            }
         } catch (e) {
             setToast({ message: `Apply failed: ${e instanceof Error ? e.message : String(e)}`, type: "error" });
             setStep("preview");
@@ -412,14 +486,6 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                                         </div>
                                     )}
 
-                                {/* Shows affected */}
-                                {previewCounts.shows_affected > 0 && (
-                                    <p className="mt-4 text-sm text-slate-400">
-                                        Across {previewCounts.shows_affected} TV show
-                                        {previewCounts.shows_affected !== 1 ? "s" : ""}
-                                    </p>
-                                )}
-
                                 {/* No changes */}
                                 {previewCounts.movies_to_mark_watched === 0 &&
                                     previewCounts.episodes_to_mark_watched === 0 &&
@@ -436,7 +502,32 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                         <div className="flex flex-col items-center justify-center py-12">
                             <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
                             <p className="text-lg font-medium text-white">Applying changes...</p>
-                            <p className="text-sm text-slate-400 mt-1">This may take a while for large libraries</p>
+
+                            {progress ? (
+                                <div className="w-full max-w-md mt-6 space-y-3">
+                                    {/* Library progress */}
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-300">
+                                            Processing <span className="font-medium text-white">{progress.library}</span>
+                                        </span>
+                                        <span className="text-slate-400">
+                                            Library {progress.libraryIndex + 1} of {progress.totalLibraries}
+                                        </span>
+                                    </div>
+
+                                    {/* Item progress bar */}
+                                    {progress.total > 0 && (
+                                        <>
+                                            <Progress value={(progress.processed / progress.total) * 100} />
+                                            <p className="text-xs text-slate-500 text-center">
+                                                {progress.processed} / {progress.total} {progress.itemType}
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-slate-400 mt-1">Connecting to Plex...</p>
+                            )}
                         </div>
                     ) : step === "complete" && applyResult ? (
                         <div className="space-y-6">
@@ -547,7 +638,7 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={handleApply}
+                                    onClick={() => setShowConfirm(true)}
                                     disabled={
                                         previewCounts?.movies_to_mark_watched === 0 &&
                                         previewCounts?.episodes_to_mark_watched === 0 &&
@@ -577,6 +668,24 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                     )}
                 </DialogFooter>
             </DialogContent>
+
+            <ConfirmDialog
+                open={showConfirm}
+                onOpenChange={setShowConfirm}
+                title="Apply Watch History Changes?"
+                description={
+                    conflictMode === "mirror"
+                        ? `This will update ${targetUser?.title}'s watch history to match ${sourceUser?.title}'s. Some items may be marked as unwatched. This cannot be easily undone.`
+                        : `This will copy ${sourceUser?.title}'s watched items to ${targetUser?.title}'s history. This cannot be easily undone.`
+                }
+                confirmLabel="Apply Changes"
+                cancelLabel="Cancel"
+                onConfirm={() => {
+                    setShowConfirm(false);
+                    handleApply();
+                }}
+                variant="warning"
+            />
 
             {toast && (
                 <Toast
