@@ -25,6 +25,7 @@ type RotationSettings = {
     allow_repeats: boolean;
     sync_all_on_rotation: boolean;
     blacklisted_collections: string[];
+    per_library_limits: Record<string, number>;
 };
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
 type HealthComponent = { ok: boolean; error?: string | null };
@@ -118,7 +119,11 @@ export default function SettingsPage() {
         allow_repeats: false,
         sync_all_on_rotation: true,
         blacklisted_collections: [],
+        per_library_limits: {},
     });
+    // Track input values as strings to allow empty fields while editing
+    const [intervalInput, setIntervalInput] = useState("12");
+    const [maxCollectionsInput, setMaxCollectionsInput] = useState("5");
     const [blacklistSearch, setBlacklistSearch] = useState("");
     const [blacklistSourceFilter, setBlacklistSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist">("all");
     const [blacklistPage, setBlacklistPage] = useState(1);
@@ -197,6 +202,8 @@ export default function SettingsPage() {
             .then((data: RotationSettings) => {
                 if (!isMounted) return;
                 setRotationSettings(data);
+                setIntervalInput(String(data.interval_hours));
+                setMaxCollectionsInput(String(data.max_collections));
             })
             .catch((e) => {
                 if (!isMounted) return;
@@ -360,16 +367,43 @@ export default function SettingsPage() {
         }
     }
 
-    const handleRotationNumberChange = (
-        key: "interval_hours" | "max_collections",
-        value: string,
-    ) => {
+    const handleIntervalChange = (value: string) => {
+        setIntervalInput(value);
         const parsed = Number(value);
-        setRotationSettings((prev) => ({
-            ...prev,
-            [key]: Number.isNaN(parsed) ? 0 : parsed,
-        }));
+        if (value !== "" && !Number.isNaN(parsed)) {
+            setRotationSettings((prev) => ({ ...prev, interval_hours: parsed }));
+        }
     };
+
+    const handleMaxCollectionsChange = (value: string) => {
+        setMaxCollectionsInput(value);
+        const parsed = Number(value);
+        if (value !== "" && !Number.isNaN(parsed)) {
+            setRotationSettings((prev) => ({ ...prev, max_collections: parsed }));
+        }
+    };
+
+    const handleLibraryLimitChange = (libraryName: string, value: string) => {
+        const trimmed = value.trim();
+        setRotationSettings((prev) => {
+            const newLimits = { ...prev.per_library_limits };
+            if (trimmed === "" || trimmed === "0") {
+                // Empty or 0 means no limit - remove from map
+                delete newLimits[libraryName];
+            } else {
+                const parsed = Number(trimmed);
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                    newLimits[libraryName] = parsed;
+                }
+            }
+            return { ...prev, per_library_limits: newLimits };
+        });
+    };
+
+    // Get enabled libraries for per-library limits UI
+    const enabledLibraries = useMemo(() => {
+        return plexSettings.libraries.filter((lib) => lib.enabled);
+    }, [plexSettings.libraries]);
 
     const addToBlacklist = (name: string) => {
         const trimmed = name.trim();
@@ -671,7 +705,7 @@ export default function SettingsPage() {
                     </CollapsibleFormSection>
 
                     <CollapsibleFormSection
-                        title="Rotation schedule"
+                        title="Rotation Settings"
                         description="Configure how often the scheduler rotates featured collections."
                         icon={CalendarSync}
                         expanded={rotationExpanded}
@@ -699,8 +733,8 @@ export default function SettingsPage() {
                             <input
                                 type="number"
                                 min={1}
-                                value={rotationSettings.interval_hours}
-                                onChange={(e) => handleRotationNumberChange("interval_hours", e.target.value)}
+                                value={intervalInput}
+                                onChange={(e) => handleIntervalChange(e.target.value)}
                                 disabled={loadingRotation}
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
                             />
@@ -710,12 +744,39 @@ export default function SettingsPage() {
                             <input
                                 type="number"
                                 min={1}
-                                value={rotationSettings.max_collections}
-                                onChange={(e) => handleRotationNumberChange("max_collections", e.target.value)}
+                                value={maxCollectionsInput}
+                                onChange={(e) => handleMaxCollectionsChange(e.target.value)}
                                 disabled={loadingRotation}
                                 className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
                             />
                         </FieldRow>
+
+                        {enabledLibraries.length >= 2 && (
+                            <FieldRow label="Per-library limits" hint="Optionally limit how many collections can come from each library. Leave empty for no limit.">
+                                <div className="space-y-2">
+                                    {enabledLibraries.map((lib) => (
+                                        <div key={lib.name} className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2">
+                                            <span className="text-sm text-slate-200 flex-1">{lib.name}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-400">Max:</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    placeholder="∞"
+                                                    value={rotationSettings.per_library_limits[lib.name] ?? ""}
+                                                    onChange={(e) => handleLibraryLimitChange(lib.name, e.target.value)}
+                                                    disabled={loadingRotation}
+                                                    className="w-16 rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100 text-center focus:outline-none focus:ring-2 focus:ring-primary/70 placeholder-slate-500 focus:placeholder-transparent"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        These limits work alongside the global max. For example: global max=12, Movies max=6, TV max=6 means at most 6 from each library, up to 12 total.
+                                    </p>
+                                </div>
+                            </FieldRow>
+                        )}
 
                         <FieldRow label="Strategy" hint="Choose how groups are prioritized during rotation.">
                             <Listbox

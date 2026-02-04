@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
+from collections import defaultdict
 from datetime import date
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -163,6 +164,7 @@ def run_rotation_with_history(
     usage_map: Dict[str, CollectionUsage],
     last_rotation_collections: Optional[List[str]] = None,
     pinned_names: Optional[Set[str]] = None,
+    collection_library_map: Optional[Dict[str, str]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
 ) -> RotationResult:
@@ -175,10 +177,25 @@ def run_rotation_with_history(
     remaining_global = max_global
     allow_repeats = config.rotation.allow_repeats
     last_rotation_set = set(last_rotation_collections or [])
+    per_library_limits = config.rotation.per_library_limits
+    collection_library_map = collection_library_map or {}
 
     selected: List[str] = []
     selected_set: Set[str] = set()
     group_results: List[GroupSelectionResult] = []
+    library_counts: Dict[str, int] = defaultdict(int)
+
+    # Helper to check if a collection is within its library's max limit
+    def within_library_limit(coll_name: str) -> bool:
+        if not per_library_limits:
+            return True
+        lib = collection_library_map.get(coll_name)
+        if not lib:
+            return True  # Unknown library, allow
+        max_for_lib = per_library_limits.get(lib)
+        if max_for_lib is None:
+            return True  # No limit configured for this library
+        return library_counts[lib] < max_for_lib
 
     # Handle pinned collections - they go first and don't count against max_collections
     pinned_names = pinned_names or set()
@@ -248,6 +265,9 @@ def run_rotation_with_history(
         if not allow_repeats and last_rotation_set:
             available = [c for c in available if c not in last_rotation_set]
 
+        # Filter out collections that would exceed their library's max limit
+        available = [c for c in available if within_library_limit(c)]
+
         result.available_collections = available
 
         if not available:
@@ -283,16 +303,42 @@ def run_rotation_with_history(
             continue
 
         # Select collections based on strategy
-        chosen = _select_collections_from_group(
-            available, k, config.rotation.strategy, usage_map, rng
-        )
+        # When per-library limits are set, use iterative selection to respect limits
+        if per_library_limits:
+            chosen = []
+            remaining_available = list(available)
+            for _ in range(k):
+                # Re-filter by library limit each iteration
+                eligible = [c for c in remaining_available if within_library_limit(c)]
+                if not eligible:
+                    break
+                pick = _select_collections_from_group(
+                    eligible, 1, config.rotation.strategy, usage_map, rng
+                )
+                if not pick:
+                    break
+                coll = pick[0]
+                chosen.append(coll)
+                remaining_available.remove(coll)
+                lib = collection_library_map.get(coll)
+                if lib:
+                    library_counts[lib] += 1
+        else:
+            chosen = _select_collections_from_group(
+                available, k, config.rotation.strategy, usage_map, rng
+            )
+            # Update library counts for selected collections
+            for coll in chosen:
+                lib = collection_library_map.get(coll)
+                if lib:
+                    library_counts[lib] += 1
 
         selected.extend(chosen)
         selected_set.update(chosen)
-        remaining_global -= k
+        remaining_global -= len(chosen)
 
         result.chosen_collections = chosen
-        result.picked_count = k
+        result.picked_count = len(chosen)
 
         group_results.append(result)
 
@@ -308,6 +354,7 @@ def run_rotation_with_history(
         max_global=max_global,
         remaining_global=remaining_global,
         today=today,
+        per_library_counts=dict(library_counts),
     )
 
     logger.info(
@@ -315,6 +362,8 @@ def run_rotation_with_history(
             len(selected),
             remaining_global,
         )
+    if library_counts:
+        logger.info("Per-library counts: %s", dict(library_counts))
     logger.debug("Group selection details: %s", group_results)
 
     return rotation_result
@@ -331,6 +380,8 @@ def run_auto_rotation_with_history(
     max_rotation_id: int,
     usage_map: Dict[str, CollectionUsage],
     pinned_names: Optional[Set[str]] = None,
+    collection_library_map: Optional[Dict[str, str]] = None,
+    per_library_limits: Optional[Dict[str, int]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
 ) -> RotationResult:
@@ -343,6 +394,9 @@ def run_auto_rotation_with_history(
 
     pinned_names = pinned_names or set()
     last_rotation_set = set(last_rotation_collections)
+    collection_library_map = collection_library_map or {}
+    per_library_limits = per_library_limits or {}
+    library_counts: Dict[str, int] = defaultdict(int)
 
     # Handle pinned collections first - they don't count against max_collections
     pinned_selected: List[str] = []
@@ -382,14 +436,52 @@ def run_auto_rotation_with_history(
         ", repeats excluded" if not allow_repeats else "",
     )
 
-    # Select collections using the configured strategy
-    k = min(max_collections, len(available))
-    if k > 0:
-        selected = _select_collections_from_group(
-            available, k, strategy, usage_map, rng
-        )
+    # Helper to check if a collection is within its library's max limit
+    def within_library_limit(coll_name: str) -> bool:
+        if not per_library_limits:
+            return True
+        lib = collection_library_map.get(coll_name)
+        if not lib:
+            return True
+        max_for_lib = per_library_limits.get(lib)
+        if max_for_lib is None:
+            return True
+        return library_counts[lib] < max_for_lib
+
+    # Select collections using the configured strategy, respecting library limits
+    # If per-library limits are set, we need to select iteratively
+    selected: List[str] = []
+    if per_library_limits:
+        # Iterative selection to respect library limits
+        remaining_available = list(available)
+        while len(selected) < max_collections and remaining_available:
+            # Filter by library limit
+            eligible = [c for c in remaining_available if within_library_limit(c)]
+            if not eligible:
+                break
+            # Select one collection
+            chosen = _select_collections_from_group(eligible, 1, strategy, usage_map, rng)
+            if not chosen:
+                break
+            coll = chosen[0]
+            selected.append(coll)
+            remaining_available.remove(coll)
+            # Update library count
+            lib = collection_library_map.get(coll)
+            if lib:
+                library_counts[lib] += 1
     else:
-        selected = []
+        # Simple selection without library limits
+        k = min(max_collections, len(available))
+        if k > 0:
+            selected = _select_collections_from_group(
+                available, k, strategy, usage_map, rng
+            )
+            # Track library counts for the result
+            for coll in selected:
+                lib = collection_library_map.get(coll)
+                if lib:
+                    library_counts[lib] += 1
 
     # Create a virtual group result for reporting
     group_result = GroupSelectionResult(
@@ -412,6 +504,7 @@ def run_auto_rotation_with_history(
         max_global=max_collections,
         remaining_global=max_collections - len(selected),
         today=today,
+        per_library_counts=dict(library_counts),
     )
 
     logger.info(

@@ -12,8 +12,17 @@ from homescreen_hero.core.rotation import (
     _is_blacklisted,
     _get_ordered_groups,
     _select_collections_from_group,
+    run_rotation_with_history,
+    run_auto_rotation_with_history,
 )
-from homescreen_hero.core.config.schema import CollectionGroupConfig, DateRange
+from homescreen_hero.core.config.schema import (
+    AppConfig,
+    CollectionGroupConfig,
+    DateRange,
+    PlexSettings,
+    PlexLibraryConfig,
+    RotationSettings,
+)
 
 
 # Mock CollectionUsage for testing
@@ -420,3 +429,395 @@ class TestSelectCollectionsFromGroup:
 
         # Should get oldest 3: A(1), B(2), C(3)
         assert chosen == ["A", "B", "C"]
+
+
+# Helper to create minimal AppConfig for testing
+def _make_test_config(
+    groups: list,
+    max_collections: int = 10,
+    per_library_limits: dict = None,
+    strategy: str = "random",
+    allow_repeats: bool = True,
+    blacklisted_collections: list = None,
+) -> AppConfig:
+    return AppConfig(
+        plex=PlexSettings(
+            base_url="http://localhost:32400",
+            token="test-token",
+            libraries=[
+                PlexLibraryConfig(name="Movies", enabled=True),
+                PlexLibraryConfig(name="TV Shows", enabled=True),
+            ],
+        ),
+        groups=groups,
+        rotation=RotationSettings(
+            enabled=True,
+            max_collections=max_collections,
+            strategy=strategy,
+            allow_repeats=allow_repeats,
+            blacklisted_collections=blacklisted_collections or [],
+            per_library_limits=per_library_limits or {},
+        ),
+    )
+
+
+class TestPerLibraryLimits:
+    """Tests for per-library collection limits in rotation"""
+
+    def test_library_limit_enforced_within_group(self):
+        """Library limit should restrict selections even when group has more collections"""
+        groups = [
+            CollectionGroupConfig(
+                name="Movies Group",
+                enabled=True,
+                min_picks=5,
+                max_picks=5,
+                collections=["Movie A", "Movie B", "Movie C", "Movie D", "Movie E"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={"Movies": 2},  # Only allow 2 from Movies
+        )
+        # All collections are from Movies library
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "Movie C": "Movies",
+            "Movie D": "Movies",
+            "Movie E": "Movies",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # Should only select 2 despite group wanting 5
+        assert len(result.selected_collections) == 2
+        assert result.per_library_counts["Movies"] == 2
+
+    def test_library_limits_across_multiple_groups(self):
+        """Library limits should be enforced across multiple groups"""
+        groups = [
+            CollectionGroupConfig(
+                name="Group 1",
+                enabled=True,
+                min_picks=2,
+                max_picks=2,
+                collections=["Movie A", "Movie B"],
+            ),
+            CollectionGroupConfig(
+                name="Group 2",
+                enabled=True,
+                min_picks=2,
+                max_picks=2,
+                collections=["Movie C", "Movie D"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={"Movies": 3},  # Only allow 3 total from Movies
+        )
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "Movie C": "Movies",
+            "Movie D": "Movies",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # Should select 3 total (2 from first group, 1 from second)
+        assert len(result.selected_collections) == 3
+        assert result.per_library_counts["Movies"] == 3
+
+    def test_no_limit_for_library_allows_unlimited(self):
+        """Collections from a library with no limit should be unrestricted"""
+        groups = [
+            CollectionGroupConfig(
+                name="Mixed Group",
+                enabled=True,
+                min_picks=5,
+                max_picks=5,
+                collections=["Movie A", "Movie B", "TV A", "TV B", "TV C"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={"Movies": 1},  # Only limit Movies, not TV Shows
+        )
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "TV A": "TV Shows",
+            "TV B": "TV Shows",
+            "TV C": "TV Shows",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # 1 Movie (limited) + 3 TV Shows (all available, no limit) = 4 total
+        assert len(result.selected_collections) == 4
+        assert result.per_library_counts["Movies"] == 1
+        assert result.per_library_counts["TV Shows"] == 3
+
+    def test_unknown_library_collections_allowed(self):
+        """Collections not in the library map should be allowed"""
+        groups = [
+            CollectionGroupConfig(
+                name="Mixed Group",
+                enabled=True,
+                min_picks=3,
+                max_picks=3,
+                collections=["Known Movie", "Unknown Collection", "Another Unknown"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={"Movies": 1},
+        )
+        # Only one collection has a known library
+        collection_library_map = {
+            "Known Movie": "Movies",
+            # "Unknown Collection" and "Another Unknown" not in map
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # Should select all 3 (1 Movie limited, 2 unknown allowed)
+        assert len(result.selected_collections) == 3
+        assert result.per_library_counts.get("Movies", 0) <= 1
+
+    def test_empty_per_library_limits_allows_all(self):
+        """Empty per_library_limits should not restrict any selections"""
+        groups = [
+            CollectionGroupConfig(
+                name="Big Group",
+                enabled=True,
+                min_picks=5,
+                max_picks=5,
+                collections=["A", "B", "C", "D", "E"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={},  # No limits
+        )
+        collection_library_map = {
+            "A": "Movies",
+            "B": "Movies",
+            "C": "Movies",
+            "D": "Movies",
+            "E": "Movies",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # Should select all 5 with no limits
+        assert len(result.selected_collections) == 5
+
+    def test_library_limit_zero_blocks_all(self):
+        """A library limit of 0 should block all collections from that library"""
+        groups = [
+            CollectionGroupConfig(
+                name="Movies Group",
+                enabled=True,
+                min_picks=3,
+                max_picks=3,
+                collections=["Movie A", "Movie B", "Movie C"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+            per_library_limits={"Movies": 0},  # Block all Movies
+        )
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "Movie C": "Movies",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # No collections should be selected
+        assert len(result.selected_collections) == 0
+        assert result.per_library_counts.get("Movies", 0) == 0
+
+    def test_per_library_counts_tracked_in_result(self):
+        """RotationResult should include per_library_counts"""
+        groups = [
+            CollectionGroupConfig(
+                name="Mixed",
+                enabled=True,
+                min_picks=4,
+                max_picks=4,
+                collections=["Movie A", "Movie B", "TV A", "TV B"],
+            ),
+        ]
+        config = _make_test_config(
+            groups=groups,
+            max_collections=10,
+        )
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "TV A": "TV Shows",
+            "TV B": "TV Shows",
+        }
+
+        result = run_rotation_with_history(
+            config,
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            rng=random.Random(42),
+        )
+
+        # Result should track counts per library
+        assert "Movies" in result.per_library_counts or "TV Shows" in result.per_library_counts
+        total_tracked = sum(result.per_library_counts.values())
+        assert total_tracked == 4
+
+
+class TestAutoRotationPerLibraryLimits:
+    """Tests for per-library limits in auto-rotation mode"""
+
+    def test_auto_rotation_library_limit_enforced(self):
+        """Auto-rotation should respect per-library limits"""
+        all_collections = ["Movie A", "Movie B", "Movie C", "TV A", "TV B"]
+        collection_library_map = {
+            "Movie A": "Movies",
+            "Movie B": "Movies",
+            "Movie C": "Movies",
+            "TV A": "TV Shows",
+            "TV B": "TV Shows",
+        }
+
+        result = run_auto_rotation_with_history(
+            all_collections,
+            max_collections=5,
+            strategy="random",
+            blacklisted_collections=[],
+            allow_repeats=True,
+            last_rotation_collections=[],
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            per_library_limits={"Movies": 2, "TV Shows": 1},
+            rng=random.Random(42),
+        )
+
+        # Should respect limits: max 2 Movies + max 1 TV Show = 3 total
+        assert len(result.selected_collections) == 3
+        assert result.per_library_counts.get("Movies", 0) <= 2
+        assert result.per_library_counts.get("TV Shows", 0) <= 1
+
+    def test_auto_rotation_no_limits(self):
+        """Auto-rotation without limits should select up to max_collections"""
+        all_collections = ["A", "B", "C", "D", "E"]
+        collection_library_map = {c: "Movies" for c in all_collections}
+
+        result = run_auto_rotation_with_history(
+            all_collections,
+            max_collections=5,
+            strategy="random",
+            blacklisted_collections=[],
+            allow_repeats=True,
+            last_rotation_collections=[],
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            per_library_limits={},  # No limits
+            rng=random.Random(42),
+        )
+
+        assert len(result.selected_collections) == 5
+
+    def test_auto_rotation_iterative_selection(self):
+        """Auto-rotation with limits should use iterative selection"""
+        all_collections = ["M1", "M2", "M3", "M4", "T1", "T2"]
+        collection_library_map = {
+            "M1": "Movies", "M2": "Movies", "M3": "Movies", "M4": "Movies",
+            "T1": "TV Shows", "T2": "TV Shows",
+        }
+
+        result = run_auto_rotation_with_history(
+            all_collections,
+            max_collections=4,
+            strategy="random",
+            blacklisted_collections=[],
+            allow_repeats=True,
+            last_rotation_collections=[],
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            per_library_limits={"Movies": 2, "TV Shows": 2},
+            rng=random.Random(42),
+        )
+
+        # Should select 4 total, respecting both limits
+        assert len(result.selected_collections) == 4
+        assert result.per_library_counts.get("Movies", 0) <= 2
+        assert result.per_library_counts.get("TV Shows", 0) <= 2
+
+    def test_auto_rotation_unknown_collections_allowed(self):
+        """Auto-rotation should allow collections not in library map"""
+        all_collections = ["Known", "Unknown1", "Unknown2"]
+        collection_library_map = {"Known": "Movies"}
+
+        result = run_auto_rotation_with_history(
+            all_collections,
+            max_collections=3,
+            strategy="random",
+            blacklisted_collections=[],
+            allow_repeats=True,
+            last_rotation_collections=[],
+            max_rotation_id=0,
+            usage_map={},
+            collection_library_map=collection_library_map,
+            per_library_limits={"Movies": 1},
+            rng=random.Random(42),
+        )
+
+        # Should select all 3 (1 from Movies, 2 unknown)
+        assert len(result.selected_collections) == 3

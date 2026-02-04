@@ -30,6 +30,22 @@ from .db import (
 
 logger = logging.getLogger(__name__)
 
+
+def _build_collection_library_map(server, config: AppConfig) -> Dict[str, str]:
+    # Build a mapping from collection name to library name.
+    # Used to enforce per-library limits during rotation.
+    coll_to_lib: Dict[str, str] = {}
+    for lib_config in config.plex.libraries:
+        if lib_config.enabled:
+            try:
+                collections_map = get_library_collections(server, lib_config.name)
+                for coll_name in collections_map.keys():
+                    coll_to_lib[coll_name] = lib_config.name
+            except Exception as e:
+                logger.warning("Failed to get collections from library '%s': %s", lib_config.name, e)
+    return coll_to_lib
+
+
 def _run_auto_rotation(
     server,
     config: AppConfig,
@@ -37,6 +53,7 @@ def _run_auto_rotation(
     usage_map: Dict,
     pinned_names: set,
     last_rotation_collections: List[str],
+    collection_library_map: Optional[Dict[str, str]] = None,
 ) -> RotationResult:
     # Run auto-rotation mode: rotate through collections from selected libraries
     auto_rotate = config.rotation.auto_rotate
@@ -85,6 +102,8 @@ def _run_auto_rotation(
         max_rotation_id=max_rotation_id,
         usage_map=usage_map,
         pinned_names=pinned_names,
+        collection_library_map=collection_library_map,
+        per_library_limits=config.rotation.per_library_limits,
     )
 
 
@@ -152,6 +171,9 @@ def run_rotation_once(
     # Connect to Plex
     server = get_plex_server(config)
 
+    # Build collection→library map for per-library limits
+    collection_library_map = _build_collection_library_map(server, config)
+
     # DISABLED: Auto-cleanup was too aggressive and deleting user's collections
     # TODO: Redesign cleanup to only delete collections that HSH created (not native Plex collections)
     # cleanup_result = cleanup_deleted_integration_sources(server, config)
@@ -177,7 +199,8 @@ def run_rotation_once(
 
         if use_auto_rotate:
             rotation_result = _run_auto_rotation(
-                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
+                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections,
+                collection_library_map=collection_library_map,
             )
         else:
             rotation_result = run_rotation_with_history(
@@ -186,6 +209,7 @@ def run_rotation_once(
                 usage_map=usage_map,
                 last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
+                collection_library_map=collection_library_map,
             )
 
         # Now sync only the selected collections
@@ -199,7 +223,8 @@ def run_rotation_once(
 
         if use_auto_rotate:
             rotation_result = _run_auto_rotation(
-                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
+                server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections,
+                collection_library_map=collection_library_map,
             )
         else:
             rotation_result = run_rotation_with_history(
@@ -208,6 +233,7 @@ def run_rotation_once(
                 usage_map=usage_map,
                 last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
+                collection_library_map=collection_library_map,
             )
 
     # Build visibility map from group settings (or use auto-rotate config)
@@ -297,12 +323,14 @@ def simulate_rotation_once(
     logger.info("Simulating next rotation (no Plex write, no history write)")
 
     pinned_names = get_pinned_collection_names()
+    server = get_plex_server(config)
+    collection_library_map = _build_collection_library_map(server, config)
 
     # Check if auto-rotate mode is enabled
     if config.rotation.auto_rotate.enabled:
-        server = get_plex_server(config)
         rotation_result = _run_auto_rotation(
-            server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections
+            server, config, max_rotation_id, usage_map, pinned_names, last_rotation_collections,
+            collection_library_map=collection_library_map,
         )
     else:
         rotation_result = run_rotation_with_history(
@@ -311,6 +339,7 @@ def simulate_rotation_once(
             usage_map=usage_map,
             last_rotation_collections=last_rotation_collections,
             pinned_names=pinned_names,
+            collection_library_map=collection_library_map,
         )
 
     simulation_id = create_simulation(rotation_result)

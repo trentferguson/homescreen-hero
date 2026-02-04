@@ -85,6 +85,10 @@ class RotationSettings(BaseModel):
         default_factory=AutoRotateSettings,
         description="Settings for auto-rotate mode",
     )
+    per_library_limits: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Maximum collections per library during rotation. Keys are library names, values are max counts.",
+    )
 
 
 class CollectionGroupConfig(BaseModel):
@@ -310,6 +314,10 @@ class RotationResult(BaseModel):
     max_global: int
     remaining_global: int
     today: date
+    per_library_counts: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Number of collections selected from each library",
+    )
 
 
 class RotationExecution(BaseModel):
