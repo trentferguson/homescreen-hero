@@ -441,7 +441,7 @@ def reorder_homescreen_collections(
 def get_plex_account(config: AppConfig) -> MyPlexAccount:
     # Create MyPlexAccount from configured token for home user access
     # This requires a Plex.tv account token, not a local server token
-    return MyPlexAccount(token=config.plex.token, session=_make_session())
+    return MyPlexAccount(token=config.plex.token)
 
 
 def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
