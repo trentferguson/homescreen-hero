@@ -3,12 +3,29 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Iterable, List, Set
 
+import requests
+import urllib3
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount
+
+# Suppress noisy "Unverified HTTPS request" warnings — we intentionally
+# skip cert verification for local Plex connections (still encrypted).
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from ..config.schema import AppConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _make_session() -> requests.Session:
+    # Shared session that skips SSL cert verification for local Plex connections.
+    # The connection is still encrypted (HTTPS), we just don't validate the cert —
+    # self-hosted Plex servers commonly use certs issued for *.plex.direct which
+    # don't match local IPs / custom hostnames.
+    session = requests.Session()
+    session.verify = False
+    return session
+
 
 def get_plex_server(config: AppConfig) -> PlexServer:
     # Create a PlexServer instance from the config
@@ -18,7 +35,7 @@ def get_plex_server(config: AppConfig) -> PlexServer:
     logger.debug("Connecting to Plex at %s", base_url)
 
     # Raises if connection fails, which is good for early detection
-    server = PlexServer(base_url, token)
+    server = PlexServer(base_url, token, session=_make_session())
     return server
 
 
@@ -424,7 +441,7 @@ def reorder_homescreen_collections(
 def get_plex_account(config: AppConfig) -> MyPlexAccount:
     # Create MyPlexAccount from configured token for home user access
     # This requires a Plex.tv account token, not a local server token
-    return MyPlexAccount(token=config.plex.token)
+    return MyPlexAccount(token=config.plex.token, session=_make_session())
 
 
 def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
@@ -484,7 +501,7 @@ def get_server_for_user(config: AppConfig, username: str) -> PlexServer:
                 # If that fails, try forcing the configured base_url
                 try:
                     logger.debug(f"Retrying with configured base_url")
-                    return PlexServer(config.plex.base_url, resource.accessToken)
+                    return PlexServer(config.plex.base_url, resource.accessToken, session=_make_session())
                 except Exception as e2:
                     logger.error(f"Failed with configured base_url: {e2}")
                     raise
