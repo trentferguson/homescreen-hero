@@ -225,7 +225,7 @@ def _validate_collection_references(config: AppConfig) -> None:
     for group in config.groups:
         for collection_name in group.collections:
             if collection_name not in integration_collections:
-                logger.warning(
+                logger.debug(
                     f"Collection '{collection_name}' in group '{group.name}' has no corresponding "
                     f"Trakt/Letterboxd/MDBList source. This may be a manually created Plex collection "
                     f"or an orphaned reference from a deleted integration source."

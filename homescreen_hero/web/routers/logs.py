@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 
 from homescreen_hero.core.logging_config import LOG_FILE
 
@@ -25,3 +25,15 @@ def tail_logs(lines: int = 200) -> PlainTextResponse:
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/download")
+def download_logs():
+    if not LOG_FILE.exists():
+        raise HTTPException(status_code=404, detail="Log file not found.")
+
+    return FileResponse(
+        path=LOG_FILE,
+        filename="homescreen_hero.log",
+        media_type="text/plain",
+    )

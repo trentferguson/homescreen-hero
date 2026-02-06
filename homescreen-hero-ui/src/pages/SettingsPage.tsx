@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Pause, Play, RefreshCw, Search, Trash2, Server, CalendarSync, Ban } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
@@ -46,10 +46,10 @@ type CollectionSourcesResponse = {
 
 function guessLevel(line: string): Exclude<LogLevel, "ALL"> | null {
     const up = line.toUpperCase();
-    if (up.includes(" ERROR ") || up.startsWith("ERROR") || up.includes("] ERROR")) return "ERROR";
-    if (up.includes(" WARN ") || up.startsWith("WARN") || up.includes("] WARN")) return "WARN";
-    if (up.includes(" INFO ") || up.startsWith("INFO") || up.includes("] INFO")) return "INFO";
-    if (up.includes(" DEBUG ") || up.startsWith("DEBUG") || up.includes("] DEBUG")) return "DEBUG";
+    if (up.includes("[ERROR]") || up.includes(" ERROR ") || up.includes("] ERROR")) return "ERROR";
+    if (up.includes("[WARNING]") || up.includes("[WARN]") || up.includes(" WARN ") || up.includes("] WARN")) return "WARN";
+    if (up.includes("[INFO]") || up.includes(" INFO ") || up.includes("] INFO")) return "INFO";
+    if (up.includes("[DEBUG]") || up.includes(" DEBUG ") || up.includes("] DEBUG")) return "DEBUG";
     return null;
 }
 
@@ -152,6 +152,7 @@ export default function SettingsPage() {
     const [query, setQuery] = useState("");
     const [level, setLevel] = useState<LogLevel>("ALL");
     const [paused, setPaused] = useState(false);
+    const [follow, setFollow] = useState(true);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
 
     const tabDescription = useMemo(() => {
@@ -449,8 +450,8 @@ export default function SettingsPage() {
     }
 
     // Logs functions
-    async function fetchLogs() {
-        setLoadingLogs(true);
+    async function fetchLogs(showLoading = false) {
+        if (showLoading) setLoadingLogs(true);
         setLogsError(null);
 
         try {
@@ -485,7 +486,7 @@ export default function SettingsPage() {
         } catch (e: any) {
             setLogsError(e?.message ?? "Failed to load logs");
         } finally {
-            setLoadingLogs(false);
+            if (showLoading) setLoadingLogs(false);
         }
     }
 
@@ -516,14 +517,27 @@ export default function SettingsPage() {
         navigator.clipboard.writeText(text);
     }
 
-    function clearLocal() {
-        setLines([]);
+
+    async function downloadLogs() {
+        try {
+            const res = await fetchWithAuth("/api/logs/download");
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "homescreen_hero.log";
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e: any) {
+            setLogsError(e?.message ?? "Failed to download logs");
+        }
     }
 
     // Logs effects
     useEffect(() => {
         if (activeTab === "logs") {
-            fetchLogs();
+            fetchLogs(true);
         }
     }, [activeTab]);
 
@@ -532,6 +546,13 @@ export default function SettingsPage() {
         const id = window.setInterval(fetchLogs, 2000);
         return () => window.clearInterval(id);
     }, [activeTab, paused]);
+
+    // Auto-scroll to bottom when following
+    useEffect(() => {
+        if (!follow || activeTab !== "logs") return;
+        const el = scrollerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+    }, [lines, follow, activeTab]);
 
     return (
         <div className="flex flex-col gap-6">
@@ -1109,7 +1130,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                            <IconButton label="Refresh" onClick={fetchLogs} disabled={loadingLogs}>
+                            <IconButton label="Refresh" onClick={() => fetchLogs(true)} disabled={loadingLogs}>
                                 <RefreshCw size={18} />
                                 Refresh
                             </IconButton>
@@ -1127,9 +1148,9 @@ export default function SettingsPage() {
                                 Copy
                             </IconButton>
 
-                            <IconButton label="Clear (local)" onClick={clearLocal} disabled={lines.length === 0}>
-                                <Trash2 size={18} />
-                                Clear
+                            <IconButton label="Download full log" onClick={downloadLogs}>
+                                <Download size={18} />
+                                Download
                             </IconButton>
                         </div>
                     </div>
@@ -1181,24 +1202,28 @@ export default function SettingsPage() {
                                     </Listbox.Options>
                                 </div>
                             </Listbox>
+
+                            <label className="flex items-center gap-2 text-sm text-slate-300 select-none">
+                                <Switch
+                                    checked={follow}
+                                    onChange={setFollow}
+                                    className="relative inline-flex h-5 w-9 items-center rounded-full transition data-[checked]:bg-emerald-500 bg-slate-600"
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${follow ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </Switch>
+                                Follow
+                            </label>
                         </div>
                     </div>
 
                     {/* Viewer */}
                     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-                            <div className="text-slate-200 font-semibold text-sm">Log stream</div>
-                            <div className="text-slate-400 text-xs">
-                                Showing {filtered.length} / {lines.length}
-                            </div>
-                        </div>
-
                         {logsError ? (
                             <div className="p-4 text-amber-300 text-sm whitespace-pre-wrap">{logsError}</div>
                         ) : (
                             <div
                                 ref={scrollerRef}
-                                className="max-h-[70vh] overflow-auto font-mono text-[12px] leading-relaxed"
+                                className="max-h-[70vh] overflow-auto font-mono text-[12px] leading-relaxed scrollbar-thin"
                             >
                                 {loadingLogs && lines.length === 0 ? (
                                     <div className="p-4 text-slate-400">Loading logs…</div>
