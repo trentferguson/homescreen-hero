@@ -5,6 +5,7 @@ import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDo
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import {
     Dialog,
     DialogContent,
@@ -285,6 +286,7 @@ export default function CollectionsPage() {
     const [newCollectionLibrary, setNewCollectionLibrary] = useState("");
     const [newCollectionSummary, setNewCollectionSummary] = useState("");
     const [creating, setCreating] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState<{ library: string; title: string } | null>(null);
 
     // Available libraries
     const [availableLibraries, setAvailableLibraries] = useState<Library[]>([]);
@@ -656,10 +658,15 @@ export default function CollectionsPage() {
         }
     };
 
-    const handleDeleteCollection = async (library: string, title: string, e: React.MouseEvent) => {
+    const handleDeleteCollection = (library: string, title: string, e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent navigating to collection detail
+        setPendingDelete({ library, title });
+    };
 
-        if (!confirm(`Delete collection "${title}"? This cannot be undone.`)) return;
+    const confirmDeleteCollection = async () => {
+        if (!pendingDelete) return;
+        const { library, title } = pendingDelete;
+        setPendingDelete(null);
 
         try {
             const response = await fetchWithAuth(
@@ -671,10 +678,8 @@ export default function CollectionsPage() {
 
             const data = await response.json();
 
-            // Show success toast
             setToast({ message: data.message || `Deleted collection "${title}"`, type: "success" });
 
-            // Refresh collections list and invalidate cache
             await loadCollections(true);
         } catch (err) {
             setToast({
@@ -1403,6 +1408,17 @@ export default function CollectionsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={pendingDelete !== null}
+                onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+                title="Delete Collection"
+                description={`Are you sure you want to delete "${pendingDelete?.title ?? ""}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmDeleteCollection}
+            />
 
             {/* Toast Notification */}
             {toast && (

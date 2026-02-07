@@ -17,6 +17,7 @@ import { Listbox, Switch } from "@headlessui/react";
 
 import GroupCoverMosaic from "../components/GroupCoverMosaic";
 import { Checkbox } from "../components/ui/checkbox";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { getGroupStatus, isGroupCurrentlyActive } from "../utils/dates";
 
 type DateRange = {
@@ -103,6 +104,7 @@ export default function GroupsPage() {
     const [sort, setSort] = useState<SortOption>("recent");
     const [searchTerm, setSearchTerm] = useState("");
     const [message, setMessage] = useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
     // Auto-rotate state
     const [autoRotate, setAutoRotate] = useState<AutoRotateSettings>(defaultAutoRotate);
@@ -656,7 +658,7 @@ export default function GroupsPage() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleDelete(originalIndex)}
+                                                    onClick={() => setConfirmDelete(originalIndex)}
                                                     disabled={processingIndex === originalIndex}
                                                     className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                                     aria-label={`Delete ${group.name}`}
@@ -711,6 +713,22 @@ export default function GroupsPage() {
                     </button>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmDelete !== null}
+                onOpenChange={(open) => { if (!open) setConfirmDelete(null); }}
+                title="Delete Group"
+                description={`Are you sure you want to delete "${confirmDelete !== null ? groups[confirmDelete]?.name : ""}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={() => {
+                    if (confirmDelete !== null) {
+                        handleDelete(confirmDelete);
+                    }
+                    setConfirmDelete(null);
+                }}
+            />
         </div>
     );
 }

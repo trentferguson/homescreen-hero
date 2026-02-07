@@ -4,6 +4,7 @@ import { fetchWithAuth } from "../utils/api";
 import { ArrowLeft, Plus, Trash2, Search, Image, Edit, ChevronDown, Check } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import {
     Dialog,
     DialogContent,
@@ -62,6 +63,7 @@ export default function CollectionDetailPage() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [adding, setAdding] = useState(false);
+    const [pendingRemove, setPendingRemove] = useState<{ ratingKey: string; title: string } | null>(null);
 
     // Edit collection modal (consolidated)
     const [showEditModal, setShowEditModal] = useState(false);
@@ -188,8 +190,14 @@ export default function CollectionDetailPage() {
     };
 
 
-    const handleRemoveItem = async (ratingKey: string) => {
-        if (!confirm("Remove this item from the collection?")) return;
+    const handleRemoveItem = (ratingKey: string, title: string) => {
+        setPendingRemove({ ratingKey, title });
+    };
+
+    const confirmRemoveItem = async () => {
+        if (!pendingRemove) return;
+        const { ratingKey } = pendingRemove;
+        setPendingRemove(null);
 
         try {
             const response = await fetchWithAuth(
@@ -203,7 +211,6 @@ export default function CollectionDetailPage() {
 
             const data = await response.json();
 
-            // Show success toast
             setToast({ message: data.message || "Item removed successfully!", type: "success" });
 
             await loadCollectionDetails();
@@ -508,7 +515,7 @@ export default function CollectionDetailPage() {
 
                                 {/* Remove Button (shown on hover, top-right) */}
                                 <button
-                                    onClick={() => handleRemoveItem(item.rating_key)}
+                                    onClick={() => handleRemoveItem(item.rating_key, item.title)}
                                     className="absolute top-2 right-2 p-2 bg-red-600/70 hover:bg-red-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                     title="Remove from collection"
                                 >
@@ -1115,6 +1122,17 @@ export default function CollectionDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={pendingRemove !== null}
+                onOpenChange={(open) => { if (!open) setPendingRemove(null); }}
+                title="Remove Item"
+                description={`Are you sure you want to remove "${pendingRemove?.title ?? ""}" from this collection?`}
+                confirmLabel="Remove"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={confirmRemoveItem}
+            />
 
             {/* Toast Notification */}
             {toast && (

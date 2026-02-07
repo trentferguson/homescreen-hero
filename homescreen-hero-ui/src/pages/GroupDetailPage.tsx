@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, CalendarRange, Check, Loader2, Plus, RefreshCcw, Search, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { getGroupStatus } from "../utils/dates";
 
 
@@ -74,6 +75,7 @@ export default function GroupDetailPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [sources, setSources] = useState<CollectionSource[]>([]);
@@ -369,7 +371,7 @@ export default function GroupDetailPage() {
                     {selectedIndex !== "new" && (
                         <button
                             type="button"
-                            onClick={deleteGroup}
+                            onClick={() => setShowDeleteConfirm(true)}
                             disabled={deleting}
                             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-900/60 text-red-100 text-sm font-semibold hover:bg-red-900/80 transition-all duration-200 active:scale-95 disabled:opacity-50"
                         >
@@ -849,6 +851,20 @@ export default function GroupDetailPage() {
                     )}
                 </div>
             </section>
+
+            <ConfirmDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+                title="Delete Group"
+                description={`Are you sure you want to delete "${form.name}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                variant="danger"
+                onConfirm={() => {
+                    setShowDeleteConfirm(false);
+                    deleteGroup();
+                }}
+            />
         </div>
     );
 }
