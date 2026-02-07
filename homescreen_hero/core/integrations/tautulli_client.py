@@ -43,6 +43,7 @@ class TautulliClient:
     def __init__(self, cfg: TautulliConfig) -> None:
         self.cfg = cfg
         self.session = requests.Session()
+        self.session.verify = False
 
         # Tautulli uses API key in URL params, not headers
         # No special headers needed

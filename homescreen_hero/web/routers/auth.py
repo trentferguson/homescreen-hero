@@ -182,7 +182,7 @@ def proxy_poster(poster_id: int):
             raise HTTPException(status_code=404, detail="Poster not found")
 
         # Fetch the image from Plex using requests
-        response = requests.get(poster_url, timeout=10)
+        response = requests.get(poster_url, timeout=10, verify=False)
         response.raise_for_status()
 
         return Response(

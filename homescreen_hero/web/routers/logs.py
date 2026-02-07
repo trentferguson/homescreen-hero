@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 
+from homescreen_hero.core.auth import get_current_user
 from homescreen_hero.core.logging_config import LOG_FILE
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -10,7 +11,10 @@ router = APIRouter(prefix="/logs", tags=["logs"])
 
 # Return last "n" lines of the application log file
 @router.get("/tail", response_class=PlainTextResponse)
-def tail_logs(lines: int = 200) -> PlainTextResponse:
+def tail_logs(
+    lines: int = 200,
+    _current_user: str = Depends(get_current_user),
+) -> PlainTextResponse:
     try:
         path = LOG_FILE
         if not path.exists():
@@ -28,7 +32,7 @@ def tail_logs(lines: int = 200) -> PlainTextResponse:
 
 
 @router.get("/download")
-def download_logs():
+def download_logs(_current_user: str = Depends(get_current_user)):
     if not LOG_FILE.exists():
         raise HTTPException(status_code=404, detail="Log file not found.")
 

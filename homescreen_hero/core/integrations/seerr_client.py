@@ -45,6 +45,7 @@ class SeerrClient:
     def __init__(self, cfg: SeerrConfig) -> None:
         self.cfg = cfg
         self.session = requests.Session()
+        self.session.verify = False
         self.session.headers.update({
             "X-Api-Key": cfg.api_key,
             "Content-Type": "application/json",
