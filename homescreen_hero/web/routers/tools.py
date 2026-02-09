@@ -111,6 +111,7 @@ class UnwatchedItem(BaseModel):
     added_at: Optional[str] = None
     last_watched_at: Optional[str] = None
     total_plays: int = 0
+    file_size: Optional[int] = None  # Size in bytes
 
 
 class UnwatchedReportResponse(BaseModel):
@@ -495,6 +496,36 @@ def _get_time_period_description(
     return descriptions.get(time_period or "all", "Items not watched")
 
 
+def _get_item_file_size(item) -> Optional[int]:
+    # Calculate total file size in bytes for a Plex item
+    # For movies: sum all media parts
+    # For TV shows: sum all episode media parts
+    try:
+        if item.type == "movie":
+            total_size = 0
+            for media in item.media:
+                for part in media.parts:
+                    if hasattr(part, "size") and part.size:
+                        total_size += part.size
+            return total_size if total_size > 0 else None
+
+        elif item.type == "show":
+            # For shows, we need to sum up all episodes
+            total_size = 0
+            episodes = item.episodes()
+            for episode in episodes:
+                for media in episode.media:
+                    for part in media.parts:
+                        if hasattr(part, "size") and part.size:
+                            total_size += part.size
+            return total_size if total_size > 0 else None
+
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get file size for '{item.title}': {e}")
+        return None
+
+
 def _get_unwatched_items(
     config,
     library_name: str,
@@ -624,6 +655,9 @@ def _get_unwatched_items(
                 last_watched.strftime("%Y-%m-%d") if last_watched else None
             )
 
+            # Get file size
+            file_size = _get_item_file_size(item)
+
             unwatched_items.append(
                 {
                     "rating_key": rating_key,
@@ -635,6 +669,7 @@ def _get_unwatched_items(
                     "added_at": added_at_str,
                     "last_watched_at": last_watched_str,
                     "total_plays": total_plays,
+                    "file_size": file_size,
                 }
             )
 
@@ -709,13 +744,25 @@ def export_unwatched_report(
         config, request.library, request.unwatched_mode, cutoff_date
     )
 
+    # Helper to format file size
+    def format_file_size(size_bytes: Optional[int]) -> str:
+        if not size_bytes:
+            return "Unknown"
+        # Convert to GB
+        size_gb = size_bytes / (1024 ** 3)
+        if size_gb >= 1000:
+            # Use TB for very large sizes
+            size_tb = size_gb / 1024
+            return f"{size_tb:.2f} TB"
+        return f"{size_gb:.2f} GB"
+
     # Build CSV content
     output = io.StringIO()
     writer = csv.writer(output)
 
     # Header row
     writer.writerow(
-        ["Title", "Year", "Type", "Library", "Added Date", "Last Watched", "Total Plays"]
+        ["Title", "Year", "Type", "Library", "Added Date", "Last Watched", "Total Plays", "File Size"]
     )
 
     # Data rows
@@ -729,6 +776,7 @@ def export_unwatched_report(
                 item["added_at"] or "",
                 item["last_watched_at"] or "Never",
                 item["total_plays"],
+                format_file_size(item.get("file_size")),
             ]
         )
 

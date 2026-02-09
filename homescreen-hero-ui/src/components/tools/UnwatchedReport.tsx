@@ -42,6 +42,7 @@ type UnwatchedItem = {
     added_at: string | null;
     last_watched_at: string | null;
     total_plays: number;
+    file_size: number | null;
 };
 
 type Library = {
@@ -51,6 +52,7 @@ type Library = {
 
 type UnwatchedMode = "never_watched" | "not_watched_since";
 type TimePeriod = "30d" | "90d" | "6m" | "1y" | "all" | "custom";
+type SortBy = "title" | "size_desc" | "size_asc" | "added_desc" | "added_asc";
 
 type UnwatchedReportProps = {
     onClose: () => void;
@@ -69,6 +71,7 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
     });
     const [calendarOpen, setCalendarOpen] = useState(false);
     const [calendarMonth, setCalendarMonth] = useState<Date>(customDate);
+    const [sortBy, setSortBy] = useState<SortBy>("title");
 
     // Report state
     const [items, setItems] = useState<UnwatchedItem[]>([]);
@@ -229,6 +232,38 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
         }
     };
 
+    // Format file size for display
+    const formatFileSize = (sizeBytes: number | null): string => {
+        if (!sizeBytes) return "Unknown";
+        const sizeGB = sizeBytes / (1024 ** 3);
+        if (sizeGB >= 1000) {
+            const sizeTB = sizeGB / 1024;
+            return `${sizeTB.toFixed(2)} TB`;
+        }
+        return `${sizeGB.toFixed(2)} GB`;
+    };
+
+    // Sort items based on selected sort option
+    const sortedItems = [...items].sort((a, b) => {
+        switch (sortBy) {
+            case "size_desc":
+                return (b.file_size || 0) - (a.file_size || 0);
+            case "size_asc":
+                return (a.file_size || 0) - (b.file_size || 0);
+            case "added_desc":
+                if (!a.added_at) return 1;
+                if (!b.added_at) return -1;
+                return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+            case "added_asc":
+                if (!a.added_at) return 1;
+                if (!b.added_at) return -1;
+                return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
+            case "title":
+            default:
+                return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        }
+    });
+
     const timePeriods = [
         { value: "30d", label: "30 days" },
         { value: "90d", label: "90 days" },
@@ -236,6 +271,14 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
         { value: "1y", label: "1 year" },
         { value: "all", label: "All time" },
         { value: "custom", label: "Custom" },
+    ];
+
+    const sortOptions = [
+        { value: "title", label: "Title (A-Z)" },
+        { value: "size_desc", label: "Size (Largest First)" },
+        { value: "size_asc", label: "Size (Smallest First)" },
+        { value: "added_desc", label: "Date Added (Newest)" },
+        { value: "added_asc", label: "Date Added (Oldest)" },
     ];
 
     return (
@@ -406,18 +449,48 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
                 <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-hover-only min-h-[300px]">
                     {hasGenerated && items.length > 0 ? (
                         <div className={`space-y-3 transition-opacity duration-150 ${loading ? "opacity-50" : ""}`}>
-                            {/* Summary */}
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm text-slate-400">
-                                    Found <span className="text-white font-medium">{totalCount}</span> unwatched item{totalCount !== 1 ? "s" : ""}
-                                    {loading && <Loader2 className="inline h-3 w-3 animate-spin ml-2" />}
-                                </p>
+                            {/* Summary and Sort */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <p className="text-sm text-slate-400">
+                                        Found <span className="text-white font-medium">{totalCount}</span> unwatched item{totalCount !== 1 ? "s" : ""}
+                                        {loading && <Loader2 className="inline h-3 w-3 animate-spin ml-2" />}
+                                    </p>
+
+                                    {/* Sort Dropdown */}
+                                    <Listbox value={sortBy} onChange={setSortBy}>
+                                        <div className="relative">
+                                            <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors">
+                                                <span>
+                                                    Sort: {sortOptions.find(opt => opt.value === sortBy)?.label}
+                                                </span>
+                                                <ChevronDown className="h-3 w-3 text-slate-400" />
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute left-0 z-10 mt-1 w-48 rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
+                                                {sortOptions.map((opt) => (
+                                                    <Listbox.Option
+                                                        key={opt.value}
+                                                        value={opt.value}
+                                                        className="cursor-pointer px-3 py-2 text-xs text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                                    >
+                                                        {({ selected }) => (
+                                                            <>
+                                                                <span>{opt.label}</span>
+                                                                {selected && <Check className="h-3 w-3 text-white" />}
+                                                            </>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                </div>
                                 <p className="text-xs text-slate-500">{timeDescription}</p>
                             </div>
 
                             {/* Results Grid */}
                             <div className="grid gap-2">
-                                {items.map((item) => (
+                                {sortedItems.map((item) => (
                                     <div
                                         key={item.rating_key}
                                         className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-800/60 bg-slate-900/50"
@@ -448,6 +521,12 @@ export default function UnwatchedReport({ onClose }: UnwatchedReportProps) {
                                             <p className="text-xs text-slate-500">
                                                 {item.library} · {item.type}
                                             </p>
+                                        </div>
+
+                                        {/* File size */}
+                                        <div className="text-right flex-shrink-0 min-w-[80px]">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wide">Size</p>
+                                            <p className="text-sm text-slate-300">{formatFileSize(item.file_size)}</p>
                                         </div>
 
                                         {/* Added date */}
