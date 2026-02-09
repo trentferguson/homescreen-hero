@@ -12,6 +12,7 @@ import {
     Layers,
     LayoutGrid,
     Lightbulb,
+    List,
     Loader2,
     Pencil,
     Plus,
@@ -35,6 +36,7 @@ import {
     useSortable,
     arrayMove,
     rectSortingStrategy,
+    verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -120,6 +122,8 @@ type RenameState = { index: number; value: string } | null;
 
 type SortOption = "recent" | "name" | "size";
 
+type ViewMode = "cards" | "list";
+
 const coverGradients = [
     "from-indigo-900 via-slate-900 to-slate-950",
     "from-blue-900 via-slate-900 to-slate-950",
@@ -129,7 +133,7 @@ const coverGradients = [
     "from-emerald-900 via-slate-900 to-slate-950",
 ];
 
-function SortableGroupCard({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableGroupCard({ id, viewMode, children }: { id: string; viewMode: ViewMode; children: React.ReactNode }) {
     const {
         attributes,
         listeners,
@@ -145,6 +149,22 @@ function SortableGroupCard({ id, children }: { id: string; children: React.React
         opacity: isDragging ? 0.4 : 1,
         zIndex: isDragging ? 50 : "auto",
     };
+
+    if (viewMode === "list") {
+        return (
+            <div ref={setNodeRef} style={style} className="flex items-center">
+                <div
+                    {...attributes}
+                    {...listeners}
+                    className="flex items-center justify-center p-2 cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+                    title="Drag to reorder"
+                >
+                    <GripVertical className="w-4 h-4" />
+                </div>
+                {children}
+            </div>
+        );
+    }
 
     return (
         <div ref={setNodeRef} style={style} className="relative">
@@ -172,6 +192,9 @@ export default function GroupsPage() {
     const [processingIndex, setProcessingIndex] = useState<number | null>(null);
     const [sort, setSort] = useState<SortOption>("recent");
     const [searchTerm, setSearchTerm] = useState("");
+    const [viewMode, setViewMode] = useState<ViewMode>(
+        () => (localStorage.getItem("groupsViewMode") as ViewMode) || "cards"
+    );
     const [message, setMessage] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
@@ -186,6 +209,11 @@ export default function GroupsPage() {
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
     const [layoutModalOpen, setLayoutModalOpen] = useState(false);
     const [savingDisplay, setSavingDisplay] = useState(false);
+
+    const handleViewModeChange = (mode: ViewMode) => {
+        setViewMode(mode);
+        localStorage.setItem("groupsViewMode", mode);
+    };
 
     const refreshGroups = async () => {
         setLoading(true);
@@ -660,6 +688,32 @@ export default function GroupsPage() {
                     </div>
                     <div className="shrink-0">
                         <div className="flex flex-wrap items-center gap-3">
+                            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => handleViewModeChange("cards")}
+                                    className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all duration-200 ${
+                                        viewMode === "cards"
+                                            ? "bg-primary/20 text-primary"
+                                            : "text-slate-400 hover:text-slate-200"
+                                    }`}
+                                    title="Card view"
+                                >
+                                    <LayoutGrid className="h-4 w-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleViewModeChange("list")}
+                                    className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all duration-200 ${
+                                        viewMode === "list"
+                                            ? "bg-primary/20 text-primary"
+                                            : "text-slate-400 hover:text-slate-200"
+                                    }`}
+                                    title="List view"
+                                >
+                                    <List className="h-4 w-4" />
+                                </button>
+                            </div>
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                                 <input
@@ -723,107 +777,193 @@ export default function GroupsPage() {
                 <div className="space-y-4">
                 {filteredGroups.length ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                        <SortableContext items={filteredGroups.map((g) => g.name)} strategy={rectSortingStrategy}>
-                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                                {filteredGroups.map((group, index) => {
-                                    const originalIndex = groups.indexOf(group);
-                                    const isRenaming = renaming?.index === originalIndex;
-                                    return (
-                                        <SortableGroupCard key={group.name} id={group.name}>
-                                            <div
-                                                className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
-                                            >
-                                                <div className="relative">
-                                                    {renderCover(group, index)}
-                                                    {(() => {
-                                                        const status = getGroupStatus(group);
-                                                        const statusStyles = {
-                                                            active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
-                                                            scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
-                                                            disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
-                                                        };
-                                                        const statusLabels = {
-                                                            active: 'Active',
-                                                            scheduled: 'Scheduled',
-                                                            disabled: 'Disabled',
-                                                        };
-                                                        return (
-                                                            <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
-                                                                {statusLabels[status]}
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                    {(group.date_range?.start || group.date_range?.end) && (
-                                                        <div className="absolute right-12 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
-                                                            {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
-                                                            {' - '}
-                                                            {group.date_range?.end ? new Date(group.date_range.end).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="space-y-3 p-4">
-                                                    {isRenaming ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <input
-                                                                type="text"
-                                                                value={renaming?.value ?? ""}
-                                                                onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
-                                                                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleRename}
-                                                                disabled={processingIndex === originalIndex}
-                                                                className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
-                                                            >
-                                                                {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div>
-                                                                <p className="text-lg font-bold text-white">{group.name || "Untitled group"}</p>
-                                                                <p className="text-xs text-slate-400">{group.collections.length} collections</p>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setRenaming({ index: originalIndex, value: group.name })}
-                                                                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white"
-                                                                aria-label={`Rename ${group.name}`}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex items-center justify-between gap-3">
+                        <SortableContext items={filteredGroups.map((g) => g.name)} strategy={viewMode === "list" ? verticalListSortingStrategy : rectSortingStrategy}>
+                            {viewMode === "list" ? (
+                                <div className="flex flex-col gap-2">
+                                    {filteredGroups.map((group) => {
+                                        const originalIndex = groups.indexOf(group);
+                                        const isRenaming = renaming?.index === originalIndex;
+                                        const status = getGroupStatus(group);
+                                        const statusStyles = {
+                                            active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+                                            scheduled: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                                            disabled: "bg-red-500/20 text-red-400 border-red-500/30",
+                                        };
+                                        const statusLabels = {
+                                            active: "Active",
+                                            scheduled: "Scheduled",
+                                            disabled: "Disabled",
+                                        };
+                                        return (
+                                            <SortableGroupCard key={group.name} id={group.name} viewMode="list">
+                                                {isRenaming ? (
+                                                    <div className="flex flex-1 items-center gap-4 rounded-xl border border-primary/40 bg-slate-900/50 px-4 py-3">
+                                                        <input
+                                                            type="text"
+                                                            value={renaming?.value ?? ""}
+                                                            onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
+                                                            onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setRenaming(null); }}
+                                                            autoFocus
+                                                            className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                        />
                                                         <button
                                                             type="button"
-                                                            onClick={() => navigate(`/groups/${originalIndex}`)}
-                                                            className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition-all duration-200 hover:border-primary/70 hover:bg-primary/10 hover:text-white active:scale-95"
+                                                            onClick={handleRename}
+                                                            disabled={processingIndex === originalIndex}
+                                                            className="inline-flex items-center justify-center rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
                                                         >
-                                                            <SlidersHorizontal className="h-4 w-4" />
-                                                            Open Editor
-                                                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                                                            {processingIndex === originalIndex ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                                                         </button>
-                                                        <div className="flex items-center gap-2">
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        onClick={() => navigate(`/groups/${originalIndex}`)}
+                                                        className="group flex flex-1 items-center gap-4 rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-3 hover:border-slate-700 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer"
+                                                    >
+                                                        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusStyles[status]}`}>
+                                                            {statusLabels[status]}
+                                                        </span>
+
+                                                        <span className="text-sm font-semibold text-white truncate">
+                                                            {group.name || "Untitled group"}
+                                                        </span>
+                                                        <span className="text-xs text-slate-500 shrink-0">{group.collections.length} collections</span>
+
+                                                        {(group.date_range?.start || group.date_range?.end) && (
+                                                            <span className="hidden sm:inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-300 border border-slate-700/50 shrink-0">
+                                                                {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                                {' - '}
+                                                                {group.date_range?.end ? new Date(group.date_range.end).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                            </span>
+                                                        )}
+
+                                                        <div className="flex items-center gap-2 ml-auto shrink-0">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setConfirmDelete(originalIndex)}
+                                                                onClick={(e) => { e.stopPropagation(); setRenaming({ index: originalIndex, value: group.name }); }}
+                                                                className="rounded-lg border border-slate-800 bg-slate-900 p-1.5 text-slate-400 hover:border-slate-600 hover:text-white transition-all duration-200 active:scale-95"
+                                                                aria-label={`Rename ${group.name}`}
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => { e.stopPropagation(); setConfirmDelete(originalIndex); }}
                                                                 disabled={processingIndex === originalIndex}
-                                                                className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                                                className="rounded-lg border border-red-900/60 bg-red-900/40 p-1.5 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                                                 aria-label={`Delete ${group.name}`}
                                                             >
-                                                                {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                                {processingIndex === originalIndex ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                                                             </button>
                                                         </div>
                                                     </div>
+                                                )}
+                                            </SortableGroupCard>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                    {filteredGroups.map((group, index) => {
+                                        const originalIndex = groups.indexOf(group);
+                                        const isRenaming = renaming?.index === originalIndex;
+                                        return (
+                                            <SortableGroupCard key={group.name} id={group.name} viewMode="cards">
+                                                <div
+                                                    className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
+                                                >
+                                                    <div className="relative">
+                                                        {renderCover(group, index)}
+                                                        {(() => {
+                                                            const status = getGroupStatus(group);
+                                                            const statusStyles = {
+                                                                active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
+                                                                scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
+                                                                disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
+                                                            };
+                                                            const statusLabels = {
+                                                                active: 'Active',
+                                                                scheduled: 'Scheduled',
+                                                                disabled: 'Disabled',
+                                                            };
+                                                            return (
+                                                                <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
+                                                                    {statusLabels[status]}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                        {(group.date_range?.start || group.date_range?.end) && (
+                                                            <div className="absolute right-12 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
+                                                                {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                                {' - '}
+                                                                {group.date_range?.end ? new Date(group.date_range.end).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-3 p-4">
+                                                        {isRenaming ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={renaming?.value ?? ""}
+                                                                    onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
+                                                                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleRename}
+                                                                    disabled={processingIndex === originalIndex}
+                                                                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
+                                                                >
+                                                                    {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-lg font-bold text-white">{group.name || "Untitled group"}</p>
+                                                                    <p className="text-xs text-slate-400">{group.collections.length} collections</p>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setRenaming({ index: originalIndex, value: group.name })}
+                                                                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white"
+                                                                    aria-label={`Rename ${group.name}`}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate(`/groups/${originalIndex}`)}
+                                                                className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition-all duration-200 hover:border-primary/70 hover:bg-primary/10 hover:text-white active:scale-95"
+                                                            >
+                                                                <SlidersHorizontal className="h-4 w-4" />
+                                                                Open Editor
+                                                                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setConfirmDelete(originalIndex)}
+                                                                    disabled={processingIndex === originalIndex}
+                                                                    className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                                                    aria-label={`Delete ${group.name}`}
+                                                                >
+                                                                    {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </SortableGroupCard>
-                                    );
-                                })}
-                            </div>
+                                            </SortableGroupCard>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </SortableContext>
                     </DndContext>
                 ) : (
