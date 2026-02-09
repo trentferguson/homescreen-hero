@@ -112,7 +112,7 @@ class TestTautulliClient:
         success, error = tautulli_client.ping()
 
         assert success is False
-        assert "timeout" in error.lower()
+        assert "timed out" in error.lower()
 
     @patch('homescreen_hero.core.integrations.tautulli_client.requests.Session.get')
     def test_ping_unauthorized(self, mock_get, tautulli_client):
@@ -326,7 +326,7 @@ class TestTautulliClient:
         success, error = tautulli_client.ping()
 
         assert success is False
-        assert "error" in error.lower()
+        assert "connection" in error.lower() or "refused" in error.lower()
 
 
 def _make_config(tautulli=None):

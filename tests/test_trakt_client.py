@@ -72,7 +72,7 @@ class TestTraktClient:
         success, error = trakt_client.ping()
 
         assert success is False
-        assert "timeout" in error.lower()
+        assert "timed out" in error.lower()
 
     @patch('homescreen_hero.core.integrations.trakt_client.requests.Session.request')
     def test_ping_http_error(self, mock_request, trakt_client):
