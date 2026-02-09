@@ -1,24 +1,55 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowRight,
     Check,
+    CheckCircle2,
     ChevronDown,
+    Compass,
+    GripVertical,
+    Home,
+    Layers,
+    LayoutGrid,
+    Lightbulb,
     Loader2,
     Pencil,
     Plus,
     RefreshCw,
     Search,
+    Share2,
     SlidersHorizontal,
     Trash2,
 } from "lucide-react";
 import { Listbox, Switch } from "@headlessui/react";
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    SortableContext,
+    useSortable,
+    arrayMove,
+    rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import GroupCoverMosaic from "../components/GroupCoverMosaic";
-import { Checkbox } from "../components/ui/checkbox";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
-import { getGroupStatus, isGroupCurrentlyActive } from "../utils/dates";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+    SheetBody,
+    SheetCloseButton,
+} from "../components/ui/sheet";
+import { getGroupStatus } from "../utils/dates";
 
 type DateRange = {
     start: string;
@@ -32,8 +63,13 @@ type CollectionGroup = {
     max_picks: number;
     weight: number;
     min_gap_rotations: number;
+    display_order: number;
     date_range?: DateRange | null;
     collections: string[];
+};
+
+type DisplaySettings = {
+    group_display_mode: "grouped" | "merged";
 };
 
 type PlexLibrary = {
@@ -75,6 +111,7 @@ const emptyGroup: CollectionGroup = {
     max_picks: 1,
     weight: 1,
     min_gap_rotations: 0,
+    display_order: 0,
     date_range: null,
     collections: [],
 };
@@ -91,6 +128,38 @@ const coverGradients = [
     "from-amber-900 via-slate-900 to-slate-950",
     "from-emerald-900 via-slate-900 to-slate-950",
 ];
+
+function SortableGroupCard({ id, children }: { id: string; children: React.ReactNode }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition: transition || "transform 250ms ease",
+        opacity: isDragging ? 0.4 : 1,
+        zIndex: isDragging ? 50 : "auto",
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} className="relative">
+            <div
+                {...attributes}
+                {...listeners}
+                className="absolute right-3 top-3 z-10 p-1.5 rounded-lg bg-slate-900/80 border border-slate-700/50 cursor-grab active:cursor-grabbing backdrop-blur-sm hover:bg-slate-800 hover:border-slate-600 transition-colors"
+                title="Drag to reorder"
+            >
+                <GripVertical className="w-3.5 h-3.5 text-slate-400" />
+            </div>
+            {children}
+        </div>
+    );
+}
 
 export default function GroupsPage() {
     const navigate = useNavigate();
@@ -113,7 +182,10 @@ export default function GroupsPage() {
     const [savingAutoRotate, setSavingAutoRotate] = useState(false);
     const [rotationSettings, setRotationSettings] = useState<RotationSettings | null>(null);
 
-    const activeCount = groups.filter((g) => isGroupCurrentlyActive(g)).length;
+    // Display settings state
+    const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
+    const [layoutModalOpen, setLayoutModalOpen] = useState(false);
+    const [savingDisplay, setSavingDisplay] = useState(false);
 
     const refreshGroups = async () => {
         setLoading(true);
@@ -150,6 +222,85 @@ export default function GroupsPage() {
             console.error("Failed to fetch libraries:", e);
         }
     };
+
+    const fetchDisplaySettings = async () => {
+        try {
+            const data = await fetchWithAuth("/api/admin/config/display").then((r) => r.json());
+            setDisplaySettings(data);
+        } catch (e) {
+            console.error("Failed to fetch display settings:", e);
+        }
+    };
+
+    const saveDisplaySettings = async (newSettings: DisplaySettings) => {
+        setSavingDisplay(true);
+        try {
+            const r = await fetchWithAuth("/api/admin/config/display", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newSettings),
+            });
+            if (!r.ok) {
+                const text = await r.text();
+                throw new Error(text || "Failed to save display settings");
+            }
+            setDisplaySettings(newSettings);
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setSavingDisplay(false);
+        }
+    };
+
+    const saveGroupOrder = async (orderedNames: string[]) => {
+        try {
+            const r = await fetchWithAuth("/api/admin/config/groups/reorder", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ordered_group_names: orderedNames }),
+            });
+            if (!r.ok) {
+                const text = await r.text();
+                throw new Error(text || "Failed to save group order");
+            }
+            await refreshGroups();
+        } catch (e) {
+            setError(String(e));
+        }
+    };
+
+    // Drag-and-drop sensors with activation distance to avoid conflicts with clicks
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    );
+
+    // Sort groups by display_order for rendering
+    const sortedGroups = useMemo(() => {
+        return [...groups].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+    }, [groups]);
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+
+            const oldIndex = sortedGroups.findIndex((g) => g.name === active.id);
+            const newIndex = sortedGroups.findIndex((g) => g.name === over.id);
+            if (oldIndex === -1 || newIndex === -1) return;
+
+            const reordered = arrayMove(sortedGroups, oldIndex, newIndex);
+            // Optimistically update display_order locally
+            const updated = groups.map((g) => {
+                const newOrder = reordered.findIndex((r) => r.name === g.name);
+                return { ...g, display_order: newOrder >= 0 ? newOrder : g.display_order };
+            });
+            setGroups(updated);
+
+            // Persist to backend
+            saveGroupOrder(reordered.map((g) => g.name));
+        },
+        [sortedGroups, groups]
+    );
 
     const saveAutoRotateSettings = async (newSettings: AutoRotateSettings) => {
         if (!rotationSettings) return;
@@ -206,10 +357,12 @@ export default function GroupsPage() {
         refreshGroups();
         fetchRotationSettings();
         fetchLibraries();
+        fetchDisplaySettings();
     }, []);
 
     const filteredGroups = useMemo(() => {
-        const visible = groups.filter((group) =>
+        const base = sort === "recent" ? sortedGroups : groups;
+        const visible = base.filter((group) =>
             group.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
         );
 
@@ -219,9 +372,10 @@ export default function GroupsPage() {
             case "size":
                 return [...visible].sort((a, b) => b.collections.length - a.collections.length);
             default:
+                // "recent" uses sortedGroups (sorted by display_order)
                 return visible;
         }
-    }, [groups, searchTerm, sort]);
+    }, [groups, sortedGroups, searchTerm, sort]);
 
     const handleCreate = async () => {
         if (!newName.trim()) return;
@@ -315,24 +469,21 @@ export default function GroupsPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Collections</p>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="text-3xl font-black tracking-tight text-white">Collection Groups</h1>
                         <p className="text-slate-400 text-sm max-w-2xl">
-                            Manage how your collections are organized before diving into advanced settings. Create groups, adjust
-                            names, and jump into detailed configuration when you’re ready.
+                            Browse and manage how your collections are organized into individual groups.
                         </p>
                     </div>
-                    <div className="flex flex-col items-end gap-2 text-right">
-                        <span className="text-xs uppercase tracking-wide text-slate-500">Overview</span>
-                        <div className="flex items-center gap-3 text-sm text-slate-200">
-                            <span className="rounded-lg border border-slate-800/60 bg-slate-900/60 px-3 py-2">{groups.length} total groups</span>
-                            <span className="rounded-lg border border-emerald-500/30 bg-emerald-900/40 px-3 py-2 text-emerald-100">
-                                {activeCount} active
-                            </span>
-                        </div>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setLayoutModalOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-primary/50 hover:bg-slate-800 hover:text-white transition-all duration-200 self-start mt-1"
+                    >
+                        <LayoutGrid className="h-4 w-4 text-primary" />
+                        Configure Layout
+                    </button>
                 </div>
             </div>
 
@@ -438,42 +589,39 @@ export default function GroupsPage() {
                                     Control where rotated collections appear on Plex.
                                 </p>
                                 <div className="grid gap-3 sm:grid-cols-3">
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-3 cursor-pointer hover:border-slate-600 transition-colors">
-                                        <Checkbox
-                                            variant="amber"
-                                            checked={autoRotate.visibility_home}
-                                            onCheckedChange={(checked) => handleVisibilityChange("visibility_home", checked === true)}
-                                            disabled={savingAutoRotate}
-                                        />
-                                        <div>
-                                            <span className="text-sm text-white">Home</span>
-                                            <p className="text-xs text-slate-500">Admin's home page</p>
-                                        </div>
-                                    </label>
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-3 cursor-pointer hover:border-slate-600 transition-colors">
-                                        <Checkbox
-                                            variant="amber"
-                                            checked={autoRotate.visibility_shared}
-                                            onCheckedChange={(checked) => handleVisibilityChange("visibility_shared", checked === true)}
-                                            disabled={savingAutoRotate}
-                                        />
-                                        <div>
-                                            <span className="text-sm text-white">Shared</span>
-                                            <p className="text-xs text-slate-500">Other users' home</p>
-                                        </div>
-                                    </label>
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-3 cursor-pointer hover:border-slate-600 transition-colors">
-                                        <Checkbox
-                                            variant="amber"
-                                            checked={autoRotate.visibility_recommended}
-                                            onCheckedChange={(checked) => handleVisibilityChange("visibility_recommended", checked === true)}
-                                            disabled={savingAutoRotate}
-                                        />
-                                        <div>
-                                            <span className="text-sm text-white">Recommended</span>
-                                            <p className="text-xs text-slate-500">Library recommended</p>
-                                        </div>
-                                    </label>
+                                    {([
+                                        { key: "visibility_home" as const, label: "Home", desc: "Admin's home page", icon: Home },
+                                        { key: "visibility_shared" as const, label: "Shared", desc: "Other users' home", icon: Share2 },
+                                        { key: "visibility_recommended" as const, label: "Recommended", desc: "Library recommended", icon: Compass },
+                                    ]).map(({ key, label, desc, icon: Icon }) => {
+                                        const isSelected = autoRotate[key];
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                onClick={() => handleVisibilityChange(key, !isSelected)}
+                                                disabled={savingAutoRotate}
+                                                className={`relative flex flex-col gap-3 rounded-lg border px-4 py-3 text-left transition-all duration-200 disabled:opacity-60 ${
+                                                    isSelected
+                                                        ? "border-amber-500 bg-amber-500/20"
+                                                        : "border-slate-700 bg-slate-900 hover:border-slate-600"
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <Icon className={`h-4.5 w-4.5 shrink-0 ${isSelected ? "text-amber-400" : "text-slate-500"}`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className={`text-sm font-medium ${isSelected ? "text-white" : "text-slate-300"}`}>{label}</span>
+                                                        <p className="text-xs text-slate-500">{desc}</p>
+                                                    </div>
+                                                    <div className={`h-4 w-4 shrink-0 rounded-full border-2 transition-all duration-200 ${
+                                                        isSelected
+                                                            ? "border-amber-500 bg-amber-500"
+                                                            : "border-slate-600 bg-transparent"
+                                                    }`} />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -507,7 +655,7 @@ export default function GroupsPage() {
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-white">Groups</h3>
-                        <p className="text-sm text-slate-400">Quickly edit names or jump into detailed configuration.</p>
+                        <p className="text-sm text-slate-400">Drag to reorder, edit names, or jump into detailed configuration.</p>
                     </div>
                     <div className="shrink-0">
                         <div className="flex flex-wrap items-center gap-3">
@@ -573,105 +721,110 @@ export default function GroupsPage() {
                 </div>
                 <div className="space-y-4">
                 {filteredGroups.length ? (
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {filteredGroups.map((group, index) => {
-                            const originalIndex = groups.indexOf(group);
-                            const isRenaming = renaming?.index === originalIndex;
-                            return (
-                                <div
-                                    key={`${group.name}-${index}`}
-                                    className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
-                                >
-                                    <div className="relative">
-                                        {renderCover(group, index)}
-                                        {(() => {
-                                            const status = getGroupStatus(group);
-                                            const statusStyles = {
-                                                active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
-                                                scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
-                                                disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
-                                            };
-                                            const statusLabels = {
-                                                active: 'Active',
-                                                scheduled: 'Scheduled',
-                                                disabled: 'Disabled',
-                                            };
-                                            return (
-                                                <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
-                                                    {statusLabels[status]}
-                                                </div>
-                                            );
-                                        })()}
-                                        {(group.date_range?.start || group.date_range?.end) && (
-                                            <div className="absolute right-3 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
-                                                {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
-                                                {' - '}
-                                                {group.date_range?.end ? new Date(group.date_range.end).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="space-y-3 p-4">
-                                        {isRenaming ? (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={renaming?.value ?? ""}
-                                                    onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
-                                                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={handleRename}
-                                                    disabled={processingIndex === originalIndex}
-                                                    className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
-                                                >
-                                                    {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p className="text-lg font-bold text-white">{group.name || "Untitled group"}</p>
-                                                    <p className="text-xs text-slate-400">{group.collections.length} collections</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setRenaming({ index: originalIndex, value: group.name })}
-                                                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white"
-                                                    aria-label={`Rename ${group.name}`}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        <div className="flex items-center justify-between gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => navigate(`/groups/${originalIndex}`)}
-                                                className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition-all duration-200 hover:border-primary/70 hover:bg-primary/10 hover:text-white active:scale-95"
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <SortableContext items={filteredGroups.map((g) => g.name)} strategy={rectSortingStrategy}>
+                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                {filteredGroups.map((group, index) => {
+                                    const originalIndex = groups.indexOf(group);
+                                    const isRenaming = renaming?.index === originalIndex;
+                                    return (
+                                        <SortableGroupCard key={group.name} id={group.name}>
+                                            <div
+                                                className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
                                             >
-                                                <SlidersHorizontal className="h-4 w-4" />
-                                                Open Editor
-                                                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                                            </button>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setConfirmDelete(originalIndex)}
-                                                    disabled={processingIndex === originalIndex}
-                                                    className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
-                                                    aria-label={`Delete ${group.name}`}
-                                                >
-                                                    {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                                </button>
+                                                <div className="relative">
+                                                    {renderCover(group, index)}
+                                                    {(() => {
+                                                        const status = getGroupStatus(group);
+                                                        const statusStyles = {
+                                                            active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
+                                                            scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
+                                                            disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
+                                                        };
+                                                        const statusLabels = {
+                                                            active: 'Active',
+                                                            scheduled: 'Scheduled',
+                                                            disabled: 'Disabled',
+                                                        };
+                                                        return (
+                                                            <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
+                                                                {statusLabels[status]}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                    {(group.date_range?.start || group.date_range?.end) && (
+                                                        <div className="absolute right-12 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
+                                                            {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                            {' - '}
+                                                            {group.date_range?.end ? new Date(group.date_range.end).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-3 p-4">
+                                                    {isRenaming ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={renaming?.value ?? ""}
+                                                                onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
+                                                                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleRename}
+                                                                disabled={processingIndex === originalIndex}
+                                                                className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
+                                                            >
+                                                                {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-lg font-bold text-white">{group.name || "Untitled group"}</p>
+                                                                <p className="text-xs text-slate-400">{group.collections.length} collections</p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setRenaming({ index: originalIndex, value: group.name })}
+                                                                className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white"
+                                                                aria-label={`Rename ${group.name}`}
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/groups/${originalIndex}`)}
+                                                            className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition-all duration-200 hover:border-primary/70 hover:bg-primary/10 hover:text-white active:scale-95"
+                                                        >
+                                                            <SlidersHorizontal className="h-4 w-4" />
+                                                            Open Editor
+                                                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setConfirmDelete(originalIndex)}
+                                                                disabled={processingIndex === originalIndex}
+                                                                className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                                                aria-label={`Delete ${group.name}`}
+                                                            >
+                                                                {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                        </SortableGroupCard>
+                                    );
+                                })}
+                            </div>
+                        </SortableContext>
+                    </DndContext>
                 ) : (
                     <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-6 text-center">
                         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-900">
@@ -713,6 +866,84 @@ export default function GroupsPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Homescreen Layout sheet */}
+            <Sheet open={layoutModalOpen} onOpenChange={setLayoutModalOpen}>
+                <SheetContent>
+                    <SheetHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                                <LayoutGrid className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <SheetTitle>Layout Settings</SheetTitle>
+                                <SheetDescription>Global display configuration</SheetDescription>
+                            </div>
+                        </div>
+                        <SheetCloseButton />
+                    </SheetHeader>
+                    <SheetBody>
+                        <div className="space-y-3">
+                            <label className="text-sm font-medium text-white">Display Mode</label>
+                            <p className="text-xs text-slate-400">
+                                Choose how collections from different groups are arranged on the Plex homescreen.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => saveDisplaySettings({ group_display_mode: "grouped" })}
+                                    disabled={savingDisplay}
+                                    className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 ${
+                                        displaySettings.group_display_mode === "grouped"
+                                            ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
+                                            : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
+                                    }`}
+                                >
+                                    {displaySettings.group_display_mode === "grouped" && (
+                                        <CheckCircle2 className="absolute top-2.5 right-2.5 h-4 w-4 text-primary" />
+                                    )}
+                                    <LayoutGrid className={`h-7 w-7 ${displaySettings.group_display_mode === "grouped" ? "text-primary" : "text-slate-500"}`} />
+                                    <div className="text-center">
+                                        <p className={`text-sm font-semibold ${displaySettings.group_display_mode === "grouped" ? "text-white" : "text-slate-300"}`}>Grouped</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Clustered by group</p>
+                                    </div>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => saveDisplaySettings({ group_display_mode: "merged" })}
+                                    disabled={savingDisplay}
+                                    className={`relative flex flex-col items-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 ${
+                                        displaySettings.group_display_mode === "merged"
+                                            ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
+                                            : "border-slate-700/50 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
+                                    }`}
+                                >
+                                    {displaySettings.group_display_mode === "merged" && (
+                                        <CheckCircle2 className="absolute top-2.5 right-2.5 h-4 w-4 text-primary" />
+                                    )}
+                                    <Layers className={`h-7 w-7 ${displaySettings.group_display_mode === "merged" ? "text-primary" : "text-slate-500"}`} />
+                                    <div className="text-center">
+                                        <p className={`text-sm font-semibold ${displaySettings.group_display_mode === "merged" ? "text-white" : "text-slate-300"}`}>Merged</p>
+                                        <p className="text-xs text-slate-500 mt-0.5">Mixed throughout</p>
+                                    </div>
+                                </button>
+                            </div>
+                            {displaySettings.group_display_mode === "grouped" && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Collections from each group are clustered together on the Plex homescreen.</p>
+                                </div>
+                            )}
+                            {displaySettings.group_display_mode === "merged" && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Collections from each group are dispersed throughout the Plex homescreen.</p>
+                                </div>
+                            )}
+                        </div>
+                    </SheetBody>
+                </SheetContent>
+            </Sheet>
 
             <ConfirmDialog
                 open={confirmDelete !== null}

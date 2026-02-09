@@ -350,9 +350,16 @@ def apply_home_screen_selection(
     if dry_run:
         logger.info("Dry run — no changes were sent to Plex")
 
-    # Reorder collections on the homescreen to match the selection order
+    # Reorder collections on the homescreen using group display settings
     if applied and not dry_run:
-        reorder_homescreen_collections(server, config, applied)
+        from ..rotation import order_collections_for_display
+        ordered_applied = order_collections_for_display(
+            applied,
+            config,
+            pinned_names=pinned_names,
+            pinned_order=pinned_order,
+        )
+        reorder_homescreen_collections(server, config, ordered_applied)
 
     return applied
 

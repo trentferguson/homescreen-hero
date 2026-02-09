@@ -12,6 +12,7 @@ from .config.schema import (
     DateRange,
     GroupSelectionResult,
     RotationResult,
+    DisplaySettings,
 )
 from .db import CollectionUsage
 
@@ -684,3 +685,89 @@ def build_collection_visibility_map(config: AppConfig) -> Dict[str, Dict[str, bo
                 }
 
     return visibility_map
+
+
+def _build_collection_group_map(
+    config: AppConfig,
+) -> Dict[str, CollectionGroupConfig]:
+    # Map collection name -> its group config (first group wins for duplicates)
+    coll_to_group: Dict[str, CollectionGroupConfig] = {}
+    for group in config.groups:
+        for name in group.collections:
+            if name not in coll_to_group:
+                coll_to_group[name] = group
+    return coll_to_group
+
+
+def order_collections_for_display(
+    collections: List[str],
+    config: AppConfig,
+    pinned_names: Optional[Set[str]] = None,
+    pinned_order: Optional[Dict[str, int]] = None,
+    rng: Optional[random.Random] = None,
+) -> List[str]:
+    # Order selected collections based on group display_order and display mode.
+    # Pinned collections always come first, then group-ordered collections,
+    # then any collections not belonging to a group.
+    if rng is None:
+        rng = random.Random()
+    pinned_names = pinned_names or set()
+    pinned_order = pinned_order or {}
+
+    coll_to_group = _build_collection_group_map(config)
+    mode = config.display.group_display_mode
+
+    # Separate pinned and non-pinned
+    pinned = [c for c in collections if c in pinned_names]
+    non_pinned = [c for c in collections if c not in pinned_names]
+
+    # Sort pinned by their pin order
+    pinned.sort(key=lambda c: (pinned_order.get(c, 0), c))
+
+    # Bucket non-pinned by group (sorted by display_order)
+    # Collections not in any group go into a special "ungrouped" bucket
+    group_buckets: Dict[str, List[str]] = {}
+    ungrouped: List[str] = []
+
+    for name in non_pinned:
+        group = coll_to_group.get(name)
+        if group:
+            bucket_key = group.name
+            if bucket_key not in group_buckets:
+                group_buckets[bucket_key] = []
+            group_buckets[bucket_key].append(name)
+        else:
+            ungrouped.append(name)
+
+    # Sort group keys by their display_order
+    sorted_group_names = sorted(
+        group_buckets.keys(),
+        key=lambda gn: next(
+            (g.display_order for g in config.groups if g.name == gn), 0
+        ),
+    )
+
+    # Shuffle within each group bucket
+    for bucket in group_buckets.values():
+        rng.shuffle(bucket)
+
+    if mode == "merged":
+        # Round-robin across groups
+        ordered: List[str] = []
+        buckets = [group_buckets[gn] for gn in sorted_group_names]
+        max_len = max((len(b) for b in buckets), default=0)
+        for i in range(max_len):
+            for bucket in buckets:
+                if i < len(bucket):
+                    ordered.append(bucket[i])
+        ordered.extend(ungrouped)
+    else:
+        # Grouped mode (default): all collections from each group in sequence
+        ordered = []
+        for gn in sorted_group_names:
+            ordered.extend(group_buckets[gn])
+        ordered.extend(ungrouped)
+
+    result = pinned + ordered
+    logger.debug("Display ordering (%s): %s", mode, result)
+    return result

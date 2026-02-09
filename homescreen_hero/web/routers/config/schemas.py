@@ -17,6 +17,7 @@ from homescreen_hero.core.config.schema import (
     TautulliSettings,
     SeerrSettings,
     CollectionGroupConfig,
+    DisplaySettings,
 )
 
 
@@ -96,6 +97,16 @@ class CollectionGroupPayload(CollectionGroupConfig):
 # Incoming payload for rotation settings updates.
 class RotationConfigSaveRequest(RotationSettings):
     pass
+
+
+# Incoming payload for display settings updates.
+class DisplaySettingsSaveRequest(DisplaySettings):
+    pass
+
+
+# Incoming payload for reordering groups.
+class GroupReorderRequest(BaseModel):
+    ordered_group_names: List[str]
 
 
 class CollectionSourcesResponse(BaseModel):

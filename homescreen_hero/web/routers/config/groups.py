@@ -25,6 +25,7 @@ from .schemas import (
     CollectionGroupPayload,
     GroupValidationResult,
     CollectionSourcesResponse,
+    GroupReorderRequest,
 )
 
 router = APIRouter()
@@ -134,6 +135,42 @@ def delete_group(
         )
     except HTTPException:
         raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/groups/reorder", response_model=ConfigSaveResponse)
+def reorder_groups(
+    payload: GroupReorderRequest,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
+    # Update display_order for each group based on the provided name ordering
+    try:
+        data = load_config_mapping()
+        groups = load_group_list(data)
+
+        # Build a name->index lookup for the requested order
+        name_to_order = {name: i for i, name in enumerate(payload.ordered_group_names)}
+
+        # Update display_order on each group
+        for group in groups:
+            group_name = group.get("name", "")
+            if group_name in name_to_order:
+                group["display_order"] = name_to_order[group_name]
+
+        config_path = get_config_path()
+        save_config_mapping({**data, "groups": groups})
+
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"Updated display order for {len(name_to_order)} groups.",
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:

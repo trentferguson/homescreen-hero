@@ -18,6 +18,7 @@ from homescreen_hero.core.config.schema import (
     MDBListSettings,
     TautulliSettings,
     SeerrSettings,
+    DisplaySettings,
 )
 from homescreen_hero.core.scheduler import update_rotation_schedule
 
@@ -31,6 +32,7 @@ from .schemas import (
     TautulliConfigSaveRequest,
     SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
+    DisplaySettingsSaveRequest,
 )
 
 router = APIRouter()
@@ -461,6 +463,48 @@ def save_rotation_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="Rotation settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# DISPLAY SETTINGS
+# ========================================================================
+
+@router.get("/display", response_model=DisplaySettings)
+def get_display_settings(current_user: str = Depends(get_current_user)) -> DisplaySettings:
+    # Return the currently configured display settings
+    try:
+        config = load_config()
+        return config.display
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/display", response_model=ConfigSaveResponse)
+def save_display_settings(
+    payload: DisplaySettingsSaveRequest,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
+    # Update display settings in config.yaml while preserving other keys
+    try:
+        data = load_config_mapping()
+        data["display"] = payload.model_dump()
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Display settings saved.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

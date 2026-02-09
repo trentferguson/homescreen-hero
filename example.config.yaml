@@ -41,6 +41,10 @@ rotation:
   #   visibility_shared: false
   #   visibility_recommended: false
 
+# Optional: Display settings for how groups appear on the homescreen
+# display:
+#   group_display_mode: grouped  # 'grouped' (cluster by group) or 'merged' (round-robin across groups)
+
 # Optional: Authentication settings
 auth:
   enabled: true
@@ -103,6 +107,7 @@ groups:
   max_picks: 1
   weight: 1
   min_gap_rotations: 0
+  display_order: 0  # Controls position on homescreen (lower = first)
   visibility_home: true        # Show collections on server owner's Home page
   visibility_shared: false     # Show collections on shared users' Home pages
   visibility_recommended: false  # Show collections on Library Recommended section

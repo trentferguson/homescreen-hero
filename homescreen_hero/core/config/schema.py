@@ -109,6 +109,11 @@ class CollectionGroupConfig(BaseModel):
         ge=1,
         description="Relative priority of this group vs other groups (used when strategy='weighted'). Higher weight = higher priority.",
     )
+    display_order: int = Field(
+        default=0,
+        ge=0,
+        description="Controls position on the homescreen. Lower values appear first.",
+    )
     min_gap_rotations: int = Field(
         default=0,
         ge=0,
@@ -270,11 +275,20 @@ class SeerrSettings(BaseModel):
     )
 
 
+class DisplaySettings(BaseModel):
+    # Controls how collection groups are arranged on the Plex homescreen.
+    group_display_mode: str = Field(
+        default="grouped",
+        description="How groups are arranged: 'grouped' (clustered by group) or 'merged' (round-robin across groups)",
+    )
+
+
 class AppConfig(BaseModel):
     # Root application configuration, loaded from config.yaml.
     plex: PlexSettings
     rotation: RotationSettings
     groups: List[CollectionGroupConfig]
+    display: DisplaySettings = Field(default_factory=DisplaySettings)
     trakt: Optional[TraktSettings] = None
     letterboxd: Optional[LetterboxdSettings] = None
     mdblist: Optional[MDBListSettings] = None
