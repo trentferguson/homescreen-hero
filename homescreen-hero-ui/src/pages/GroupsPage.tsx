@@ -140,8 +140,8 @@ function SortableGroupCard({ id, children }: { id: string; children: React.React
     } = useSortable({ id });
 
     const style: React.CSSProperties = {
-        transform: CSS.Transform.toString(transform),
-        transition: transition || "transform 250ms ease",
+        transform: CSS.Translate.toString(transform),
+        transition,
         opacity: isDragging ? 0.4 : 1,
         zIndex: isDragging ? 50 : "auto",
     };
@@ -263,9 +263,10 @@ export default function GroupsPage() {
                 const text = await r.text();
                 throw new Error(text || "Failed to save group order");
             }
-            await refreshGroups();
         } catch (e) {
             setError(String(e));
+            // Revert optimistic update on error
+            await refreshGroups();
         }
     };
 
