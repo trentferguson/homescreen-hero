@@ -41,7 +41,7 @@ def _resolve_config_path(path: Optional[Path | str] = None) -> Path:
     env_path = os.getenv(CONFIG_ENV_VAR)
     if env_path:
         resolved = Path(env_path).expanduser().resolve()
-        logger.info(f"Using config path from {CONFIG_ENV_VAR}: {resolved}")
+        logger.debug(f"Using config path from {CONFIG_ENV_VAR}: {resolved}")
         return resolved
 
     resolved = DEFAULT_CONFIG_PATH.resolve()

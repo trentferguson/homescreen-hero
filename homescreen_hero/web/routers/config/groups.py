@@ -240,6 +240,11 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
                     )
                 )
 
+        # Plex collections created by third-party sync duplicate those sources.
+        # Filter them out so the UI only shows the authoritative source.
+        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources}
+        plex_sources = [s for s in plex_sources if s.name not in third_party_names]
+
         return CollectionSourcesResponse(
             plex=plex_sources,
             trakt=trakt_sources,

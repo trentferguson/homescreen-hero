@@ -12,7 +12,7 @@ from .integrations import (
     sync_all_mdblist_sources,
     apply_home_screen_selection,
 )
-from .integrations.plex_client import cleanup_deleted_integration_sources, get_library_collections
+from .integrations.plex_client import get_library_collections
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
 from .rotation import run_rotation_with_history, run_auto_rotation_with_history, build_collection_visibility_map
@@ -186,10 +186,20 @@ def run_rotation_once(
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
         # Sync all Trakt, Letterboxd, and MDBList sources
+        # Errors are non-fatal: if sync fails, rotation continues with existing Plex collections
         logger.info("Syncing all Trakt, Letterboxd, and MDBList sources")
-        sync_all_trakt_sources(server, config)
-        sync_all_letterboxd_sources(server, config)
-        sync_all_mdblist_sources(server, config)
+        try:
+            sync_all_trakt_sources(server, config)
+        except Exception as e:
+            logger.error("Trakt sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_letterboxd_sources(server, config)
+        except Exception as e:
+            logger.error("Letterboxd sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_mdblist_sources(server, config)
+        except Exception as e:
+            logger.error("MDBList sync failed, continuing with rotation: %s", e)
     else:
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")
@@ -373,10 +383,12 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     # Connect to Plex
     server = get_plex_server(config)
 
-    # Clean up deleted integration sources first
-    cleanup_result = cleanup_deleted_integration_sources(server, config)
-    if cleanup_result['deleted_from_plex']:
-        logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
+    # DISABLED: Auto-cleanup was too aggressive and could delete collections
+    # managed by other tools (e.g. Kometa). Same issue as the rotation path.
+    # TODO: Redesign cleanup to only delete collections that HSH created
+    # cleanup_result = cleanup_deleted_integration_sources(server, config)
+    # if cleanup_result['deleted_from_plex']:
+    #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
     # Sync all sources
     sync_all_trakt_sources(server, config)
@@ -387,7 +399,6 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
 
     return {
         "status": "success",
-        "cleanup": cleanup_result,
     }
 
 
