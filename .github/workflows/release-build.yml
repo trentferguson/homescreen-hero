@@ -29,6 +29,9 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Write VERSION file from tag
+        run: echo "${{ steps.version.outputs.VERSION }}" > VERSION
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

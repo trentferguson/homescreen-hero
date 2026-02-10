@@ -31,7 +31,11 @@ export default function VersionBadge() {
                     : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
             }`}
         >
-            {version.update_available ? "Update available" : `v${version.current_version}`}
+            {version.update_available
+                ? "Update available"
+                : version.current_version.match(/^\d/)
+                    ? `v${version.current_version}`
+                    : version.current_version}
         </span>
     );
 

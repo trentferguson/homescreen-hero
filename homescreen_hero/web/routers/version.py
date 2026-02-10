@@ -101,15 +101,17 @@ def _compare_versions(current: str, latest: str) -> bool:
 @router.get("/version", response_model=VersionResponse)
 def get_version() -> VersionResponse:
     current = get_current_version()
-    latest = _fetch_latest_release()
 
     update_available = False
     release_url = None
+    latest = None
 
-    if latest and current != "unknown":
-        update_available = _compare_versions(current, latest)
-        if update_available:
-            release_url = f"https://github.com/{GITHUB_REPO}/releases/latest"
+    if current[:1].isdigit():
+        latest = _fetch_latest_release()
+        if latest:
+            update_available = _compare_versions(current, latest)
+            if update_available:
+                release_url = f"https://github.com/{GITHUB_REPO}/releases/latest"
 
     return VersionResponse(
         current_version=current,

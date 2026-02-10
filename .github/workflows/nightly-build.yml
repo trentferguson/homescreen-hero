@@ -29,6 +29,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
+      - name: Write VERSION file
+        run: echo "nightly-$(git rev-parse --short HEAD)" > VERSION
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

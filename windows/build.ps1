@@ -2,6 +2,8 @@
 # Run from the windows/ folder: .\build.ps1
 
 param(
+    [Parameter(Mandatory=$true)]
+    [string]$Version,
     [string]$PythonVersion = "3.11.9",
     [string]$OutputDir = ".\dist\homescreen-hero-portable",
     [switch]$SkipFrontend,
@@ -93,7 +95,8 @@ if (-not $SkipFrontend) {
 Write-Host "Copying launcher and config..."
 Copy-Item "$PSScriptRoot\start.bat" "$OutputDir\start.bat"
 Copy-Item "$PSScriptRoot\launcher.py" "$OutputDir\launcher.py"
-Copy-Item "$RepoRoot\VERSION" "$OutputDir\VERSION"
+# Write version from parameter instead of copying the repo file
+Set-Content -Path "$OutputDir\VERSION" -Value $Version -NoNewline
 Copy-Item "$RepoRoot\example.config.yaml" "$OutputDir\data\config.yaml"
 Copy-Item "$RepoRoot\.env.example" "$OutputDir\.env.example" -ErrorAction SilentlyContinue
 
