@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,6 +14,7 @@ import {
     Lightbulb,
     List,
     Loader2,
+    Minus,
     Pencil,
     Plus,
     RefreshCw,
@@ -209,6 +210,7 @@ export default function GroupsPage() {
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
     const [layoutModalOpen, setLayoutModalOpen] = useState(false);
     const [savingDisplay, setSavingDisplay] = useState(false);
+    const [maxCollectionsInput, setMaxCollectionsInput] = useState("");
 
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode);
@@ -232,6 +234,7 @@ export default function GroupsPage() {
         try {
             const data = await fetchWithAuth("/api/admin/config/rotation").then((r) => r.json());
             setRotationSettings(data);
+            setMaxCollectionsInput(String(data.max_collections));
             setAutoRotate(data.auto_rotate ?? defaultAutoRotate);
             // Auto-expand if enabled
             if (data.auto_rotate?.enabled) {
@@ -278,6 +281,45 @@ export default function GroupsPage() {
         } finally {
             setSavingDisplay(false);
         }
+    };
+
+    const rotationSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingRotationPayload = useRef<RotationSettings | null>(null);
+
+    const flushRotationSave = async (payload: RotationSettings, prev: RotationSettings) => {
+        try {
+            const r = await fetchWithAuth("/api/admin/config/rotation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!r.ok) {
+                const text = await r.text();
+                throw new Error(text || "Failed to save rotation settings");
+            }
+        } catch (e) {
+            setError(String(e));
+            setRotationSettings(prev);
+            setMaxCollectionsInput(String(prev.max_collections));
+        }
+    };
+
+    const saveRotationField = (updates: Partial<RotationSettings>) => {
+        setRotationSettings((prev) => {
+            if (!prev) return prev;
+            const payload = { ...prev, ...updates };
+            pendingRotationPayload.current = payload;
+
+            if (rotationSaveTimer.current) clearTimeout(rotationSaveTimer.current);
+            rotationSaveTimer.current = setTimeout(() => {
+                if (pendingRotationPayload.current) {
+                    flushRotationSave(pendingRotationPayload.current, prev);
+                    pendingRotationPayload.current = null;
+                }
+            }, 300);
+
+            return payload;
+        });
     };
 
     const saveGroupOrder = async (orderedNames: string[]) => {
@@ -734,7 +776,7 @@ export default function GroupsPage() {
                                         </span>
                                         <ChevronDown className="h-4 w-4 text-slate-400" />
                                     </Listbox.Button>
-                                    <Listbox.Options className="absolute right-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
+                                    <Listbox.Options className="absolute right-0 z-50 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
                                         <Listbox.Option
                                             value="recent"
                                             className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
@@ -1079,6 +1121,139 @@ export default function GroupsPage() {
                                 <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
                                     <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
                                     <p className="text-xs text-blue-200">Collections from each group are dispersed throughout the Plex homescreen.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <hr className="border-slate-700/50" />
+
+                        {/* Max Collections */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-white">Max Collections</label>
+                            <p className="text-xs text-slate-400">
+                                Limit the number of collections displayed.
+                            </p>
+                            <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
+                                    <button
+                                        type="button"
+                                        disabled={!rotationSettings || rotationSettings.max_collections <= 1}
+                                        onClick={() => {
+                                            setMaxCollectionsInput((prev) => String(Math.max(1, Number(prev) - 1)));
+                                            saveRotationField({ max_collections: (rotationSettings?.max_collections ?? 1) - 1 });
+                                        }}
+                                        className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </button>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={maxCollectionsInput}
+                                        onChange={(e) => setMaxCollectionsInput(e.target.value)}
+                                        onBlur={() => {
+                                            const val = parseInt(maxCollectionsInput, 10);
+                                            if (!Number.isNaN(val) && val >= 1 && rotationSettings) {
+                                                setMaxCollectionsInput(String(val));
+                                                saveRotationField({ max_collections: val });
+                                            } else {
+                                                // Revert to current value
+                                                setMaxCollectionsInput(String(rotationSettings?.max_collections ?? ""));
+                                            }
+                                        }}
+                                        className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={!rotationSettings}
+                                        onClick={() => {
+                                            setMaxCollectionsInput((prev) => String(Number(prev) + 1));
+                                            saveRotationField({ max_collections: (rotationSettings?.max_collections ?? 0) + 1 });
+                                        }}
+                                        className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <span className="text-sm text-slate-400">items visible</span>
+                            </div>
+                        </div>
+
+                        <hr className="border-slate-700/50" />
+
+                        {/* Selection Strategy */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-white">Selection Strategy</label>
+                            <p className="text-xs text-slate-400">
+                                Determine how groups are ordered and how collections are picked within each group.
+                            </p>
+                            <Listbox
+                                value={rotationSettings?.strategy ?? "random"}
+                                onChange={(val) => saveRotationField({ strategy: val })}
+                                disabled={!rotationSettings}
+                            >
+                                <div className="relative mt-2">
+                                    <Listbox.Button className="flex items-center gap-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors">
+                                        <span className="flex-1 text-left">
+                                            {rotationSettings?.strategy === "weighted" ? "Weighted" :
+                                             rotationSettings?.strategy === "lru" ? "Least Recently Used" :
+                                             "Random"}
+                                        </span>
+                                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                                    </Listbox.Button>
+                                    <Listbox.Options className="absolute left-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
+                                        <Listbox.Option
+                                            value="random"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Random</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="weighted"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Weighted</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                        <Listbox.Option
+                                            value="lru"
+                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
+                                        >
+                                            {({ selected }) => (
+                                                <>
+                                                    <span>Least Recently Used</span>
+                                                    {selected && <Check className="h-4 w-4 text-white" />}
+                                                </>
+                                            )}
+                                        </Listbox.Option>
+                                    </Listbox.Options>
+                                </div>
+                            </Listbox>
+                            {rotationSettings?.strategy === "random" && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Groups are processed in display order. Collections are picked randomly within each group.</p>
+                                </div>
+                            )}
+                            {rotationSettings?.strategy === "weighted" && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Groups with higher weight are prioritized first. Collections are picked randomly within each group.</p>
+                                </div>
+                            )}
+                            {rotationSettings?.strategy === "lru" && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Groups are processed in display order. Collections that haven't been featured recently are picked first.</p>
                                 </div>
                             )}
                         </div>
