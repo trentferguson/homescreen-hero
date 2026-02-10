@@ -196,6 +196,7 @@ export default function GroupsPage() {
         () => (localStorage.getItem("groupsViewMode") as ViewMode) || "cards"
     );
     const [message, setMessage] = useState<string | null>(null);
+    const [messageVisible, setMessageVisible] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
     // Auto-rotate state
@@ -430,6 +431,15 @@ export default function GroupsPage() {
         fetchDisplaySettings();
     }, []);
 
+    // Auto-dismiss toast
+    useEffect(() => {
+        if (!message) return;
+        setMessageVisible(true);
+        const fadeTimer = setTimeout(() => setMessageVisible(false), 2500);
+        const clearTimer = setTimeout(() => setMessage(null), 3000);
+        return () => { clearTimeout(fadeTimer); clearTimeout(clearTimer); };
+    }, [message]);
+
     const filteredGroups = useMemo(() => {
         const base = sort === "recent" ? sortedGroups : groups;
         const visible = base.filter((group) =>
@@ -556,13 +566,6 @@ export default function GroupsPage() {
                     </button>
                 </div>
             </div>
-
-            {message ? (
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-900/60 bg-emerald-900/40 px-4 py-3 text-emerald-100">
-                    <Check className="h-4 w-4" />
-                    <p className="text-sm">{message}</p>
-                </div>
-            ) : null}
 
             {error ? (
                 <div className="flex items-center gap-2 rounded-xl border border-red-900/60 bg-red-900/40 px-4 py-3 text-red-100">
@@ -1266,6 +1269,14 @@ export default function GroupsPage() {
                     setConfirmDelete(null);
                 }}
             />
+
+            {/* Success toast */}
+            {message && (
+                <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/90 px-4 py-3 text-emerald-100 shadow-lg backdrop-blur-sm transition-all duration-500 ${messageVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}>
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    <p className="text-sm font-medium">{message}</p>
+                </div>
+            )}
         </div>
     );
 }

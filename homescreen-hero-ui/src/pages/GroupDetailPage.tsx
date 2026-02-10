@@ -78,6 +78,7 @@ export default function GroupDetailPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [messageVisible, setMessageVisible] = useState(false);
     const [sources, setSources] = useState<CollectionSource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist">("all");
@@ -127,6 +128,15 @@ export default function GroupDetailPage() {
                 // Non-fatal for UI; users can still type manual names
             });
     }, []);
+
+    // Auto-dismiss toast
+    useEffect(() => {
+        if (!message) return;
+        setMessageVisible(true);
+        const fadeTimer = setTimeout(() => setMessageVisible(false), 2500);
+        const clearTimer = setTimeout(() => setMessage(null), 3000);
+        return () => { clearTimeout(fadeTimer); clearTimeout(clearTimer); };
+    }, [message]);
 
     const resetToNew = () => {
         setMessage(null);
@@ -346,13 +356,6 @@ export default function GroupDetailPage() {
                     </div>
                 </div>
             </div>
-
-            {message ? (
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-900/60 bg-emerald-900/40 px-4 py-3 text-emerald-100">
-                    <Check className="h-4 w-4" />
-                    <p className="text-sm">{message}</p>
-                </div>
-            ) : null}
 
             {error ? (
                 <div className="flex items-center gap-2 rounded-xl border border-red-900/60 bg-red-900/40 px-4 py-3 text-red-100">
@@ -865,6 +868,14 @@ export default function GroupDetailPage() {
                     deleteGroup();
                 }}
             />
+
+            {/* Success toast */}
+            {message && (
+                <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/90 px-4 py-3 text-emerald-100 shadow-lg backdrop-blur-sm transition-all duration-500 ${messageVisible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}>
+                    <Check className="h-4 w-4 text-emerald-400" />
+                    <p className="text-sm font-medium">{message}</p>
+                </div>
+            )}
         </div>
     );
 }
