@@ -83,7 +83,7 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
             }
 
             let hasError = false;
-            const imagePromises = imageUrls.slice(0, 6).map((url) => {
+            const imagePromises = imageUrls.slice(0, 5).map((url) => {
                 return new Promise<void>((resolve) => {
                     const img = new Image();
                     img.onload = () => resolve();
@@ -108,7 +108,7 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
         <div className="absolute inset-0 overflow-hidden rounded-2xl">
             {/* Poster Grid - 1 row */}
             <div className="flex gap-1 h-full">
-                {posters.slice(0, 6).map((poster, index) => (
+                {posters.slice(0, 5).map((poster, index) => (
                     <div
                         key={index}
                         className={`flex-1 overflow-hidden opacity-40 rounded-lg ${isFirstLoad ? 'animate-fade-in' : ''}`}

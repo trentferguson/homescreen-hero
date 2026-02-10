@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import {
-    ArrowRight,
     Check,
     CheckCircle2,
     ChevronDown,
@@ -912,7 +911,8 @@ export default function GroupsPage() {
                                         return (
                                             <SortableGroupCard key={group.name} id={group.name} viewMode="cards">
                                                 <div
-                                                    className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300"
+                                                    onClick={() => navigate(`/groups/${originalIndex}`)}
+                                                    className="group relative overflow-hidden rounded-2xl border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:border-slate-700 transition-all duration-300 cursor-pointer"
                                                 >
                                                     <div className="relative">
                                                         {renderCover(group, index)}
@@ -942,13 +942,15 @@ export default function GroupsPage() {
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="space-y-3 p-4">
+                                                    <div className="p-4">
                                                         {isRenaming ? (
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                                 <input
                                                                     type="text"
                                                                     value={renaming?.value ?? ""}
                                                                     onChange={(e) => setRenaming({ index: originalIndex, value: e.target.value })}
+                                                                    onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setRenaming(null); }}
+                                                                    autoFocus
                                                                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                                                 />
                                                                 <button
@@ -962,43 +964,31 @@ export default function GroupsPage() {
                                                             </div>
                                                         ) : (
                                                             <div className="flex items-start justify-between gap-3">
-                                                                <div>
-                                                                    <p className="text-lg font-bold text-white">{group.name || "Untitled group"}</p>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-lg font-bold text-white truncate" title={group.name}>{group.name || "Untitled group"}</p>
                                                                     <p className="text-xs text-slate-400">{group.collections.length} collections</p>
                                                                 </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setRenaming({ index: originalIndex, value: group.name })}
-                                                                    className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white"
-                                                                    aria-label={`Rename ${group.name}`}
-                                                                >
-                                                                    <Pencil className="h-4 w-4" />
-                                                                </button>
+                                                                <div className="flex items-center gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setRenaming({ index: originalIndex, value: group.name }); }}
+                                                                        className="rounded-lg border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:border-slate-600 hover:text-white transition-all duration-200 active:scale-95"
+                                                                        aria-label={`Rename ${group.name}`}
+                                                                    >
+                                                                        <Pencil className="h-4 w-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(originalIndex); }}
+                                                                        disabled={processingIndex === originalIndex}
+                                                                        className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                                                        aria-label={`Delete ${group.name}`}
+                                                                    >
+                                                                        {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         )}
-
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => navigate(`/groups/${originalIndex}`)}
-                                                                className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-100 transition-all duration-200 hover:border-primary/70 hover:bg-primary/10 hover:text-white active:scale-95"
-                                                            >
-                                                                <SlidersHorizontal className="h-4 w-4" />
-                                                                Open Editor
-                                                                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                                                            </button>
-                                                            <div className="flex items-center gap-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setConfirmDelete(originalIndex)}
-                                                                    disabled={processingIndex === originalIndex}
-                                                                    className="rounded-lg border border-red-900/60 bg-red-900/40 p-2 text-red-100 hover:border-red-700 hover:bg-red-900/60 transition-all duration-200 active:scale-95 disabled:opacity-60"
-                                                                    aria-label={`Delete ${group.name}`}
-                                                                >
-                                                                    {processingIndex === originalIndex ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                                                </button>
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </SortableGroupCard>
