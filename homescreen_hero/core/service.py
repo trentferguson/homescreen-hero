@@ -186,10 +186,20 @@ def run_rotation_once(
     # Determine sync strategy based on config
     if config.rotation.sync_all_on_rotation:
         # Sync all Trakt, Letterboxd, and MDBList sources
+        # Errors are non-fatal: if sync fails, rotation continues with existing Plex collections
         logger.info("Syncing all Trakt, Letterboxd, and MDBList sources")
-        sync_all_trakt_sources(server, config)
-        sync_all_letterboxd_sources(server, config)
-        sync_all_mdblist_sources(server, config)
+        try:
+            sync_all_trakt_sources(server, config)
+        except Exception as e:
+            logger.error("Trakt sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_letterboxd_sources(server, config)
+        except Exception as e:
+            logger.error("Letterboxd sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_mdblist_sources(server, config)
+        except Exception as e:
+            logger.error("MDBList sync failed, continuing with rotation: %s", e)
     else:
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")

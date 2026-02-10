@@ -61,7 +61,7 @@ def sync_single_trakt_source(
         logger.info("Trakt client not available; skipping source %s from %s", source.name, source.url)
         return 0, 0
 
-        logger.info("Syncing Trakt source %s from %s", source.name, source.url)
+    logger.info("Syncing Trakt source %s from %s", source.name, source.url)
 
     # Check for missing plex_library
     if not source.plex_library:
@@ -207,7 +207,10 @@ def sync_all_trakt_sources(
         return
 
     for source in config.trakt.sources:
-        sync_single_trakt_source(server, config, source)
+        try:
+            sync_single_trakt_source(server, config, source)
+        except Exception as e:
+            logger.error("Failed to sync Trakt source '%s': %s", source.name, e, exc_info=True)
 
 
 def record_missing_items_in_db(
