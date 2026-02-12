@@ -223,35 +223,38 @@ class TestIsBlacklisted:
 class TestGetOrderedGroups:
     """Tests for _get_ordered_groups function"""
 
-    def test_random_strategy_preserves_order(self):
-        """Random strategy should preserve original config order"""
+    def test_random_strategy_sorts_by_display_order(self):
+        """Random strategy should sort groups by display_order"""
         groups = [
             CollectionGroupConfig(
                 name="Group A",
                 enabled=True,
                 weight=5,
+                display_order=2,
                 collections=["Collection A"]
             ),
             CollectionGroupConfig(
                 name="Group B",
                 enabled=True,
                 weight=10,
+                display_order=0,
                 collections=["Collection B"]
             ),
             CollectionGroupConfig(
                 name="Group C",
                 enabled=True,
                 weight=1,
+                display_order=1,
                 collections=["Collection C"]
             ),
         ]
         rng = random.Random(42)
         ordered = _get_ordered_groups(groups, "random", rng)
 
-        # Order should be preserved
-        assert ordered[0].name == "Group A"
-        assert ordered[1].name == "Group B"
-        assert ordered[2].name == "Group C"
+        # Should be sorted by display_order, not config order or weight
+        assert ordered[0].name == "Group B"
+        assert ordered[1].name == "Group C"
+        assert ordered[2].name == "Group A"
 
     def test_weighted_strategy_sorts_by_weight(self):
         """Weighted strategy should sort groups by weight (descending)"""

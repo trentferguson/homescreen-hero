@@ -57,7 +57,11 @@ def create_group(
         data = load_config_mapping()
         groups = load_group_list(data)
 
-        groups.append(payload.model_dump(exclude_none=True))
+        new_group = payload.model_dump(exclude_none=True)
+        # Place new groups at the end of the display order
+        max_order = max((g.get("display_order", 0) for g in groups), default=-1)
+        new_group["display_order"] = max_order + 1
+        groups.append(new_group)
         config_path = get_config_path()
         save_config_mapping({**data, "groups": groups})
 

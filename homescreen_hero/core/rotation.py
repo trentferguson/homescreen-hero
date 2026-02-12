@@ -41,10 +41,10 @@ def _get_ordered_groups(
         logger.debug("Using weighted strategy: sorting groups by weight")
         return sorted(groups, key=lambda g: (-g.weight, groups.index(g)))
     else:
-        # Default 'random' and 'lru' strategies: keep original config order
-        # LRU strategy affects collection selection within groups, not group order
-        logger.debug(f"Using {strategy} strategy: keeping original group order")
-        return list(groups)
+        # Default 'random' and 'lru' strategies: sort by display_order so
+        # drag-reordering in the UI controls processing priority too
+        logger.debug(f"Using {strategy} strategy: sorting by display_order")
+        return sorted(groups, key=lambda g: g.display_order)
 
 
 def _select_collections_from_group(

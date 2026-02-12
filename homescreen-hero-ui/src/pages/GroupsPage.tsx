@@ -108,8 +108,6 @@ const defaultAutoRotate: AutoRotateSettings = {
 
 type RenameState = { index: number; value: string } | null;
 
-type SortOption = "recent" | "name" | "size";
-
 type ViewMode = "cards" | "list";
 
 const coverGradients = [
@@ -176,7 +174,6 @@ export default function GroupsPage() {
     const [error, setError] = useState<string | null>(null);
     const [renaming, setRenaming] = useState<RenameState>(null);
     const [processingIndex, setProcessingIndex] = useState<number | null>(null);
-    const [sort, setSort] = useState<SortOption>("recent");
     const [searchTerm, setSearchTerm] = useState("");
     const [viewMode, setViewMode] = useState<ViewMode>(
         () => (localStorage.getItem("groupsViewMode") as ViewMode) || "cards"
@@ -427,21 +424,10 @@ export default function GroupsPage() {
     }, [message]);
 
     const filteredGroups = useMemo(() => {
-        const base = sort === "recent" ? sortedGroups : groups;
-        const visible = base.filter((group) =>
+        return sortedGroups.filter((group) =>
             group.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
         );
-
-        switch (sort) {
-            case "name":
-                return [...visible].sort((a, b) => a.name.localeCompare(b.name));
-            case "size":
-                return [...visible].sort((a, b) => b.collections.length - a.collections.length);
-            default:
-                // "recent" uses sortedGroups (sorted by display_order)
-                return visible;
-        }
-    }, [groups, sortedGroups, searchTerm, sort]);
+    }, [sortedGroups, searchTerm]);
 
     const handleRename = async () => {
         if (!renaming) return;
@@ -731,53 +717,6 @@ export default function GroupsPage() {
                                     className="w-56 rounded-lg border border-slate-700 bg-slate-900 pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70"
                                 />
                             </div>
-                            <Listbox value={sort} onChange={(value) => setSort(value as SortOption)}>
-                                <div className="relative">
-                                    <Listbox.Button className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors min-w-[180px]">
-                                        <span className="flex-1 text-left">
-                                            {sort === "recent" && "Recently updated"}
-                                            {sort === "name" && "Name A-Z"}
-                                            {sort === "size" && "Most collections"}
-                                        </span>
-                                        <ChevronDown className="h-4 w-4 text-slate-400" />
-                                    </Listbox.Button>
-                                    <Listbox.Options className="absolute right-0 z-50 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
-                                        <Listbox.Option
-                                            value="recent"
-                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                        >
-                                            {({ selected }) => (
-                                                <>
-                                                    <span>Recently updated</span>
-                                                    {selected && <Check className="h-4 w-4 text-white" />}
-                                                </>
-                                            )}
-                                        </Listbox.Option>
-                                        <Listbox.Option
-                                            value="name"
-                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                        >
-                                            {({ selected }) => (
-                                                <>
-                                                    <span>Name A-Z</span>
-                                                    {selected && <Check className="h-4 w-4 text-white" />}
-                                                </>
-                                            )}
-                                        </Listbox.Option>
-                                        <Listbox.Option
-                                            value="size"
-                                            className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
-                                        >
-                                            {({ selected }) => (
-                                                <>
-                                                    <span>Most collections</span>
-                                                    {selected && <Check className="h-4 w-4 text-white" />}
-                                                </>
-                                            )}
-                                        </Listbox.Option>
-                                    </Listbox.Options>
-                                </div>
-                            </Listbox>
                         </div>
                     </div>
                 </div>

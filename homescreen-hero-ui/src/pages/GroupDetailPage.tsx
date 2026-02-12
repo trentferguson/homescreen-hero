@@ -28,6 +28,7 @@ type CollectionGroup = {
     max_picks: number;
     weight: number;
     min_gap_rotations: number;
+    display_order: number;
     visibility_home: boolean;
     visibility_shared: boolean;
     visibility_recommended: boolean;
@@ -57,6 +58,7 @@ const emptyGroup: CollectionGroup = {
     max_picks: 1,
     weight: 1,
     min_gap_rotations: 0,
+    display_order: 0,
     visibility_home: true,
     visibility_shared: false,
     visibility_recommended: false,
