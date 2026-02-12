@@ -106,18 +106,6 @@ const defaultAutoRotate: AutoRotateSettings = {
     visibility_recommended: false,
 };
 
-const emptyGroup: CollectionGroup = {
-    name: "",
-    enabled: true,
-    min_picks: 0,
-    max_picks: 1,
-    weight: 1,
-    min_gap_rotations: 0,
-    display_order: 0,
-    date_range: null,
-    collections: [],
-};
-
 type RenameState = { index: number; value: string } | null;
 
 type SortOption = "recent" | "name" | "size";
@@ -186,8 +174,6 @@ export default function GroupsPage() {
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [creating, setCreating] = useState(false);
-    const [newName, setNewName] = useState("");
     const [renaming, setRenaming] = useState<RenameState>(null);
     const [processingIndex, setProcessingIndex] = useState<number | null>(null);
     const [sort, setSort] = useState<SortOption>("recent");
@@ -456,29 +442,6 @@ export default function GroupsPage() {
                 return visible;
         }
     }, [groups, sortedGroups, searchTerm, sort]);
-
-    const handleCreate = async () => {
-        if (!newName.trim()) return;
-        try {
-            setCreating(true);
-            setMessage(null);
-            const payload = { ...emptyGroup, name: newName.trim() };
-            const r = await fetchWithAuth("/api/admin/config/groups", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const text = await r.text();
-            if (!r.ok) throw new Error(text || "Failed to create group");
-            setNewName("");
-            setMessage("Group created");
-            await refreshGroups();
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setCreating(false);
-        }
-    };
 
     const handleRename = async () => {
         if (!renaming) return;
@@ -831,7 +794,7 @@ export default function GroupsPage() {
                                         const statusStyles = {
                                             active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
                                             scheduled: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                                            disabled: "bg-red-500/20 text-red-400 border-red-500/30",
+                                            disabled: "bg-slate-500/20 text-slate-400 border-slate-500/30",
                                         };
                                         const statusLabels = {
                                             active: "Active",
@@ -905,6 +868,18 @@ export default function GroupsPage() {
                                             </SortableGroupCard>
                                         );
                                     })}
+                                    {!searchTerm && (
+                                        <div
+                                            onClick={() => navigate('/groups/new')}
+                                            className="group flex items-center gap-3 rounded-xl border-2 border-dashed border-slate-700/50 hover:border-primary/40 hover:bg-slate-800/30 px-4 py-3 ml-8 transition-all duration-300 cursor-pointer"
+                                        >
+                                            <Plus className="h-4 w-4 text-slate-500 group-hover:text-primary transition-colors shrink-0" />
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300 transition-colors">Create New Group</span>
+                                                <span className="text-xs text-slate-600 group-hover:text-slate-400 transition-colors">And start adding collections</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -924,7 +899,7 @@ export default function GroupsPage() {
                                                             const statusStyles = {
                                                                 active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
                                                                 scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
-                                                                disabled: 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20',
+                                                                disabled: 'bg-slate-500/20 text-slate-400 border border-slate-500/30 shadow-lg shadow-slate-500/20',
                                                             };
                                                             const statusLabels = {
                                                                 active: 'Active',
@@ -997,10 +972,54 @@ export default function GroupsPage() {
                                             </SortableGroupCard>
                                         );
                                     })}
+                                    {!searchTerm && (
+                                        <div
+                                            onClick={() => navigate('/groups/new')}
+                                            className="group flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-700/50 hover:border-primary/40 hover:bg-slate-800/30 transition-all duration-300 cursor-pointer"
+                                            style={{ minHeight: '190px' }}
+                                        >
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-500 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
+                                                <Plus className="h-5 w-5" />
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1.5">
+                                                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300 transition-colors">Create New Group</span>
+                                                <span className="text-xs text-slate-600 group-hover:text-slate-400 transition-colors">And start adding collections</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </SortableContext>
                     </DndContext>
+                ) : !searchTerm ? (
+                    viewMode === "list" ? (
+                        <div
+                            onClick={() => navigate('/groups/new')}
+                            className="group flex items-center gap-3 rounded-xl border-2 border-dashed border-slate-700/50 hover:border-primary/40 hover:bg-slate-800/30 px-4 py-3 ml-8 transition-all duration-300 cursor-pointer"
+                        >
+                            <Plus className="h-4 w-4 text-slate-500 group-hover:text-primary transition-colors shrink-0" />
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300 transition-colors">Create New Group</span>
+                                <span className="text-xs text-slate-600 group-hover:text-slate-400 transition-colors">And start adding collections</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                            <div
+                                onClick={() => navigate('/groups/new')}
+                                className="group flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-700/50 hover:border-primary/40 hover:bg-slate-800/30 transition-all duration-300 cursor-pointer"
+                                style={{ minHeight: '190px' }}
+                            >
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-500 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
+                                    <Plus className="h-5 w-5" />
+                                </div>
+                                <div className="flex flex-col items-center gap-1.5">
+                                    <span className="text-sm font-medium text-slate-500 group-hover:text-slate-300 transition-colors">Create New Group</span>
+                                    <span className="text-xs text-slate-600 group-hover:text-slate-400 transition-colors">And start adding collections</span>
+                                </div>
+                            </div>
+                        </div>
+                    )
                 ) : (
                     <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-6 text-center">
                         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-900">
@@ -1011,37 +1030,6 @@ export default function GroupsPage() {
                 )}
                 </div>
             </section>
-
-            <div className={`flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 hover:border-primary/50 px-6 py-8 text-center transition-all duration-300 ${autoRotate.enabled ? "opacity-50 pointer-events-none transition-opacity" : ""}`}>
-                <button
-                    type="button"
-                    onClick={() => navigate('/groups/new')}
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-slate-100 ring-2 ring-slate-800 hover:bg-slate-800 hover:ring-primary/50 transition-all duration-200 active:scale-95"
-                >
-                    <Plus className="h-5 w-5" />
-                </button>
-                <div className="space-y-1">
-                    <p className="text-lg font-semibold text-white">Create another group</p>
-                    <p className="text-sm text-slate-400">Organize collections into sagas, events, or curated lists.</p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                        type="text"
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="e.g ‘Holiday Specials’"
-                        className="w-64 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/70 focus:border-primary/50 transition-all duration-200"
-                    />
-                    <button
-                        type="button"
-                        onClick={handleCreate}
-                        disabled={creating}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 hover:bg-blue-600 active:scale-95 disabled:opacity-60"
-                    >
-                        {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} New group
-                    </button>
-                </div>
-            </div>
 
             {/* Homescreen Layout sheet */}
             <Sheet open={layoutModalOpen} onOpenChange={setLayoutModalOpen}>
