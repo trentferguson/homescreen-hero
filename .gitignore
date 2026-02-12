@@ -26,6 +26,7 @@ Thumbs.db
 
 # --- Local config (DO NOT COMMIT THIS) ---
 config.yaml
+config.yaml.bak
 .env
 
 # --- SQLite database & logs ---
