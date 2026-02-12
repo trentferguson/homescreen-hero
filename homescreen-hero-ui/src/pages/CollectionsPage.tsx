@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image, Pin, Home, Users, Star } from "lucide-react";
+import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image, Pin, Home, Users, Star, LayoutGrid, List } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
@@ -53,27 +53,19 @@ type VisibilityOptions = {
     recommended: boolean;
 };
 
-// Collection card component with pin popover
-function CollectionCard({
-    collection,
-    index,
+type ViewMode = "cards" | "list";
+
+// Shared pin popover used by both card and list views
+function PinPopover({
     isPinned,
     isPinning,
     onPinWithVisibility,
     onUnpin,
-    onClick,
-    onEdit,
-    onDelete,
 }: {
-    collection: Collection;
-    index: number;
     isPinned: boolean;
     isPinning: boolean;
     onPinWithVisibility: (visibility: VisibilityOptions) => void;
     onUnpin: () => void;
-    onClick: () => void;
-    onEdit: (e: React.MouseEvent) => void;
-    onDelete: (e: React.MouseEvent) => void;
 }) {
     const [popoverOpen, setPopoverOpen] = useState(false);
     const [visibility, setVisibility] = useState<VisibilityOptions>({
@@ -99,6 +91,117 @@ function CollectionCard({
         setPopoverOpen(open);
     };
 
+    return (
+        <Popover open={popoverOpen} onOpenChange={handleOpenChange}>
+            <PopoverTrigger asChild>
+                <button
+                    disabled={isPinning}
+                    className={`p-2 rounded-lg transition-colors ${
+                        isPinned
+                            ? "bg-primary/80 hover:bg-primary text-white"
+                            : "bg-slate-800/70 hover:bg-slate-700/90 text-slate-300"
+                    } disabled:opacity-50`}
+                    title={isPinned ? "Edit pin settings" : "Pin to home"}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Pin size={16} className={isPinned ? "fill-current" : ""} />
+                </button>
+            </PopoverTrigger>
+            <PopoverContent
+                align="end"
+                className="w-44 p-2.5 bg-slate-900/90 backdrop-blur-md border-slate-700/50"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={visibility.home}
+                            onChange={(e) => setVisibility(v => ({ ...v, home: e.target.checked }))}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                        />
+                        <Home size={12} className="text-slate-500" />
+                        <span className="text-xs text-slate-300">My Home</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={visibility.shared}
+                            onChange={(e) => setVisibility(v => ({ ...v, shared: e.target.checked }))}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                        />
+                        <Users size={12} className="text-slate-500" />
+                        <span className="text-xs text-slate-300">Shared</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={visibility.recommended}
+                            onChange={(e) => setVisibility(v => ({ ...v, recommended: e.target.checked }))}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
+                        />
+                        <Star size={12} className="text-slate-500" />
+                        <span className="text-xs text-slate-300">Recommended</span>
+                    </label>
+
+                    <div className="pt-1.5 flex gap-1.5">
+                        {isPinned ? (
+                            <>
+                                <button
+                                    onClick={handleUnpin}
+                                    disabled={isPinning}
+                                    className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md border border-slate-600/50 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-colors disabled:opacity-50"
+                                >
+                                    Unpin
+                                </button>
+                                <button
+                                    onClick={handlePin}
+                                    disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                    className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                                >
+                                    Update
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={handlePin}
+                                disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
+                                className="w-full px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
+                            >
+                                Pin
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+// Collection card component for grid view
+function CollectionCard({
+    collection,
+    index,
+    isPinned,
+    isPinning,
+    onPinWithVisibility,
+    onUnpin,
+    onClick,
+    onEdit,
+    onDelete,
+}: {
+    collection: Collection;
+    index: number;
+    isPinned: boolean;
+    isPinning: boolean;
+    onPinWithVisibility: (visibility: VisibilityOptions) => void;
+    onUnpin: () => void;
+    onClick: () => void;
+    onEdit: (e: React.MouseEvent) => void;
+    onDelete: (e: React.MouseEvent) => void;
+}) {
     return (
         <div
             key={`${collection.library}-${collection.title}`}
@@ -152,95 +255,12 @@ function CollectionCard({
 
             {/* Action Buttons (shown on hover, top-right) */}
             <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                {/* Pin Button with Popover */}
-                <Popover open={popoverOpen} onOpenChange={handleOpenChange}>
-                    <PopoverTrigger asChild>
-                        <button
-                            disabled={isPinning}
-                            className={`p-2 rounded-lg transition-colors ${
-                                isPinned
-                                    ? "bg-primary/80 hover:bg-primary text-white"
-                                    : "bg-slate-800/70 hover:bg-slate-700/90 text-slate-300"
-                            } disabled:opacity-50`}
-                            title={isPinned ? "Edit pin settings" : "Pin to home"}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <Pin size={16} className={isPinned ? "fill-current" : ""} />
-                        </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                        align="end"
-                        className="w-44 p-2.5 bg-slate-900/90 backdrop-blur-md border-slate-700/50"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="space-y-1.5">
-                            {/* My Home checkbox */}
-                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={visibility.home}
-                                    onChange={(e) => setVisibility(v => ({ ...v, home: e.target.checked }))}
-                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
-                                />
-                                <Home size={12} className="text-slate-500" />
-                                <span className="text-xs text-slate-300">My Home</span>
-                            </label>
-
-                            {/* Shared checkbox */}
-                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={visibility.shared}
-                                    onChange={(e) => setVisibility(v => ({ ...v, shared: e.target.checked }))}
-                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
-                                />
-                                <Users size={12} className="text-slate-500" />
-                                <span className="text-xs text-slate-300">Shared</span>
-                            </label>
-
-                            {/* Recommended checkbox */}
-                            <label className="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-pointer hover:bg-white/5 transition-colors">
-                                <input
-                                    type="checkbox"
-                                    checked={visibility.recommended}
-                                    onChange={(e) => setVisibility(v => ({ ...v, recommended: e.target.checked }))}
-                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800/50 text-primary focus:ring-1 focus:ring-primary/50 focus:ring-offset-0"
-                                />
-                                <Star size={12} className="text-slate-500" />
-                                <span className="text-xs text-slate-300">Recommended</span>
-                            </label>
-
-                            <div className="pt-1.5 flex gap-1.5">
-                                {isPinned ? (
-                                    <>
-                                        <button
-                                            onClick={handleUnpin}
-                                            disabled={isPinning}
-                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md border border-slate-600/50 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-colors disabled:opacity-50"
-                                        >
-                                            Unpin
-                                        </button>
-                                        <button
-                                            onClick={handlePin}
-                                            disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
-                                            className="flex-1 px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
-                                        >
-                                            Update
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        onClick={handlePin}
-                                        disabled={isPinning || (!visibility.home && !visibility.shared && !visibility.recommended)}
-                                        className="w-full px-2 py-1 text-[10px] font-medium rounded-md bg-primary/90 hover:bg-primary text-white transition-colors disabled:opacity-50"
-                                    >
-                                        Pin
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                <PinPopover
+                    isPinned={isPinned}
+                    isPinning={isPinning}
+                    onPinWithVisibility={onPinWithVisibility}
+                    onUnpin={onUnpin}
+                />
 
                 {/* Delete Button */}
                 <button
@@ -273,6 +293,9 @@ export default function CollectionsPage() {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [selectedLibraryFilter, setSelectedLibraryFilter] = useState<string>("all");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+    const [viewMode, setViewMode] = useState<ViewMode>(
+        () => (localStorage.getItem("collectionsViewMode") as ViewMode) || "cards"
+    );
     const [lastCacheCheck, setLastCacheCheck] = useState<number | null>(null);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -526,6 +549,11 @@ export default function CollectionsPage() {
         loadCollections(true);
     };
 
+    const handleViewModeChange = (mode: ViewMode) => {
+        setViewMode(mode);
+        localStorage.setItem("collectionsViewMode", mode);
+    };
+
     const searchMovies = async (query: string, libraryName?: string) => {
         // Use provided library name or fall back to state
         const library = libraryName || newCollectionLibrary;
@@ -702,7 +730,7 @@ export default function CollectionsPage() {
         // Fetch full collection details to get summary
         try {
             const response = await fetchWithAuth(
-                `/api/collections/${encodeURIComponent(collection.library)}/${encodeURIComponent(collection.title)}`
+                `/api/collections/${encodeURIComponent(collection.library)}/${encodeURIComponent(collection.title)}/details`
             );
             const data = await response.json();
             setQuickEditSummary(data.summary || "");
@@ -843,19 +871,30 @@ export default function CollectionsPage() {
                             <div className="h-4 w-28 bg-slate-800/60 rounded animate-pulse"></div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {Array.from({ length: 18 }).map((_, i) => (
-                            <div key={i} className="rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 animate-pulse">
-                                {/* Poster skeleton */}
-                                <div className="aspect-[2/3] bg-slate-800/60"></div>
-                                {/* Info skeleton */}
-                                <div className="p-3 space-y-2">
-                                    <div className="h-4 bg-slate-800/60 rounded w-3/4 mx-auto"></div>
-                                    <div className="h-3 bg-slate-800/60 rounded w-1/2 mx-auto"></div>
+                    {viewMode === "list" ? (
+                        <div className="flex flex-col gap-1.5">
+                            {Array.from({ length: 12 }).map((_, i) => (
+                                <div key={i} className="flex items-center gap-4 rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-2.5 animate-pulse">
+                                    <div className="h-10 w-10 rounded-lg bg-slate-800/60 shrink-0" />
+                                    <div className="h-4 bg-slate-800/60 rounded flex-1 max-w-[200px]" />
+                                    <div className="h-4 bg-slate-800/60 rounded w-16 hidden sm:block" />
+                                    <div className="h-4 bg-slate-800/60 rounded w-12" />
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            {Array.from({ length: 18 }).map((_, i) => (
+                                <div key={i} className="rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 animate-pulse">
+                                    <div className="aspect-[2/3] bg-slate-800/60"></div>
+                                    <div className="p-3 space-y-2">
+                                        <div className="h-4 bg-slate-800/60 rounded w-3/4 mx-auto"></div>
+                                        <div className="h-3 bg-slate-800/60 rounded w-1/2 mx-auto"></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -976,9 +1015,37 @@ export default function CollectionsPage() {
                         <ArrowDownAZ className="h-5 w-5" />
                     )}
                 </button>
+
+                {/* View Mode Toggle */}
+                <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5">
+                    <button
+                        type="button"
+                        onClick={() => handleViewModeChange("cards")}
+                        className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all duration-200 ${
+                            viewMode === "cards"
+                                ? "bg-primary/20 text-primary"
+                                : "text-slate-400 hover:text-slate-200"
+                        }`}
+                        title="Card view"
+                    >
+                        <LayoutGrid className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleViewModeChange("list")}
+                        className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all duration-200 ${
+                            viewMode === "list"
+                                ? "bg-primary/20 text-primary"
+                                : "text-slate-400 hover:text-slate-200"
+                        }`}
+                        title="List view"
+                    >
+                        <List className="h-4 w-4" />
+                    </button>
+                </div>
             </div>
 
-            {/* Collections Grid */}
+            {/* Collections */}
             <div>
                 <div className="flex items-center justify-between mb-4">
                     <div>
@@ -1000,6 +1067,81 @@ export default function CollectionsPage() {
                         >
                             Create your first collection
                         </button>
+                    </div>
+                ) : viewMode === "list" ? (
+                    <div className="flex flex-col gap-1.5">
+                        {filteredCollections.map((collection) => (
+                            <div
+                                key={`${collection.library}-${collection.title}`}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => handleCollectionClick(collection)}
+                                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCollectionClick(collection); } }}
+                                className="group flex items-center gap-4 rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-2.5 hover:border-slate-700 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer"
+                            >
+                                {/* Square Thumbnail */}
+                                <div className="h-10 w-10 rounded-lg overflow-hidden bg-slate-800 shrink-0">
+                                    {collection.poster_url ? (
+                                        <img
+                                            src={collection.poster_url}
+                                            alt={collection.title}
+                                            className="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                            <Image size={16} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Title + Active Indicator */}
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="text-sm font-semibold text-white truncate">
+                                        {collection.title}
+                                    </span>
+                                    {collection.is_active && (
+                                        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" title="Active" />
+                                    )}
+                                </div>
+
+                                {/* Library Badge */}
+                                <span className="hidden sm:inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 border border-slate-700/50 shrink-0">
+                                    {collection.library}
+                                </span>
+
+                                {/* Item Count */}
+                                <span className="text-xs text-slate-500 shrink-0">
+                                    {collection.item_count} items
+                                </span>
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={(e) => openQuickEditModal(collection, e)}
+                                        className="p-1.5 rounded-lg bg-slate-800/70 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                                        title="Edit collection"
+                                    >
+                                        <Edit size={14} />
+                                    </button>
+
+                                    <PinPopover
+                                        isPinned={pinnedCollections.has(collection.title)}
+                                        isPinning={pinningCollection === collection.title}
+                                        onPinWithVisibility={(visibility) => handlePinWithVisibility(collection, visibility)}
+                                        onUnpin={() => handleUnpin(collection)}
+                                    />
+
+                                    <button
+                                        onClick={(e) => handleDeleteCollection(collection.library, collection.title, e)}
+                                        className="p-1.5 rounded-lg bg-red-600/50 hover:bg-red-600/70 text-red-200 hover:text-white transition-colors"
+                                        title="Delete collection"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
