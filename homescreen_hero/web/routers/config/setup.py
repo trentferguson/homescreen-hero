@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
+from datetime import datetime
 
 import yaml
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from fastapi.responses import Response
 
 from homescreen_hero.core.auth import get_current_user
 from homescreen_hero.core.config.loader import (
@@ -13,6 +16,7 @@ from homescreen_hero.core.config.loader import (
     load_config,
     load_config_text,
     save_config_text,
+    validate_config_text,
 )
 from homescreen_hero.core.integrations.trakt_client import TraktClient, TraktConfig
 from homescreen_hero.core.integrations.mdblist_client import MDBListClient, MDBListConfig
@@ -25,6 +29,9 @@ from .schemas import (
     ConfigSaveResponse,
     ConfigUpdateRequest,
     ConfigExistsResponse,
+    ConfigValidateResponse,
+    ConfigImportResponse,
+    BackupStatusResponse,
     EnvVarsResponse,
     TraktTestRequest,
     MDBListTestRequest,
@@ -78,6 +85,169 @@ def save_config(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# CONFIG BACKUP / RESTORE
+# ========================================================================
+
+@router.get("/export")
+def export_config(
+    current_user: str = Depends(get_current_user),
+) -> Response:
+    # Download the current config.yaml as a file attachment
+    try:
+        content = load_config_text()
+        timestamp = datetime.now().strftime("%Y_%m_%d")
+        filename = f"config_backup_{timestamp}.yaml"
+
+        return Response(
+            content=content,
+            media_type="application/x-yaml",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/import")
+def import_config(
+    file: UploadFile = File(...),
+    validate_only: bool = Query(False),
+    current_user: str = Depends(get_current_user),
+):
+    # Import a config.yaml file, optionally just validating without applying
+    MAX_CONFIG_SIZE = 1_048_576  # 1 MB
+    try:
+        raw = file.file.read(MAX_CONFIG_SIZE + 1)
+        if len(raw) > MAX_CONFIG_SIZE:
+            raise HTTPException(
+                status_code=413, detail="Config file exceeds 1 MB size limit."
+            )
+        content = raw.decode("utf-8")
+    except HTTPException:
+        raise
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="File must be valid UTF-8 text."
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to read file: {exc}"
+        ) from exc
+
+    # Validate the uploaded YAML (schema + env overrides)
+    try:
+        validate_config_text(content)
+    except (yaml.YAMLError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Validation failed: {exc}"
+        ) from exc
+
+    if validate_only:
+        return ConfigValidateResponse(
+            ok=True,
+            message="Configuration is valid and can be imported.",
+        )
+
+    # Backup current config before overwriting
+    config_path = get_config_path()
+    backup_path_str = None
+
+    if config_path.exists():
+        backup_path = config_path.with_suffix(".yaml.bak")
+        try:
+            shutil.copy2(config_path, backup_path)
+            backup_path_str = str(backup_path)
+            logger.info(f"Backed up current config to {backup_path}")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create backup before import: {exc}",
+            ) from exc
+
+    # Apply the new config
+    try:
+        save_config_text(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Update rotation schedule with new config
+    try:
+        updated_config = load_config()
+        update_rotation_schedule(config=updated_config)
+    except Exception as exc:
+        logger.warning(f"Failed to update rotation schedule after import: {exc}")
+
+    return ConfigImportResponse(
+        ok=True,
+        message="Configuration imported successfully.",
+        backup_path=backup_path_str,
+        env_override=CONFIG_ENV_VAR in os.environ,
+    )
+
+
+@router.get("/backup-status", response_model=BackupStatusResponse)
+def get_backup_status(
+    current_user: str = Depends(get_current_user),
+) -> BackupStatusResponse:
+    # Check if a .bak backup file exists and when it was last modified
+    backup_path = get_config_path().with_suffix(".yaml.bak")
+    if not backup_path.exists():
+        return BackupStatusResponse(exists=False)
+
+    modified_ts = backup_path.stat().st_mtime
+    modified_at = datetime.fromtimestamp(modified_ts).isoformat()
+    return BackupStatusResponse(exists=True, modified_at=modified_at)
+
+
+@router.post("/revert", response_model=ConfigImportResponse)
+def revert_config(
+    current_user: str = Depends(get_current_user),
+) -> ConfigImportResponse:
+    # Revert to the most recent .bak backup, backing up the current config first
+    config_path = get_config_path()
+    backup_path = config_path.with_suffix(".yaml.bak")
+
+    if not backup_path.exists():
+        raise HTTPException(status_code=404, detail="No backup file found to revert to.")
+
+    # Read and validate the backup before applying
+    backup_content = backup_path.read_text(encoding="utf-8")
+    try:
+        validate_config_text(backup_content)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Backup file is not valid: {exc}"
+        ) from exc
+
+    # Swap: current -> .bak, backup -> current
+    # Save current config to .bak so the user can revert the revert
+    try:
+        current_content = config_path.read_text(encoding="utf-8")
+        save_config_text(backup_content)
+        backup_path.write_text(current_content, encoding="utf-8")
+        logger.info("Reverted config and swapped backup")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Update rotation schedule
+    try:
+        updated_config = load_config()
+        update_rotation_schedule(config=updated_config)
+    except Exception as exc:
+        logger.warning(f"Failed to update rotation schedule after revert: {exc}")
+
+    return ConfigImportResponse(
+        ok=True,
+        message="Configuration reverted successfully.",
+        backup_path=str(backup_path),
+        env_override=CONFIG_ENV_VAR in os.environ,
+    )
 
 
 # ========================================================================

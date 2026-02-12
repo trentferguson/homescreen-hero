@@ -295,3 +295,11 @@ def load_config(path: Optional[Path | str] = None, force_reload: bool = False) -
 def reload_config(path: Optional[Path | str] = None) -> AppConfig:
     logger.info("Forcing config reload")
     return load_config(path, force_reload=True)
+
+
+# Validate config YAML content without writing to disk
+def validate_config_text(content: str) -> AppConfig:
+    data = yaml.safe_load(content)
+    if data is None or not isinstance(data, dict):
+        raise ValueError("Config content must be a YAML mapping at the top level")
+    return _validate_config_dict(data)

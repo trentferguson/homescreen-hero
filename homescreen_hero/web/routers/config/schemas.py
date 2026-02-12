@@ -297,3 +297,20 @@ class QuickStartRequest(BaseModel):
     rotation_max_collections: int = 5
     rotation_strategy: str = "random"
     rotation_allow_repeats: bool = False
+
+
+class ConfigValidateResponse(BaseModel):
+    ok: bool
+    message: str
+
+
+class ConfigImportResponse(BaseModel):
+    ok: bool
+    message: str
+    backup_path: Optional[str] = None
+    env_override: bool
+
+
+class BackupStatusResponse(BaseModel):
+    exists: bool
+    modified_at: Optional[str] = None

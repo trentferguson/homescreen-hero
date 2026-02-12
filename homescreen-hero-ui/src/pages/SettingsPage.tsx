@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2 } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
+import Toast from "../components/Toast";
 
 const tabs = [
     { id: "general", label: "General", icon: SlidersHorizontal },
     { id: "logs", label: "Logs", icon: FileText },
+    { id: "backup", label: "Backup", icon: Archive },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -155,12 +157,25 @@ export default function SettingsPage() {
     const [follow, setFollow] = useState(true);
     const scrollerRef = useRef<HTMLDivElement | null>(null);
 
+    // Backup/Restore state
+    const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const [validating, setValidating] = useState(false);
+    const [reverting, setReverting] = useState(false);
+    const [backupStatus, setBackupStatus] = useState<{ exists: boolean; modified_at: string | null } | null>(null);
+    const [backupToast, setBackupToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [validationResult, setValidationResult] = useState<{ ok: boolean; message: string } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
     const tabDescription = useMemo(() => {
         switch (activeTab) {
             case "general":
                 return "Control the basics without directly editing the YAML config.";
             case "logs":
                 return "View and search application logs in real-time.";
+            case "backup":
+                return "Export or import your configuration file.";
             default:
                 return "";
         }
@@ -533,6 +548,125 @@ export default function SettingsPage() {
             setLogsError(e?.message ?? "Failed to download logs");
         }
     }
+
+    // Backup functions
+    async function handleExport() {
+        setExporting(true);
+        setBackupToast(null);
+        try {
+            const res = await fetchWithAuth("/api/admin/config/export");
+            if (!res.ok) throw new Error(await res.text());
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const disposition = res.headers.get("Content-Disposition");
+            const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+            a.download = filenameMatch?.[1] || "config_backup.yaml";
+            a.click();
+            URL.revokeObjectURL(url);
+            setBackupToast({ message: "Configuration exported successfully.", type: "success" });
+        } catch (e: any) {
+            setBackupToast({ message: e?.message ?? "Failed to export configuration.", type: "error" });
+        } finally {
+            setExporting(false);
+        }
+    }
+
+    async function handleValidate() {
+        if (!selectedFile) return;
+        setValidating(true);
+        setBackupToast(null);
+        setValidationResult(null);
+        try {
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+            const res = await fetchWithAuth("/api/admin/config/import?validate_only=true", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setValidationResult({ ok: false, message: data.detail || "Validation failed." });
+            } else {
+                setValidationResult({ ok: true, message: data.message });
+            }
+        } catch (e: any) {
+            setBackupToast({ message: e?.message ?? "Validation request failed.", type: "error" });
+        } finally {
+            setValidating(false);
+        }
+    }
+
+    async function handleImport() {
+        if (!selectedFile) return;
+        setImporting(true);
+        setBackupToast(null);
+        try {
+            const formData = new FormData();
+            formData.append("file", selectedFile);
+            const res = await fetchWithAuth("/api/admin/config/import", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || "Import failed.");
+            }
+            setBackupToast({ message: data.message, type: "success" });
+            setSelectedFile(null);
+            setValidationResult(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        } catch (e: any) {
+            setBackupToast({ message: e?.message ?? "Failed to import configuration.", type: "error" });
+        } finally {
+            setImporting(false);
+        }
+    }
+
+    async function fetchBackupStatus() {
+        try {
+            const res = await fetchWithAuth("/api/admin/config/backup-status");
+            if (res.ok) {
+                const data = await res.json();
+                setBackupStatus(data);
+            }
+        } catch {
+            // Non-fatal
+        }
+    }
+
+    async function handleRevert() {
+        setReverting(true);
+        setBackupToast(null);
+        try {
+            const res = await fetchWithAuth("/api/admin/config/revert", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || "Revert failed.");
+            }
+            setBackupToast({ message: data.message, type: "success" });
+            fetchBackupStatus();
+        } catch (e: any) {
+            setBackupToast({ message: e?.message ?? "Failed to revert configuration.", type: "error" });
+        } finally {
+            setReverting(false);
+        }
+    }
+
+    // Fetch backup status when switching to backup tab
+    useEffect(() => {
+        if (activeTab === "backup") {
+            fetchBackupStatus();
+        }
+    }, [activeTab]);
+
+    // Refresh backup status after import
+    useEffect(() => {
+        if (backupToast?.type === "success" && activeTab === "backup") {
+            fetchBackupStatus();
+        }
+    }, [backupToast]);
 
     // Logs effects
     useEffect(() => {
@@ -1251,6 +1385,185 @@ export default function SettingsPage() {
                     </div>
                 </div>
             ) : null}
+
+            {activeTab === "backup" ? (
+                <div className="space-y-6">
+                    <CollapsibleFormSection
+                        title="Export Configuration"
+                        description="Download your current config.yaml as a backup file."
+                        icon={HardDriveDownload}
+                        defaultExpanded
+                    >
+                        <div className="space-y-4">
+                            <p className="text-sm text-slate-400">
+                                Export your current configuration to a YAML file. This includes all settings, groups, integration sources, and rotation rules.
+                            </p>
+                            <p className="text-xs text-amber-400/80">
+                                Note: Sensitive values like API keys and tokens stored in config.yaml will be included in the export. Values from environment variables are not included.
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleExport}
+                                    disabled={exporting}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {exporting ? (
+                                        <>
+                                            <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Exporting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="h-4 w-4" />
+                                            Export Config
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </CollapsibleFormSection>
+
+                    <CollapsibleFormSection
+                        title="Import Configuration"
+                        description="Upload a config.yaml file to replace your current configuration."
+                        icon={HardDriveUpload}
+                        defaultExpanded
+                    >
+                        <div className="space-y-4">
+                            <p className="text-sm text-slate-400">
+                                Import a previously exported configuration file. Your current config will be automatically backed up before being replaced.
+                            </p>
+
+                            <div className="space-y-2">
+                                <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                    Select File
+                                </label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".yaml,.yml"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0] || null;
+                                        setSelectedFile(file);
+                                        setValidationResult(null);
+                                        setBackupToast(null);
+                                    }}
+                                    className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border file:border-slate-700 file:text-sm file:font-semibold file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700 file:transition file:cursor-pointer"
+                                />
+                            </div>
+
+                            {validationResult && (
+                                <div className={`rounded-lg border px-3 py-2 text-xs ${
+                                    validationResult.ok
+                                        ? "border-emerald-700 bg-emerald-900/50 text-emerald-100"
+                                        : "border-rose-700 bg-rose-950/60 text-rose-100"
+                                }`}>
+                                    {validationResult.message}
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleValidate}
+                                    disabled={!selectedFile || validating}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {validating ? (
+                                        <>
+                                            <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Validating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="h-4 w-4" />
+                                            Validate
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleImport}
+                                    disabled={!selectedFile || importing || validating || (validationResult !== null && !validationResult.ok)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {importing ? (
+                                        <>
+                                            <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Importing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Upload className="h-4 w-4" />
+                                            Import Config
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </CollapsibleFormSection>
+
+                    <CollapsibleFormSection
+                        title="Revert Configuration"
+                        description="Revert to the previous configuration that was replaced during import."
+                        icon={Undo2}
+                        defaultExpanded
+                    >
+                        <div className="space-y-4">
+                            {backupStatus === null ? (
+                                <p className="text-sm text-slate-500">Checking for backup...</p>
+                            ) : !backupStatus.exists ? (
+                                <p className="text-sm text-slate-400">
+                                    No backup available. A backup is automatically created each time you import a configuration.
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-slate-400">
+                                        A backup of your previous configuration exists from{" "}
+                                        <span className="text-slate-200 font-medium">
+                                            {backupStatus.modified_at
+                                                ? new Date(backupStatus.modified_at).toLocaleString()
+                                                : "unknown date"}
+                                        </span>.
+                                        Reverting will swap your current config with this backup, so you can always revert again if needed.
+                                    </p>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleRevert}
+                                            disabled={reverting}
+                                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-600 text-amber-400 text-sm font-semibold transition hover:bg-amber-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {reverting ? (
+                                                <>
+                                                    <span className="h-4 w-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                                                    Reverting...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Undo2 className="h-4 w-4" />
+                                                    Revert to Previous Config
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </CollapsibleFormSection>
+
+                </div>
+            ) : null}
+
+            {backupToast && (
+                <Toast
+                    message={backupToast.message}
+                    type={backupToast.type}
+                    onClose={() => setBackupToast(null)}
+                />
+            )}
         </div>
     );
 }
