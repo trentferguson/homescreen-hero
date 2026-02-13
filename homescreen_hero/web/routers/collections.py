@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Form
 from pydantic import BaseModel
+import hashlib
 import logging
 import random
 import requests
@@ -199,6 +200,13 @@ poster_image_cache = TTLCache(maxsize=500, ttl=3600)
 _cache_version = 0
 
 
+def _create_proxy_url(plex_url: str) -> str:
+    # Store a Plex URL in cache and return a proxied URL the frontend can use
+    cache_key = hashlib.md5(plex_url.encode()).hexdigest()
+    poster_url_cache[cache_key] = plex_url
+    return f"/api/collections/poster-proxy/{cache_key}"
+
+
 class CacheVersionResponse(BaseModel):
     version: int
 
@@ -269,14 +277,11 @@ def get_active_collections(
                         poster_url = None
                         if getattr(col, "thumb", None):
                             try:
-                                full_thumb_url = server.url(
-                                    col.thumb, includeToken=True
-                                )
-                                poster_url = server.transcodeImage(
-                                    full_thumb_url, height=450, width=300, minSize=1
-                                )
+                                full_thumb_url = server.url(col.thumb, includeToken=True)
+                                plex_url = server.transcodeImage(full_thumb_url, height=450, width=300, minSize=1)
                             except Exception:
-                                poster_url = server.url(col.thumb, includeToken=True)
+                                plex_url = server.url(col.thumb, includeToken=True)
+                            poster_url = _create_proxy_url(plex_url)
 
                         is_pinned = col.title in pinned_names
                         # Use Plex's actual order, fallback to 9999 for unknown
@@ -340,16 +345,11 @@ def get_all_collections(
                 poster_url = None
                 if getattr(col, "thumb", None):
                     try:
-                        # Use full URL for the source image to ensure authentication works
                         full_thumb_url = server.url(col.thumb, includeToken=True)
-                        poster_url = server.transcodeImage(
-                            full_thumb_url,
-                            height=450,
-                            width=300,
-                            minSize=1
-                        )
+                        plex_url = server.transcodeImage(full_thumb_url, height=450, width=300, minSize=1)
                     except Exception:
-                        poster_url = server.url(col.thumb, includeToken=True)
+                        plex_url = server.url(col.thumb, includeToken=True)
+                    poster_url = _create_proxy_url(plex_url)
 
                 # Use metadata attribute for O(1) count instead of fetching all items
                 item_count = getattr(col, "childCount", 0)
@@ -420,21 +420,10 @@ async def get_group_posters(
 
         # Extract poster URLs and create proxied versions
         posters = []
-        for idx, item in enumerate(sampled_items):
+        for item in sampled_items:
             if hasattr(item, 'thumb') and item.thumb:
-                # Create a unique identifier using collection_names hash + idx
-                cache_key = f"{hash(collection_names)}_{idx}"
-                poster_url = f"/api/collections/group-poster-proxy/{cache_key}"
-                posters.append(poster_url)
-
-                # Build the full Plex URL
-                base_url = config.plex.base_url.rstrip('/')
-                thumb_path = item.thumb if item.thumb.startswith('/') else f"/{item.thumb}"
-                token = config.plex.token
-                actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
-
-                # Store in TTL cache (expires after 1 hour)
-                poster_url_cache[cache_key] = actual_url
+                plex_url = server.url(item.thumb, includeToken=True)
+                posters.append(_create_proxy_url(plex_url))
 
         logger.info(f"Fetched {len(posters)} poster URLs for group collections: {collections_to_fetch}")
         return GroupPostersResponse(posters=posters)
@@ -444,9 +433,9 @@ async def get_group_posters(
         return GroupPostersResponse(posters=[])
 
 
-@router.get("/group-poster-proxy/{cache_key}")
-def proxy_group_poster(cache_key: str):
-    # Proxy endpoint to serve poster images from Plex for group collections.
+@router.get("/poster-proxy/{cache_key}")
+def proxy_poster(cache_key: str):
+    # Proxy endpoint to serve poster images from Plex, avoiding direct browser-to-Plex requests.
     try:
         cached_image = poster_image_cache.get(cache_key)
         if cached_image:
@@ -496,7 +485,13 @@ def proxy_group_poster(cache_key: str):
     except Exception as e:
         logger.error(f"Unexpected error proxying poster {cache_key}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-    
+
+
+@router.get("/group-poster-proxy/{cache_key}", include_in_schema=False)
+def proxy_group_poster(cache_key: str):
+    # Backward-compatible alias for clients with cached legacy group poster URLs.
+    return proxy_poster(cache_key)
+
 
 class LibraryOut(BaseModel):
     title: str
@@ -583,7 +578,7 @@ def get_collection_details(
         for item in items:
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
-                thumb_url = server.url(item.thumb, includeToken=True)
+                thumb_url = _create_proxy_url(server.url(item.thumb, includeToken=True))
 
             collection_items.append(
                 CollectionItemOut(
@@ -601,16 +596,11 @@ def get_collection_details(
         poster_url = None
         if hasattr(collection, "thumb") and collection.thumb:
             try:
-                # Use full URL for the source image to ensure authentication works
                 full_thumb_url = server.url(collection.thumb, includeToken=True)
-                poster_url = server.transcodeImage(
-                    full_thumb_url,
-                    height=600,
-                    width=400,
-                    minSize=1
-                )
+                plex_url = server.transcodeImage(full_thumb_url, height=600, width=400, minSize=1)
             except Exception:
-                poster_url = server.url(collection.thumb, includeToken=True)
+                plex_url = server.url(collection.thumb, includeToken=True)
+            poster_url = _create_proxy_url(plex_url)
 
         # Get additional metadata
         sort_title = getattr(collection, "titleSort", None)
@@ -696,7 +686,7 @@ def search_library_items(
         for idx, item in enumerate(items):
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
-                thumb_url = server.url(item.thumb, includeToken=True)
+                thumb_url = _create_proxy_url(server.url(item.thumb, includeToken=True))
 
             # Log first few items to help debug
             if idx < 3:
