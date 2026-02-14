@@ -10,51 +10,9 @@ from plexapi.exceptions import NotFound
 from homescreen_hero.core.db.models import MDBListMissingItem
 from homescreen_hero.core.config.schema import AppConfig, MDBListSource
 from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
+from homescreen_hero.core.integrations.plex_match import build_guid_map, find_movie
 
 logger = logging.getLogger(__name__)
-
-
-def _find_movie_in_library(
-    library,
-    title: str,
-    year: int | None,
-    imdb_id: str | None,
-    tmdb_id: int | None,
-    trakt_id: int | None,
-):
-    # Try to match by GUID ids (tmdb/imdb/trakt) if possible, otherwise fall back to title/year
-
-    # 1) Try TMDb GUID (most reliable for Plex)
-    if tmdb_id is not None:
-        guid = f"com.plexapp.agents.themoviedb://{tmdb_id}?lang=en"
-        results = library.search(guid=guid)
-        if results:
-            return results[0]
-
-    # 2) Try IMDb GUID
-    if imdb_id:
-        guid = f"com.plexapp.agents.imdb://{imdb_id}?lang=en"
-        results = library.search(guid=guid)
-        if results:
-            return results[0]
-
-    # 3) Try Trakt GUID (less common but available)
-    if trakt_id is not None:
-        guid = f"com.plexapp.agents.trakt://{trakt_id}?lang=en"
-        results = library.search(guid=guid)
-        if results:
-            return results[0]
-
-    # 4) Fallback: title/year search
-    if year:
-        results = library.search(title=title, year=year)
-    else:
-        results = library.search(title=title)
-
-    if results:
-        return results[0]
-
-    return None
 
 
 def sync_single_mdblist_source(
@@ -117,6 +75,10 @@ def sync_single_mdblist_source(
         )
         return 0, 0
 
+    # Build GUID lookup map once for fast matching
+    logger.info("Building Plex library GUID index for '%s'...", source.plex_library)
+    guid_map = build_guid_map(library)
+
     existing_collection_items = []
     try:
         existing_collection_items = library.collection(source.name).items()
@@ -139,7 +101,7 @@ def sync_single_mdblist_source(
         if not title:
             continue
 
-        plex_item = _find_movie_in_library(library, title, year, imdb_id, tmdb_id, trakt_id)
+        plex_item = find_movie(guid_map, library, title, year, imdb_id, tmdb_id)
 
         if plex_item is not None:
             matched_items.append(plex_item)

@@ -10,44 +10,9 @@ from plexapi.exceptions import NotFound
 from homescreen_hero.core.db.models import TraktMissingItem
 from homescreen_hero.core.config.schema import AppConfig, TraktSource
 from homescreen_hero.core.integrations.trakt_client import get_trakt_client
+from homescreen_hero.core.integrations.plex_match import build_guid_map, find_movie
 
 logger = logging.getLogger(__name__)
-
-
-def _find_movie_in_library(
-    library,
-    title: str,
-    year: int | None,
-    ids: Dict[str, Any],
-):
-    # Try to match by GUID ids (tmdb/imdb) if possible, otherwise fall back to title/year
-    tmdb_id = ids.get("tmdb")
-    imdb_id = ids.get("imdb")
-
-    # 1) Try TMDb GUID
-    if tmdb_id is not None:
-        guid = f"com.plexapp.agents.themoviedb://{tmdb_id}?lang=en"
-        results = library.search(guid=guid)
-        if results:
-            return results[0]
-
-    # 2) Try IMDb GUID
-    if imdb_id:
-        guid = f"com.plexapp.agents.imdb://{imdb_id}?lang=en"
-        results = library.search(guid=guid)
-        if results:
-            return results[0]
-
-    # 3) Fallback: title/year search
-    if year:
-        results = library.search(title=title, year=year)
-    else:
-        results = library.search(title=title)
-
-    if results:
-        return results[0]
-
-    return None
 
 
 def sync_single_trakt_source(
@@ -101,6 +66,10 @@ def sync_single_trakt_source(
 
     items = trakt_client.get_list_items_from_url(source.url)
 
+    # Build GUID lookup map once for fast matching
+    logger.info("Building Plex library GUID index for '%s'...", source.plex_library)
+    guid_map = build_guid_map(library)
+
     existing_collection_items = []
     try:
         existing_collection_items = library.collection(source.name).items()
@@ -124,7 +93,11 @@ def sync_single_trakt_source(
         if not title:
             continue
 
-        plex_item = _find_movie_in_library(library, title, year, ids)
+        plex_item = find_movie(
+            guid_map, library, title, year,
+            imdb_id=ids.get("imdb"),
+            tmdb_id=ids.get("tmdb"),
+        )
 
         if plex_item is not None:
             matched_items.append(plex_item)

@@ -19,5 +19,6 @@ Review all staged and unstaged changes, then create a well-formatted commit.
 2. Keep things brief, separate items in one commit should be explained in no more than two sentences, but ideally in one.
 3. Use normal human language/tone like "Added ..." or "Fixed ..."
 4. Don't include any reference to the commit being written by Claude, as we want to keep these commit messages short.
+5. For longer commit messages, prioritize important changes. Commit message shouldn't be more than 3-4 points long.
 
 Always ask me for permission before commiting.
