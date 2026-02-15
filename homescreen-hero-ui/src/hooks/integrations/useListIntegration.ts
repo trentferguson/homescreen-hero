@@ -57,7 +57,7 @@ export interface UseListIntegrationReturn<TSettings, TMissing> {
     // Source mutations
     newSource: Source;
     setNewSource: React.Dispatch<React.SetStateAction<Source>>;
-    addSource: (sourceOverride?: Source) => Promise<void>;
+    addSource: (sourceOverride?: Source) => Promise<boolean>;
     removeSource: (index: number) => Promise<void>;
     syncSource: (index: number) => Promise<void>;
     savingSource: boolean;
