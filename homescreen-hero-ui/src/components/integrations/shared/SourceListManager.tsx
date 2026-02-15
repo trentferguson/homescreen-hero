@@ -271,7 +271,9 @@ interface SourceCardProps<TMissing> {
 
 function formatDate(dateString: string | null): string {
     if (!dateString) return "Never";
-    return new Date(dateString).toLocaleString();
+    // Backend stores UTC but without a timezone suffix, so append Z
+    const utcString = dateString.endsWith("Z") ? dateString : dateString + "Z";
+    return new Date(utcString).toLocaleString();
 }
 
 function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMissing>) {

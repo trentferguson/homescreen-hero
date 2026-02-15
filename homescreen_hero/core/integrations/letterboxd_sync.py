@@ -15,6 +15,7 @@ import logging
 from plexapi.server import PlexServer
 from plexapi.exceptions import NotFound
 from homescreen_hero.core.db.models import LetterboxdMissingItem
+from homescreen_hero.core.db.sync_status import record_sync_result
 from homescreen_hero.core.config.schema import AppConfig, LetterboxdSource
 from homescreen_hero.core.integrations.letterboxd_scraper import get_letterboxd_scraper
 
@@ -221,7 +222,14 @@ def sync_all_letterboxd_sources(
 
     for source in config.letterboxd.sources:
         try:
-            sync_single_letterboxd_source(server, config, source)
+            total, matched = sync_single_letterboxd_source(server, config, source)
+            record_sync_result(
+                integration_type="letterboxd",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=total,
+                items_matched=matched,
+            )
         except Exception as exc:
             logger.error(
                 "Error syncing Letterboxd source '%s' (%s): %s",
@@ -229,6 +237,15 @@ def sync_all_letterboxd_sources(
                 source.url,
                 exc,
                 exc_info=True,
+            )
+            record_sync_result(
+                integration_type="letterboxd",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=0,
+                items_matched=0,
+                sync_status="error",
+                error_message=str(exc),
             )
 
     logger.info("Letterboxd sync complete")

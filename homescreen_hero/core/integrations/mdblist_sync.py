@@ -8,6 +8,7 @@ import logging
 from plexapi.server import PlexServer
 from plexapi.exceptions import NotFound
 from homescreen_hero.core.db.models import MDBListMissingItem
+from homescreen_hero.core.db.sync_status import record_sync_result
 from homescreen_hero.core.config.schema import AppConfig, MDBListSource
 from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
 from homescreen_hero.core.integrations.plex_match import build_guid_map, find_movie
@@ -188,7 +189,26 @@ def sync_all_mdblist_sources(
         return
 
     for source in config.mdblist.sources:
-        sync_single_mdblist_source(server, config, source)
+        try:
+            total, matched = sync_single_mdblist_source(server, config, source)
+            record_sync_result(
+                integration_type="mdblist",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=total,
+                items_matched=matched,
+            )
+        except Exception as e:
+            logger.error("Failed to sync MDBList source '%s': %s", source.name, e, exc_info=True)
+            record_sync_result(
+                integration_type="mdblist",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=0,
+                items_matched=0,
+                sync_status="error",
+                error_message=str(e),
+            )
 
 
 def record_missing_items_in_db(

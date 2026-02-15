@@ -14,6 +14,7 @@ from plexapi.server import PlexServer
 
 from homescreen_hero.core.config.schema import AppConfig, AniListSource
 from homescreen_hero.core.db.models import AniListMissingItem
+from homescreen_hero.core.db.sync_status import record_sync_result
 from homescreen_hero.core.integrations.anilist_client import (
     AniListItem,
     get_anilist_client,
@@ -338,9 +339,25 @@ def sync_all_anilist_sources(
 
     for source in config.anilist.sources:
         try:
-            sync_single_anilist_source(server, config, source)
+            total, matched = sync_single_anilist_source(server, config, source)
+            record_sync_result(
+                integration_type="anilist",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=total,
+                items_matched=matched,
+            )
         except Exception as e:
             logger.error("Failed to sync AniList source '%s': %s", source.name, e, exc_info=True)
+            record_sync_result(
+                integration_type="anilist",
+                source_name=source.name,
+                source_url=source.url,
+                items_total=0,
+                items_matched=0,
+                sync_status="error",
+                error_message=str(e),
+            )
 
 
 def record_missing_items_in_db(
