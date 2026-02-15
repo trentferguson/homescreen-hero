@@ -172,7 +172,7 @@ def get_letterboxd_settings(current_user: str = Depends(get_current_user)) -> Le
     # Return the currently configured Letterboxd settings
     try:
         config = load_config()
-        return config.letterboxd if config.letterboxd else LetterboxdSettings(enabled=False, sources=[])
+        return config.letterboxd if config.letterboxd else LetterboxdSettings(sources=[])
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
@@ -191,9 +191,7 @@ def save_letterboxd_settings(
         letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
         letterboxd_section = dict(letterboxd_section)
 
-        letterboxd_section.update(
-            enabled=payload.enabled,
-        )
+        # No settings to update (Letterboxd is credential-free)
 
         data["letterboxd"] = letterboxd_section
         save_config_mapping(data)
@@ -285,7 +283,7 @@ def get_anilist_settings(current_user: str = Depends(get_current_user)) -> AniLi
     try:
         config = load_config()
         if config.anilist is None:
-            return AniListSettings(enabled=False, sources=[])
+            return AniListSettings(sources=[])
         return config.anilist
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -305,9 +303,7 @@ def save_anilist_settings(
         anilist_section = data.get("anilist") if isinstance(data.get("anilist"), dict) else {}
         anilist_section = dict(anilist_section)
 
-        anilist_section.update(
-            enabled=payload.enabled,
-        )
+        # No settings to update (AniList is credential-free)
 
         data["anilist"] = anilist_section
         save_config_mapping(data)

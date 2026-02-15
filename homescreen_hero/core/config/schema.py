@@ -203,11 +203,7 @@ class LetterboxdSource(BaseModel):
 
 
 class LetterboxdSettings(BaseModel):
-    # Letterboxd needs no credentials; enabled defaults to True.
-    enabled: bool = Field(
-        default=True,
-        description="Whether Letterboxd integration is enabled (defaults to True — no credentials needed)",
-    )
+    # Letterboxd needs no credentials — always enabled if sources exist.
     sources: List[LetterboxdSource] = Field(default_factory=list)
 
 
@@ -247,11 +243,7 @@ class AniListSource(BaseModel):
 
 
 class AniListSettings(BaseModel):
-    # AniList needs no credentials; enabled defaults to True.
-    enabled: bool = Field(
-        default=True,
-        description="Whether AniList integration is enabled (defaults to True — no credentials needed)",
-    )
+    # AniList needs no credentials — always enabled if sources exist.
     sources: List[AniListSource] = Field(default_factory=list)
 
 

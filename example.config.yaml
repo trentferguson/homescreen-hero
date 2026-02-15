@@ -70,6 +70,21 @@ letterboxd:
     url: "LINK_TO_LETTERBOXD_LIST"  # e.g., https://letterboxd.com/username/list/listname/
     plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
 
+# Optional: AniList integration (no credentials needed)
+# Supports user lists and public browse lists
+anilist:
+  sources:
+  - name: "My Anime Watchlist"  # This is the name that will show up in Plex
+    url: "https://anilist.co/user/username/animelist"  # Fetches all default lists (Watching, Completed, etc.)
+    plex_library: "Anime"
+# - name: "Completed Anime"
+#   url: "https://anilist.co/user/username/animelist/completed"  # A specific user list
+#   plex_library: "Anime"
+# - name: "Trending Anime"
+#   url: "anilist://browse/trending"  # Currently trending anime
+#   plex_library: "Anime"
+#   max_items: 50  # Limit items for browse lists (default: 100, range: 10-500)
+
 # Optional: MDBList integration
 mdblist:
   enabled: false
