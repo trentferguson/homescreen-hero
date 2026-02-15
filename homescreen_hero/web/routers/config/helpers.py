@@ -82,3 +82,19 @@ def load_anilist_sources(data: dict) -> list[dict]:
         raise ValueError("config.anilist.sources must be a list")
 
     return list(sources or [])
+
+
+def get_all_source_names(data: dict) -> set[str]:
+    # Collect all source names across integrations (used for duplicate validation)
+    names: set[str] = set()
+    for section_key in ("trakt", "letterboxd", "mdblist", "anilist"):
+        section = data.get(section_key)
+        if not isinstance(section, dict):
+            continue
+        sources = section.get("sources") or []
+        if not isinstance(sources, list):
+            continue
+        for s in sources:
+            if isinstance(s, dict) and s.get("name"):
+                names.add(s["name"])
+    return names

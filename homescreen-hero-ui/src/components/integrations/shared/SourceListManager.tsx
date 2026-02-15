@@ -145,10 +145,6 @@ interface SourceListManagerProps<TMissing extends BaseMissingItem> {
     renderMissingItem: (item: TMissing, index: number) => ReactNode;
     itemsPerPage?: number;
 
-    // Messages
-    error: string | null;
-    message: string | null;
-
     // Optional note (like Letterboxd's scraping disclaimer)
     note?: ReactNode;
 }
@@ -180,8 +176,6 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
         onSetMissingPage,
         renderMissingItem,
         itemsPerPage = 10,
-        error,
-        message,
         note,
     } = props;
 
@@ -233,18 +227,6 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
 
             {/* Optional note */}
             {note}
-
-            {/* Messages */}
-            {message && (
-                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                    {message}
-                </div>
-            )}
-            {error && (
-                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                    {error}
-                </div>
-            )}
 
             {/* Source list */}
             <SourceList

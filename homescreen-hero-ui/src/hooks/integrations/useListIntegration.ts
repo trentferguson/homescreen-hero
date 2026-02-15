@@ -9,6 +9,17 @@ import type {
     TestStatus,
 } from "../../types/integrations";
 
+// Extract a human-readable message from a failed response.
+// FastAPI returns {"detail": "..."} for HTTPExceptions.
+async function extractError(r: Response): Promise<string> {
+    const text = await r.text();
+    try {
+        const json = JSON.parse(text);
+        if (typeof json.detail === "string") return json.detail;
+    } catch { /* not JSON, fall through */ }
+    return text || `Request failed (${r.status})`;
+}
+
 export interface UseListIntegrationConfig<TSettings> {
     // API endpoint base (e.g., "trakt", "letterboxd", "mdblist")
     integrationName: string;
@@ -29,10 +40,7 @@ export interface UseListIntegrationReturn<TSettings, TMissing> {
     setSettings: React.Dispatch<React.SetStateAction<TSettings>>;
     loadingSettings: boolean;
     savingSettings: boolean;
-    settingsError: string | null;
-    settingsMessage: string | null;
     saveSettings: () => Promise<void>;
-    clearSettingsMessages: () => void;
 
     // Test connection
     testStatus: TestStatus;
@@ -41,9 +49,10 @@ export interface UseListIntegrationReturn<TSettings, TMissing> {
     // Sources
     sources: Source[];
     loadingSources: boolean;
-    sourcesError: string | null;
-    sourcesMessage: string | null;
-    clearSourcesMessages: () => void;
+
+    // Toast notification (replaces inline banners)
+    toast: { message: string; type: "success" | "error" } | null;
+    clearToast: () => void;
 
     // Source mutations
     newSource: Source;
@@ -77,8 +86,6 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
     const [settings, setSettings] = useState<TSettings>(initialSettings);
     const [loadingSettings, setLoadingSettings] = useState(hasSettings);
     const [savingSettings, setSavingSettings] = useState(false);
-    const [settingsError, setSettingsError] = useState<string | null>(null);
-    const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
 
     // Test connection state
     const [testStatus, setTestStatus] = useState<TestStatus>("idle");
@@ -86,8 +93,9 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
     // Sources state
     const [sources, setSources] = useState<Source[]>([]);
     const [loadingSources, setLoadingSources] = useState(true);
-    const [sourcesError, setSourcesError] = useState<string | null>(null);
-    const [sourcesMessage, setSourcesMessage] = useState<string | null>(null);
+
+    // Toast notification (replaces separate settings/sources message/error states)
+    const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
     // Source mutation state
     const [newSource, setNewSource] = useState<Source>({
@@ -119,7 +127,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 
         fetchWithAuth(basePath)
             .then(async (r) => {
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
                 return r.json();
             })
             .then((data: TSettings | null) => {
@@ -127,7 +135,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setSettings(data);
             })
             .catch((e) => {
-                if (isMounted) setSettingsError(String(e));
+                if (isMounted) setToast({ message: String(e), type: "error" });
             })
             .finally(() => {
                 if (isMounted) setLoadingSettings(false);
@@ -144,14 +152,14 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 
         fetchWithAuth(`${basePath}/sources`)
             .then(async (r) => {
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
                 return r.json();
             })
             .then((data: Source[]) => {
                 if (isMounted) setSources(data || []);
             })
             .catch((e) => {
-                if (isMounted) setSourcesError(String(e));
+                if (isMounted) setToast({ message: String(e), type: "error" });
             })
             .finally(() => {
                 if (isMounted) setLoadingSources(false);
@@ -170,7 +178,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 
         fetchWithAuth(`${basePath}/sources/status`)
             .then(async (r) => {
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
                 return r.json();
             })
             .then((data: SourceStatus[]) => {
@@ -188,16 +196,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         };
     }, [basePath, loadingSources, sources.length]);
 
-    // Clear messages helpers
-    const clearSettingsMessages = useCallback(() => {
-        setSettingsError(null);
-        setSettingsMessage(null);
-    }, []);
-
-    const clearSourcesMessages = useCallback(() => {
-        setSourcesError(null);
-        setSourcesMessage(null);
-    }, []);
+    const clearToast = useCallback(() => setToast(null), []);
 
     // Save settings
     const saveSettings = useCallback(async () => {
@@ -205,8 +204,6 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 
         try {
             setSavingSettings(true);
-            setSettingsError(null);
-            setSettingsMessage(null);
 
             const r = await fetchWithAuth(basePath, {
                 method: "POST",
@@ -214,12 +211,12 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 body: JSON.stringify(settings),
             });
 
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await extractError(r));
 
             const data: ConfigSaveResponse = await r.json();
-            setSettingsMessage(data.message);
+            setToast({ message: data.message, type: "success" });
         } catch (e) {
-            setSettingsError(String(e));
+            setToast({ message: String(e), type: "error" });
         } finally {
             setSavingSettings(false);
         }
@@ -233,20 +230,19 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
             setTestStatus("testing");
 
             const r = await fetchWithAuth(healthEndpoint);
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await extractError(r));
 
             const data: HealthComponent = await r.json();
 
             if (data?.ok === true) {
-                setSettingsError(null);
                 setTestStatus("success");
             } else {
                 setTestStatus("error");
-                setSettingsError(data?.error || `${integrationName} API health check failed.`);
+                setToast({ message: data?.error || `${integrationName} API health check failed.`, type: "error" });
             }
         } catch (e) {
             setTestStatus("error");
-            setSettingsError(String(e));
+            setToast({ message: String(e), type: "error" });
         }
     }, [healthEndpoint, integrationName]);
 
@@ -255,8 +251,6 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         const sourceToAdd = sourceOverride || newSource;
         try {
             setSavingSource(true);
-            setSourcesError(null);
-            setSourcesMessage(null);
 
             const r = await fetchWithAuth(`${basePath}/sources`, {
                 method: "POST",
@@ -264,7 +258,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 body: JSON.stringify(sourceToAdd),
             });
 
-            if (!r.ok) throw new Error(await r.text());
+            if (!r.ok) throw new Error(await extractError(r));
 
             const data: ConfigSaveResponse = await r.json();
 
@@ -278,9 +272,9 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
             if (!sourceOverride) {
                 setNewSource({ name: "", url: "", plex_library: "" });
             }
-            setSourcesMessage(data.message);
+            setToast({ message: data.message, type: "success" });
         } catch (e) {
-            setSourcesError(String(e));
+            setToast({ message: String(e), type: "error" });
         } finally {
             setSavingSource(false);
         }
@@ -291,14 +285,12 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         async (index: number) => {
             try {
                 setDeletingSource(index);
-                setSourcesError(null);
-                setSourcesMessage(null);
 
                 const r = await fetchWithAuth(`${basePath}/sources/${index}`, {
                     method: "DELETE",
                 });
 
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
 
                 const data: ConfigSaveResponse = await r.json();
 
@@ -315,9 +307,9 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setMissingPages(new Map());
                 setStatuses(new Map());
 
-                setSourcesMessage(data.message);
+                setToast({ message: data.message, type: "success" });
             } catch (e) {
-                setSourcesError(String(e));
+                setToast({ message: String(e), type: "error" });
             } finally {
                 setDeletingSource(null);
             }
@@ -330,17 +322,15 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         async (index: number) => {
             try {
                 setSyncingSource(index);
-                setSourcesError(null);
-                setSourcesMessage(null);
 
                 const r = await fetchWithAuth(`${basePath}/sources/${index}/sync`, {
                     method: "POST",
                 });
 
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
 
                 const data = await r.json();
-                setSourcesMessage(`Synced ${data.items_matched}/${data.items_total} items`);
+                setToast({ message: `Synced ${data.items_matched}/${data.items_total} items`, type: "success" });
 
                 // Refresh statuses
                 const statusR = await fetchWithAuth(`${basePath}/sources/status`);
@@ -358,7 +348,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                     return newMap;
                 });
             } catch (e) {
-                setSourcesError(String(e));
+                setToast({ message: String(e), type: "error" });
             } finally {
                 setSyncingSource(null);
             }
@@ -388,13 +378,13 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setLoadingMissing((prev) => new Set(prev).add(index));
 
                 const r = await fetchWithAuth(`${basePath}/sources/${index}/missing`);
-                if (!r.ok) throw new Error(await r.text());
+                if (!r.ok) throw new Error(await extractError(r));
 
                 const data: TMissing[] = await r.json();
                 setMissingItems((prev) => new Map(prev).set(index, data));
                 setExpandedMissing((prev) => new Set(prev).add(index));
             } catch (e) {
-                setSourcesError(`Failed to load missing items: ${String(e)}`);
+                setToast({ message: `Failed to load missing items: ${String(e)}`, type: "error" });
             } finally {
                 setLoadingMissing((prev) => {
                     const newSet = new Set(prev);
@@ -417,10 +407,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         setSettings,
         loadingSettings,
         savingSettings,
-        settingsError,
-        settingsMessage,
         saveSettings,
-        clearSettingsMessages,
 
         // Test connection
         testStatus,
@@ -429,9 +416,10 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         // Sources
         sources,
         loadingSources,
-        sourcesError,
-        sourcesMessage,
-        clearSourcesMessages,
+
+        // Toast
+        toast,
+        clearToast,
 
         // Source mutations
         newSource,

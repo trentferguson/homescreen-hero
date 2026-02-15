@@ -1,6 +1,7 @@
 import { Switch } from "@headlessui/react";
 import { Wifi, WifiOff } from "lucide-react";
 import FieldRow from "../FieldRow";
+import Toast from "../Toast";
 import { ConfigPanel } from "./shared/ConfigPanel";
 import { SourceListManager } from "./shared/SourceListManager";
 import { useListIntegration } from "../../hooks/integrations/useListIntegration";
@@ -99,18 +100,6 @@ export function TraktIntegration() {
                     />
                 </FieldRow>
 
-                {integration.settingsMessage && (
-                    <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                        {integration.settingsMessage}
-                    </div>
-                )}
-
-                {integration.settingsError && (
-                    <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                        {integration.settingsError}
-                    </div>
-                )}
-
                 {/* Test connection CTA */}
                 <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 mt-6">
                     <div className="flex items-center gap-3">
@@ -185,8 +174,6 @@ export function TraktIntegration() {
                 loadingMissing={integration.loadingMissing}
                 onToggleMissing={integration.toggleMissingItems}
                 onSetMissingPage={integration.setMissingPage}
-                error={integration.sourcesError}
-                message={integration.sourcesMessage}
                 renderMissingItem={(item, i) => (
                     <div
                         key={i}
@@ -208,6 +195,14 @@ export function TraktIntegration() {
                     </div>
                 )}
             />
+
+            {integration.toast && (
+                <Toast
+                    message={integration.toast.message}
+                    type={integration.toast.type}
+                    onClose={integration.clearToast}
+                />
+            )}
         </div>
     );
 }

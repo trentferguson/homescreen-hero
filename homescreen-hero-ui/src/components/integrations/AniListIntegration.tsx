@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Minus, Plus } from "lucide-react";
+import Toast from "../Toast";
 import { SourceList } from "./shared/SourceListManager";
 import { LibrarySelect } from "./shared/LibrarySelect";
 import { ListTypeSelect } from "./shared/ListTypeSelect";
@@ -340,18 +341,6 @@ export function AniListIntegration() {
                 </p>
             </div>
 
-            {/* Messages */}
-            {integration.sourcesMessage && (
-                <div className="rounded-lg border border-emerald-700 bg-emerald-900/50 px-3 py-2 text-xs text-emerald-100">
-                    {integration.sourcesMessage}
-                </div>
-            )}
-            {integration.sourcesError && (
-                <div className="rounded-lg border border-rose-700 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
-                    {integration.sourcesError}
-                </div>
-            )}
-
             {/* Source list */}
             <SourceList<AniListMissingItem>
                 sources={integration.sources}
@@ -401,6 +390,14 @@ export function AniListIntegration() {
                     </div>
                 )}
             />
+
+            {integration.toast && (
+                <Toast
+                    message={integration.toast.message}
+                    type={integration.toast.type}
+                    onClose={integration.clearToast}
+                />
+            )}
         </div>
     );
 }

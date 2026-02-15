@@ -1,3 +1,4 @@
+import Toast from "../Toast";
 import { SourceListManager } from "./shared/SourceListManager";
 import { useListIntegration } from "../../hooks/integrations/useListIntegration";
 import { usePlexLibraries } from "../../hooks/integrations/usePlexLibraries";
@@ -21,6 +22,7 @@ export function LetterboxdIntegration() {
     });
 
     return (
+        <>
         <SourceListManager<LetterboxdMissingItem>
             title="Letterboxd Lists"
             description="Add or remove Letterboxd list sources that sync into Plex collections."
@@ -43,8 +45,6 @@ export function LetterboxdIntegration() {
             loadingMissing={integration.loadingMissing}
             onToggleMissing={integration.toggleMissingItems}
             onSetMissingPage={integration.setMissingPage}
-            error={integration.sourcesError}
-            message={integration.sourcesMessage}
             note={
                 <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3">
                     <p className="text-xs text-amber-200">
@@ -81,5 +81,14 @@ export function LetterboxdIntegration() {
                 </div>
             )}
         />
+
+        {integration.toast && (
+            <Toast
+                message={integration.toast.message}
+                type={integration.toast.type}
+                onClose={integration.clearToast}
+            />
+        )}
+        </>
     );
 }

@@ -26,6 +26,7 @@ from .helpers import (
     load_letterboxd_sources,
     load_mdblist_sources,
     load_anilist_sources,
+    get_all_source_names,
 )
 from .schemas import (
     ConfigSaveResponse,
@@ -78,6 +79,10 @@ def create_trakt_source(
     # Append new Trakt source to config.yaml
     try:
         data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
         trakt_section = data.get("trakt") if isinstance(data.get("trakt"), dict) else {}
         trakt_section = dict(trakt_section)
 
@@ -96,6 +101,8 @@ def create_trakt_source(
             env_override=CONFIG_ENV_VAR in os.environ,
             message=f"Trakt source '{payload.name}' added.",
         )
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
@@ -322,6 +329,10 @@ def create_letterboxd_source(
     # Append new Letterboxd source to config.yaml
     try:
         data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
         letterboxd_section = data.get("letterboxd") if isinstance(data.get("letterboxd"), dict) else {}
         letterboxd_section = dict(letterboxd_section)
 
@@ -340,6 +351,8 @@ def create_letterboxd_source(
             env_override=CONFIG_ENV_VAR in os.environ,
             message=f"Letterboxd source '{payload.name}' added.",
         )
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
@@ -564,6 +577,10 @@ def create_mdblist_source(
     # Append new MDBList source to config.yaml
     try:
         data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
         mdblist_section = data.get("mdblist") if isinstance(data.get("mdblist"), dict) else {}
         mdblist_section = dict(mdblist_section)
 
@@ -582,6 +599,8 @@ def create_mdblist_source(
             env_override=CONFIG_ENV_VAR in os.environ,
             message=f"MDBList source '{payload.name}' added.",
         )
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
@@ -829,6 +848,10 @@ def create_anilist_source(
     # Append new AniList source to config.yaml
     try:
         data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
         anilist_section = data.get("anilist") if isinstance(data.get("anilist"), dict) else {}
         anilist_section = dict(anilist_section)
 
@@ -847,6 +870,8 @@ def create_anilist_source(
             env_override=CONFIG_ENV_VAR in os.environ,
             message=f"AniList source '{payload.name}' added.",
         )
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
