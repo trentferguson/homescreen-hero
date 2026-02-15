@@ -75,7 +75,6 @@ export function AniListIntegration() {
         const trimmed = name.trim();
         if (!trimmed || trimmed === lastFetchedUsername.current) return;
 
-        lastFetchedUsername.current = trimmed;
         setFetchingLists(true);
         try {
             const r = await fetchWithAuth(
@@ -84,6 +83,7 @@ export function AniListIntegration() {
             if (r.ok) {
                 const data = await r.json();
                 setFetchedLists(data.lists || []);
+                lastFetchedUsername.current = trimmed;
             } else {
                 // On error, clear dynamic lists (falls back to defaults)
                 setFetchedLists(undefined);
@@ -131,20 +131,21 @@ export function AniListIntegration() {
             ? `https://anilist.co/user/${trimmedUsername}/animelist/${encodeURIComponent(listType)}`
             : `https://anilist.co/user/${trimmedUsername}/animelist`;
 
-        await integration.addSource({
+        const ok = await integration.addSource({
             name: collectionName.trim(),
             url,
             plex_library: plexLibrary,
         });
 
-        // Reset form on success
-        setUsername("");
-        setListType("");
-        setCollectionName("");
-        setNameManuallyEdited(false);
-        setPlexLibrary("");
-        setFetchedLists(undefined);
-        lastFetchedUsername.current = "";
+        if (ok) {
+            setUsername("");
+            setListType("");
+            setCollectionName("");
+            setNameManuallyEdited(false);
+            setPlexLibrary("");
+            setFetchedLists(undefined);
+            lastFetchedUsername.current = "";
+        }
     }, [canAdd, username, listType, collectionName, plexLibrary, integration]);
 
     // Browse list handlers
@@ -165,19 +166,20 @@ export function AniListIntegration() {
         if (!canAddBrowse) return;
 
         const url = `anilist://browse/${browseSort}`;
-        await integration.addSource({
+        const ok = await integration.addSource({
             name: browseCollectionName.trim(),
             url,
             plex_library: browsePlexLibrary,
             max_items: browseMaxItems,
         });
 
-        // Reset form
-        setBrowseSort("");
-        setBrowseCollectionName("");
-        setBrowseNameManuallyEdited(false);
-        setBrowsePlexLibrary("");
-        setBrowseMaxItems(100);
+        if (ok) {
+            setBrowseSort("");
+            setBrowseCollectionName("");
+            setBrowseNameManuallyEdited(false);
+            setBrowsePlexLibrary("");
+            setBrowseMaxItems(100);
+        }
     }, [canAddBrowse, browseSort, browseCollectionName, browsePlexLibrary, browseMaxItems, integration]);
 
     const formDisabled = integration.savingSource || integration.loadingSources;

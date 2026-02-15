@@ -247,7 +247,8 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
     }, [healthEndpoint, integrationName]);
 
     // Add source (accepts optional override for integrations with custom forms)
-    const addSource = useCallback(async (sourceOverride?: Source) => {
+    // Returns true on success so callers can reset their form only when appropriate
+    const addSource = useCallback(async (sourceOverride?: Source): Promise<boolean> => {
         const sourceToAdd = sourceOverride || newSource;
         try {
             setSavingSource(true);
@@ -273,8 +274,10 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setNewSource({ name: "", url: "", plex_library: "" });
             }
             setToast({ message: data.message, type: "success" });
+            return true;
         } catch (e) {
             setToast({ message: String(e), type: "error" });
+            return false;
         } finally {
             setSavingSource(false);
         }

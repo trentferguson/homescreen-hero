@@ -145,6 +145,7 @@ def get_collections():
 | MDBList | `core/integrations/mdblist_client.py` | Third-party list sync |
 | Tautulli | `core/integrations/tautulli_client.py` | Analytics & streaming metrics |
 | Letterboxd | `core/integrations/letterboxd_scraper.py` | List scraping |
+| AniList | `core/integrations/anilist_client.py` | Anime list sync |
 
 ## API Documentation
 

@@ -221,13 +221,17 @@ def _validate_collection_references(config: AppConfig) -> None:
         for source in config.mdblist.sources:
             integration_collections.add(source.name)
 
+    if config.anilist and config.anilist.sources:
+        for source in config.anilist.sources:
+            integration_collections.add(source.name)
+
     # Check each group for collections that don't have integration sources
     for group in config.groups:
         for collection_name in group.collections:
             if collection_name not in integration_collections:
                 logger.debug(
                     f"Collection '{collection_name}' in group '{group.name}' has no corresponding "
-                    f"Trakt/Letterboxd/MDBList source. This may be a manually created Plex collection "
+                    f"integration source. This may be a manually created Plex collection "
                     f"or an orphaned reference from a deleted integration source."
                 )
 
