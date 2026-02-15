@@ -160,7 +160,7 @@ export function MDBListIntegration() {
                 libraries={enabledLibraries}
                 newSource={integration.newSource}
                 onNewSourceChange={integration.setNewSource}
-                onAddSource={integration.addSource}
+                onAddSource={() => integration.addSource()}
                 onSyncSource={integration.syncSource}
                 onRemoveSource={integration.removeSource}
                 loadingSources={integration.loadingSources}
