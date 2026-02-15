@@ -1,3 +1,5 @@
+import { useCallback, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Tab } from "@headlessui/react";
 import { TraktIntegration } from "../components/integrations/TraktIntegration";
 import { LetterboxdIntegration } from "../components/integrations/LetterboxdIntegration";
@@ -7,15 +9,31 @@ import { TautulliIntegration } from "../components/integrations/TautulliIntegrat
 import { SeerrIntegration } from "../components/integrations/SeerrIntegration";
 
 const tabs = [
-    { name: "Trakt", component: TraktIntegration },
-    { name: "Letterboxd", component: LetterboxdIntegration },
-    { name: "MDBList", component: MDBListIntegration },
-    { name: "Anime", component: AnimeIntegration },
-    { name: "Tautulli", component: TautulliIntegration },
-    { name: "Seerr", component: SeerrIntegration },
+    { name: "Trakt", key: "trakt", component: TraktIntegration },
+    { name: "Letterboxd", key: "letterboxd", component: LetterboxdIntegration },
+    { name: "MDBList", key: "mdblist", component: MDBListIntegration },
+    { name: "Anime", key: "anime", component: AnimeIntegration },
+    { name: "Tautulli", key: "tautulli", component: TautulliIntegration },
+    { name: "Seerr", key: "seerr", component: SeerrIntegration },
 ] as const;
 
 export default function IntegrationsPage() {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const selectedIndex = useMemo(() => {
+        const hash = location.hash.replace("#", "").toLowerCase();
+        const idx = tabs.findIndex((t) => t.key === hash);
+        return idx >= 0 ? idx : 0;
+    }, [location.hash]);
+
+    const handleTabChange = useCallback(
+        (index: number) => {
+            navigate(`#${tabs[index].key}`, { replace: true });
+        },
+        [navigate]
+    );
+
     return (
         <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
@@ -28,7 +46,7 @@ export default function IntegrationsPage() {
                 </p>
             </div>
 
-            <Tab.Group>
+            <Tab.Group selectedIndex={selectedIndex} onChange={handleTabChange}>
                 <Tab.List className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-800">
                     {tabs.map((tab) => (
                         <Tab

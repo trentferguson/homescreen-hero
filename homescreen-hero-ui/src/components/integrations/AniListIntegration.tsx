@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { Minus, Plus } from "lucide-react";
 import { SourceList } from "./shared/SourceListManager";
 import { LibrarySelect } from "./shared/LibrarySelect";
 import { ListTypeSelect } from "./shared/ListTypeSelect";
@@ -29,6 +30,15 @@ function capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const BROWSE_LIST_OPTIONS: ListTypeOption[] = [
+    { value: "trending", label: "Trending" },
+    { value: "popular", label: "Popular" },
+    { value: "top-100", label: "Top 100" },
+    { value: "most-favorited", label: "Most Favorited" },
+    { value: "this-season", label: "This Season" },
+    { value: "next-season", label: "Next Season" },
+];
+
 export function AniListIntegration() {
     const { enabledLibraries } = usePlexLibraries();
 
@@ -38,7 +48,10 @@ export function AniListIntegration() {
         hasSettings: false,
     });
 
-    // Custom form state (username + list type instead of raw URL)
+    // Mode toggle: user lists vs browse lists
+    const [mode, setMode] = useState<"user" | "browse">("user");
+
+    // User list form state
     const [username, setUsername] = useState("");
     const [listType, setListType] = useState("");
     const [collectionName, setCollectionName] = useState("");
@@ -49,6 +62,13 @@ export function AniListIntegration() {
     const [fetchedLists, setFetchedLists] = useState<ListTypeOption[] | undefined>(undefined);
     const [fetchingLists, setFetchingLists] = useState(false);
     const lastFetchedUsername = useRef("");
+
+    // Browse list form state
+    const [browseSort, setBrowseSort] = useState("");
+    const [browseCollectionName, setBrowseCollectionName] = useState("");
+    const [browseNameManuallyEdited, setBrowseNameManuallyEdited] = useState(false);
+    const [browsePlexLibrary, setBrowsePlexLibrary] = useState("");
+    const [browseMaxItems, setBrowseMaxItems] = useState(100);
 
     const fetchUserLists = useCallback(async (name: string) => {
         const trimmed = name.trim();
@@ -126,49 +146,181 @@ export function AniListIntegration() {
         lastFetchedUsername.current = "";
     }, [canAdd, username, listType, collectionName, plexLibrary, integration]);
 
+    // Browse list handlers
+    const handleBrowseSortChange = useCallback(
+        (value: string) => {
+            setBrowseSort(value);
+            if (!browseNameManuallyEdited) {
+                const option = BROWSE_LIST_OPTIONS.find((o) => o.value === value);
+                setBrowseCollectionName(option ? `AniList ${option.label}` : "");
+            }
+        },
+        [browseNameManuallyEdited]
+    );
+
+    const canAddBrowse = browseSort && browseCollectionName.trim() && browsePlexLibrary;
+
+    const handleAddBrowse = useCallback(async () => {
+        if (!canAddBrowse) return;
+
+        const url = `anilist://browse/${browseSort}`;
+        await integration.addSource({
+            name: browseCollectionName.trim(),
+            url,
+            plex_library: browsePlexLibrary,
+            max_items: browseMaxItems,
+        });
+
+        // Reset form
+        setBrowseSort("");
+        setBrowseCollectionName("");
+        setBrowseNameManuallyEdited(false);
+        setBrowsePlexLibrary("");
+        setBrowseMaxItems(100);
+    }, [canAddBrowse, browseSort, browseCollectionName, browsePlexLibrary, browseMaxItems, integration]);
+
+    const formDisabled = integration.savingSource || integration.loadingSources;
+
     return (
         <div className="space-y-4">
-            {/* Add form */}
-            <div className="flex gap-2 items-center flex-wrap">
-                <input
-                    type="text"
-                    placeholder="Username"
-                    className="w-46 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    onBlur={handleUsernameBlur}
-                    disabled={integration.savingSource || integration.loadingSources}
-                />
-                <ListTypeSelect
-                    value={listType}
-                    onChange={handleListTypeChange}
-                    disabled={integration.savingSource || integration.loadingSources}
-                    options={fetchedLists}
-                    loading={fetchingLists}
-                />
-                <LibrarySelect
-                    value={plexLibrary}
-                    onChange={setPlexLibrary}
-                    libraries={enabledLibraries}
-                    disabled={integration.savingSource || integration.loadingSources}
-                />
-                <input
-                    type="text"
-                    placeholder="Collection name"
-                    className="w-80 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                    value={collectionName}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    disabled={integration.savingSource || integration.loadingSources}
-                />
+            {/* Mode toggle */}
+            <div className="flex gap-1 rounded-lg bg-slate-800/50 p-1 w-fit">
                 <button
                     type="button"
-                    onClick={handleAdd}
-                    disabled={integration.savingSource || integration.loadingSources || !canAdd}
-                    className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={() => setMode("user")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                        mode === "user"
+                            ? "bg-primary text-white"
+                            : "text-slate-400 hover:text-slate-200"
+                    }`}
                 >
-                    {integration.savingSource ? "Adding\u2026" : "Add List"}
+                    User Lists
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setMode("browse")}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                        mode === "browse"
+                            ? "bg-primary text-white"
+                            : "text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                    Public Lists
                 </button>
             </div>
+
+            {/* Add form — user lists */}
+            {mode === "user" ? (
+                <div className="flex gap-2 items-center flex-wrap">
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        className="w-46 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        onBlur={handleUsernameBlur}
+                        disabled={formDisabled}
+                    />
+                    <ListTypeSelect
+                        value={listType}
+                        onChange={handleListTypeChange}
+                        disabled={formDisabled}
+                        options={fetchedLists}
+                        loading={fetchingLists}
+                    />
+                    <LibrarySelect
+                        value={plexLibrary}
+                        onChange={setPlexLibrary}
+                        libraries={enabledLibraries}
+                        disabled={formDisabled}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Collection name"
+                        className="w-80 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                        value={collectionName}
+                        onChange={(e) => handleNameChange(e.target.value)}
+                        disabled={formDisabled}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAdd}
+                        disabled={formDisabled || !canAdd}
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {integration.savingSource ? "Adding\u2026" : "Add List"}
+                    </button>
+                </div>
+            ) : (
+                /* Add form — browse lists */
+                <div className="flex gap-2 items-center flex-wrap">
+                    <ListTypeSelect
+                        value={browseSort}
+                        onChange={handleBrowseSortChange}
+                        disabled={formDisabled}
+                        options={BROWSE_LIST_OPTIONS}
+                        showAllOption={false}
+                    />
+                    <LibrarySelect
+                        value={browsePlexLibrary}
+                        onChange={setBrowsePlexLibrary}
+                        libraries={enabledLibraries}
+                        disabled={formDisabled}
+                    />
+                    <div className="flex items-center rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+                        <span className="pl-2.5 text-xs text-slate-500 whitespace-nowrap select-none">Max</span>
+                        <button
+                            type="button"
+                            disabled={formDisabled || browseMaxItems <= 10}
+                            onClick={() => setBrowseMaxItems((v) => Math.max(10, v - 10))}
+                            className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <input
+                            type="number"
+                            min={10}
+                            max={500}
+                            step={10}
+                            value={browseMaxItems}
+                            onChange={(e) => setBrowseMaxItems(Number(e.target.value) || 0)}
+                            onBlur={() => {
+                                setBrowseMaxItems((v) => Math.max(10, Math.min(500, v || 100)));
+                            }}
+                            disabled={formDisabled}
+                            className="w-10 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            title="Max items"
+                        />
+                        <button
+                            type="button"
+                            disabled={formDisabled || browseMaxItems >= 500}
+                            onClick={() => setBrowseMaxItems((v) => Math.min(500, v + 10))}
+                            className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Collection name"
+                        className="w-80 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                        value={browseCollectionName}
+                        onChange={(e) => {
+                            setBrowseCollectionName(e.target.value);
+                            setBrowseNameManuallyEdited(true);
+                        }}
+                        disabled={formDisabled}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleAddBrowse}
+                        disabled={formDisabled || !canAddBrowse}
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {integration.savingSource ? "Adding\u2026" : "Add List"}
+                    </button>
+                </div>
+            )}
 
             {/* Info note */}
             <div className="rounded-lg border border-blue-700/50 bg-blue-900/20 px-4 py-3">

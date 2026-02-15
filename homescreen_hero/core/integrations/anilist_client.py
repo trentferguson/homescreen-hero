@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import unquote
 
@@ -55,6 +56,35 @@ query ($userName: String!, $type: MediaType!) {
 }
 """
 
+# GraphQL query to browse anime by sort criteria (Trending, Popular, etc.)
+# season, seasonYear, and format_in are optional filters
+BROWSE_QUERY = """
+query ($page: Int!, $perPage: Int!, $type: MediaType!, $sort: [MediaSort]!, $isAdult: Boolean, $season: MediaSeason, $seasonYear: Int, $format_in: [MediaFormat]) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(type: $type, sort: $sort, isAdult: $isAdult, season: $season, seasonYear: $seasonYear, format_in: $format_in) {
+      id
+      idMal
+      type
+      format
+      title {
+        romaji
+        english
+        native
+      }
+      seasonYear
+      startDate {
+        year
+      }
+      episodes
+      synonyms
+    }
+  }
+}
+"""
+
 # Lightweight query for health check
 PING_QUERY = """
 query {
@@ -63,6 +93,35 @@ query {
   }
 }
 """
+
+# Browse list options: each key maps to sort + optional season filter
+# "season": "current" / "next" are resolved dynamically at sync time
+BROWSE_OPTIONS: Dict[str, Dict[str, str]] = {
+    "trending":       {"sort": "TRENDING_DESC"},
+    "popular":        {"sort": "POPULARITY_DESC"},
+    "top-100":        {"sort": "SCORE_DESC"},
+    "most-favorited": {"sort": "FAVOURITES_DESC"},
+    "this-season":    {"sort": "POPULARITY_DESC", "season": "current"},
+    "next-season":    {"sort": "POPULARITY_DESC", "season": "next"},
+}
+
+# AniList anime seasons mapped to month ranges
+_SEASONS = ["WINTER", "SPRING", "SUMMER", "FALL"]  # Q1, Q2, Q3, Q4
+
+
+def _resolve_season(which: str) -> Tuple[str, int]:
+    # Returns (season_name, year) for "current" or "next"
+    now = datetime.now()
+    quarter = (now.month - 1) // 3  # 0=winter, 1=spring, 2=summer, 3=fall
+    if which == "next":
+        quarter += 1
+    year = now.year
+    if quarter > 3:
+        quarter = 0
+        year += 1
+    return _SEASONS[quarter], year
+
+_BROWSE_URL_PATTERN = re.compile(r"anilist://browse/([a-z0-9-]+)", re.IGNORECASE)
 
 # URL pattern: https://anilist.co/user/{username}/animelist or /animelist/{listname}
 _URL_PATTERN = re.compile(
@@ -227,6 +286,102 @@ class AniListClient:
 
         logger.info("Fetched %d anime from AniList user '%s'", len(items), username)
         return items
+
+    def get_browse_list(
+        self,
+        sort_key: str,
+        max_items: int = 100,
+        format_in: Optional[List[str]] = None,
+    ) -> List[AniListItem]:
+        # Fetch a curated browse list from AniList (Trending, Popular, Top Rated, etc.)
+        # format_in filters to specific media formats (e.g. ["TV", "OVA"] for show libraries)
+        opts = BROWSE_OPTIONS.get(sort_key)
+        if not opts:
+            raise ValueError(f"Unknown browse sort key: {sort_key}")
+
+        variables: Dict[str, Any] = {
+            "type": "ANIME",
+            "sort": [opts["sort"]],
+            "isAdult": False,
+        }
+
+        if format_in:
+            variables["format_in"] = format_in
+
+        # Resolve seasonal filter if present
+        season_tag = opts.get("season")
+        if season_tag:
+            season_name, season_year = _resolve_season(season_tag)
+            variables["season"] = season_name
+            variables["seasonYear"] = season_year
+
+        items: List[AniListItem] = []
+        seen_ids: set[int] = set()
+        per_page = 50
+        pages_needed = (max_items + per_page - 1) // per_page
+
+        for page_num in range(1, pages_needed + 1):
+            resp = self.session.post(
+                self.cfg.base_url,
+                json={
+                    "query": BROWSE_QUERY,
+                    "variables": {**variables, "page": page_num, "perPage": per_page},
+                },
+                timeout=30,
+            )
+
+            if resp.status_code == 429:
+                raise RuntimeError("AniList API rate limited — try again later")
+            resp.raise_for_status()
+
+            data = resp.json()
+            if "errors" in data:
+                error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
+                raise RuntimeError(f"AniList API error: {error_msg}")
+
+            page_data = data.get("data", {}).get("Page", {})
+            media_list = page_data.get("media") or []
+
+            for media in media_list:
+                anilist_id = media.get("id")
+                if not anilist_id or anilist_id in seen_ids:
+                    continue
+                seen_ids.add(anilist_id)
+
+                title = media.get("title") or {}
+                year = media.get("seasonYear") or (media.get("startDate") or {}).get("year")
+
+                items.append(AniListItem(
+                    anilist_id=anilist_id,
+                    mal_id=media.get("idMal"),
+                    title_english=title.get("english"),
+                    title_romaji=title.get("romaji"),
+                    year=year,
+                    media_format=media.get("format"),
+                    episodes=media.get("episodes"),
+                ))
+
+            if not page_data.get("pageInfo", {}).get("hasNextPage", False):
+                break
+
+        items = items[:max_items]
+        logger.info("Fetched %d anime from AniList browse list '%s'", len(items), sort_key)
+        return items
+
+
+def is_browse_url(url: str) -> bool:
+    return url.strip().startswith("anilist://browse/")
+
+
+def parse_browse_url(url: str) -> str:
+    # Extract the sort key from anilist://browse/{sort_key}
+    match = _BROWSE_URL_PATTERN.match(url.strip())
+    if not match:
+        raise ValueError(f"Invalid AniList browse URL: {url}")
+    sort_key = match.group(1)
+    if sort_key not in BROWSE_OPTIONS:
+        raise ValueError(f"Unknown browse sort: {sort_key}. Valid: {list(BROWSE_OPTIONS.keys())}")
+    return sort_key
 
 
 def parse_anilist_url(url: str) -> Tuple[str, Optional[str]]:

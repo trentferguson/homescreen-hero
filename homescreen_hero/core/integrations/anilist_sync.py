@@ -17,12 +17,12 @@ from homescreen_hero.core.db.models import AniListMissingItem
 from homescreen_hero.core.integrations.anilist_client import (
     AniListItem,
     get_anilist_client,
+    is_browse_url,
     parse_anilist_url,
+    parse_browse_url,
 )
 from homescreen_hero.core.integrations.plex_match import (
     build_guid_map,
-    find_movie,
-    find_show,
     normalize_title,
 )
 
@@ -99,6 +99,14 @@ def load_anime_id_map(data_dir: Optional[Path] = None) -> Dict[int, Dict[str, An
     return id_map
 
 
+def _guid_lookup(guid_map: dict, *keys: str):
+    # Try multiple GUID keys against the map, return first match
+    for key in keys:
+        if key and key in guid_map:
+            return guid_map[key]
+    return None
+
+
 def _match_item(
     item: AniListItem,
     guid_map: dict,
@@ -113,15 +121,28 @@ def _match_item(
     imdb_id = mapped.get("imdb_id")
     tvdb_id = mapped.get("tvdb_id")
 
-    # 2. Try GUID-based matching
+    # 2. Direct GUID map lookup (no title fallback — avoids false positives
+    #    from find_show/find_movie searching Plex with empty/partial titles)
     if is_movie_library:
-        plex_item = find_movie(guid_map, library, "", None, imdb_id=imdb_id, tmdb_id=tmdb_id)
-        if plex_item:
-            return plex_item
+        plex_item = _guid_lookup(
+            guid_map,
+            f"tmdb://{tmdb_id}" if tmdb_id is not None else "",
+            f"imdb://{imdb_id}" if imdb_id else "",
+            f"com.plexapp.agents.themoviedb://{tmdb_id}?lang=en" if tmdb_id is not None else "",
+            f"com.plexapp.agents.imdb://{imdb_id}?lang=en" if imdb_id else "",
+        )
     else:
-        plex_item = find_show(guid_map, library, "", None, tvdb_id=tvdb_id, tmdb_id=tmdb_id, imdb_id=imdb_id)
-        if plex_item:
-            return plex_item
+        plex_item = _guid_lookup(
+            guid_map,
+            f"tvdb://{tvdb_id}" if tvdb_id is not None else "",
+            f"tmdb://{tmdb_id}" if tmdb_id is not None else "",
+            f"imdb://{imdb_id}" if imdb_id else "",
+            f"com.plexapp.agents.thetvdb://{tvdb_id}?lang=en" if tvdb_id is not None else "",
+            f"com.plexapp.agents.themoviedb://{tmdb_id}?lang=en" if tmdb_id is not None else "",
+            f"com.plexapp.agents.imdb://{imdb_id}?lang=en" if imdb_id else "",
+        )
+    if plex_item:
+        return plex_item
 
     # 3. Fallback: title/year search
     title = item.title_english or item.title_romaji
@@ -168,13 +189,6 @@ def sync_single_anilist_source(
         logger.warning("AniList source '%s' has no plex_library set; skipping", source.name)
         return 0, 0
 
-    # Parse URL to extract username and optional list name
-    try:
-        username, list_name = parse_anilist_url(source.url)
-    except ValueError as exc:
-        logger.error("Invalid AniList URL for source '%s': %s", source.name, exc)
-        return 0, 0
-
     # Resolve the Plex library
     try:
         library = server.library.section(source.plex_library)
@@ -198,8 +212,24 @@ def sync_single_anilist_source(
     # Detect library type
     is_movie_library = library.type == "movie"
 
-    # Fetch items from AniList
-    items = client.get_user_list(username, list_name)
+    # Fetch items from AniList (browse list vs user list)
+    if is_browse_url(source.url):
+        try:
+            sort_key = parse_browse_url(source.url)
+        except ValueError as exc:
+            logger.error("Invalid AniList browse URL for source '%s': %s", source.name, exc)
+            return 0, 0
+        # Pre-filter by format at the API level so we get a full page of the right type
+        format_filter = list(MOVIE_FORMATS) if is_movie_library else list(SHOW_FORMATS)
+        max_items = source.max_items or 100
+        items = client.get_browse_list(sort_key, max_items=max_items, format_in=format_filter)
+    else:
+        try:
+            username, list_name = parse_anilist_url(source.url)
+        except ValueError as exc:
+            logger.error("Invalid AniList URL for source '%s': %s", source.name, exc)
+            return 0, 0
+        items = client.get_user_list(username, list_name)
 
     # Filter items by format based on library type
     if is_movie_library:

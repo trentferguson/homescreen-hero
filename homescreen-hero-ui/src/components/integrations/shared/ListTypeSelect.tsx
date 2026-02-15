@@ -22,13 +22,15 @@ interface ListTypeSelectProps {
     disabled?: boolean;
     options?: ListTypeOption[];
     loading?: boolean;
+    showAllOption?: boolean;
 }
 
-export function ListTypeSelect({ value, onChange, disabled, options, loading }: ListTypeSelectProps) {
+export function ListTypeSelect({ value, onChange, disabled, options, loading, showAllOption = true }: ListTypeSelectProps) {
     // Use dynamic options if provided, otherwise fall back to defaults
-    // Always prepend "All Lists" option
     const allOption: ListTypeOption = { value: "", label: "All Lists" };
-    const listOptions = options ? [allOption, ...options] : DEFAULT_LIST_TYPES;
+    const listOptions = options
+        ? (showAllOption ? [allOption, ...options] : options)
+        : DEFAULT_LIST_TYPES;
 
     const selected = listOptions.find((t) => t.value === value);
 

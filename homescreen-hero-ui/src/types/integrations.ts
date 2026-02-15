@@ -8,6 +8,7 @@ export interface Source {
     name: string;
     url: string;
     plex_library: string;
+    max_items?: number;
 }
 
 // Generic source status (identical for all list-based integrations)

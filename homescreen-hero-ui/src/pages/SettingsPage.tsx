@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2 } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
@@ -101,7 +101,21 @@ function IconButton({
 
 export default function SettingsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [activeTab, setActiveTab] = useState<TabId>("general");
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const activeTab = useMemo<TabId>(() => {
+        const hash = location.hash.replace("#", "").toLowerCase();
+        const match = tabs.find((t) => t.id === hash);
+        return match ? match.id : "general";
+    }, [location.hash]);
+
+    const setActiveTab = useCallback(
+        (id: TabId) => {
+            navigate(`#${id}`, { replace: true });
+        },
+        [navigate]
+    );
     const [plexTestStatus, setPlexTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
 
     // Track which section should be expanded based on URL param

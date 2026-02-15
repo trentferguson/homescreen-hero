@@ -238,6 +238,12 @@ class AniListSource(BaseModel):
     name: str = Field(..., description="Display name for this list (becomes Plex collection name)")
     url: str = Field(..., description="AniList user list URL (e.g., https://anilist.co/user/username/animelist)")
     plex_library: str = Field(..., description="Target Plex library name")
+    max_items: Optional[int] = Field(
+        default=100,
+        ge=10,
+        le=500,
+        description="Maximum number of items to fetch for browse lists (ignored for user lists)",
+    )
 
 
 class AniListSettings(BaseModel):
