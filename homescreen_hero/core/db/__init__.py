@@ -25,6 +25,7 @@ from .models import (
     PendingSimulation,
     PinnedCollection,
     RotationRecord,
+    SourceSyncRecord,
 )
 from .simulations import (
     create_simulation,
@@ -36,6 +37,10 @@ from .tools import (
     list_rotations,
     list_usage
     )
+from .sync_status import (
+    get_sync_status,
+    record_sync_result,
+)
 from .pinning import (
     get_display_order,
     get_pinned_collection_names,
@@ -74,6 +79,9 @@ __all__ = (
     "session_scope",
     "CollectionDisplayOrder",
     "PinnedCollection",
+    "SourceSyncRecord",
+    "get_sync_status",
+    "record_sync_result",
     "get_display_order",
     "get_pinned_collection_names",
     "get_pinned_collections",

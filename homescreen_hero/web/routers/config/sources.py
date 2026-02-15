@@ -195,22 +195,23 @@ def get_trakt_sources_status(
 ) -> list[TraktSourceStatus]:
     # Return sync status for each configured Trakt source.
     try:
+        from homescreen_hero.core.db import get_sync_status
+
         config = load_config()
         sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
 
-        # For now, return basic status without historical sync data
-        # Future enhancement: query database for actual sync history
         statuses: list[TraktSourceStatus] = []
         for idx, source in enumerate(sources):
+            record = get_sync_status("trakt", source.name)
             statuses.append(
                 TraktSourceStatus(
                     source_index=idx,
                     name=source.name,
-                    last_sync_time=None,
-                    sync_status="never_synced",
-                    error_message=None,
-                    items_matched=0,
-                    items_total=0,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
                 )
             )
 
@@ -229,6 +230,7 @@ def sync_trakt_source(
     # Manually sync a specific Trakt source to Plex collection.
     try:
         from homescreen_hero.core.integrations.trakt_sync import sync_single_trakt_source
+        from homescreen_hero.core.db import record_sync_result
 
         config = load_config()
         sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
@@ -243,6 +245,14 @@ def sync_trakt_source(
         total, matched = sync_single_trakt_source(server, config, source)
         missing = total - matched
 
+        record_sync_result(
+            integration_type="trakt",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
         return TraktSyncResponse(
             ok=True,
             message=f"Synced '{source.name}' successfully",
@@ -255,6 +265,25 @@ def sync_trakt_source(
         raise
     except Exception as exc:
         logger.error("Error syncing Trakt source at index %d: %s", index, exc)
+
+        # Record the failure
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "trakt", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="trakt",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
 
 
@@ -445,22 +474,23 @@ def get_letterboxd_sources_status(
 ) -> list[LetterboxdSourceStatus]:
     # Return sync status for each configured Letterboxd source.
     try:
+        from homescreen_hero.core.db import get_sync_status
+
         config = load_config()
         sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
 
-        # For now, return basic status without historical sync data
-        # Future enhancement: query database for actual sync history
         statuses: list[LetterboxdSourceStatus] = []
         for idx, source in enumerate(sources):
+            record = get_sync_status("letterboxd", source.name)
             statuses.append(
                 LetterboxdSourceStatus(
                     source_index=idx,
                     name=source.name,
-                    last_sync_time=None,
-                    sync_status="never_synced",
-                    error_message=None,
-                    items_matched=0,
-                    items_total=0,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
                 )
             )
 
@@ -479,6 +509,7 @@ def sync_letterboxd_source(
     # Manually sync a specific Letterboxd source to Plex collection.
     try:
         from homescreen_hero.core.integrations.letterboxd_sync import sync_single_letterboxd_source
+        from homescreen_hero.core.db import record_sync_result
 
         config = load_config()
         sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
@@ -493,6 +524,14 @@ def sync_letterboxd_source(
         total, matched = sync_single_letterboxd_source(server, config, source)
         missing = total - matched
 
+        record_sync_result(
+            integration_type="letterboxd",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
         return LetterboxdSyncResponse(
             ok=True,
             message=f"Synced '{source.name}' successfully",
@@ -505,6 +544,24 @@ def sync_letterboxd_source(
         raise
     except Exception as exc:
         logger.error("Error syncing Letterboxd source at index %d: %s", index, exc)
+
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "letterboxd", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="letterboxd",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
 
 
@@ -693,22 +750,23 @@ def get_mdblist_sources_status(
 ) -> list[MDBListSourceStatus]:
     # Return sync status for each configured MDBList source.
     try:
+        from homescreen_hero.core.db import get_sync_status
+
         config = load_config()
         sources = list(getattr(getattr(config, "mdblist", None), "sources", []) or [])
 
-        # For now, return basic status without historical sync data
-        # Future enhancement: query database for actual sync history
         statuses: list[MDBListSourceStatus] = []
         for idx, source in enumerate(sources):
+            record = get_sync_status("mdblist", source.name)
             statuses.append(
                 MDBListSourceStatus(
                     source_index=idx,
                     name=source.name,
-                    last_sync_time=None,
-                    sync_status="never_synced",
-                    error_message=None,
-                    items_matched=0,
-                    items_total=0,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
                 )
             )
 
@@ -727,6 +785,7 @@ def sync_mdblist_source(
     # Manually sync a specific MDBList source to Plex collection.
     try:
         from homescreen_hero.core.integrations.mdblist_sync import sync_single_mdblist_source
+        from homescreen_hero.core.db import record_sync_result
 
         config = load_config()
         sources = list(getattr(getattr(config, "mdblist", None), "sources", []) or [])
@@ -741,6 +800,14 @@ def sync_mdblist_source(
         total, matched = sync_single_mdblist_source(server, config, source)
         missing = total - matched
 
+        record_sync_result(
+            integration_type="mdblist",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
         return MDBListSyncResponse(
             ok=True,
             message=f"Synced '{source.name}' successfully",
@@ -753,6 +820,24 @@ def sync_mdblist_source(
         raise
     except Exception as exc:
         logger.error("Error syncing MDBList source at index %d: %s", index, exc)
+
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "mdblist", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="mdblist",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
 
 
@@ -964,20 +1049,23 @@ def get_anilist_sources_status(
 ) -> list[AniListSourceStatus]:
     # Return sync status for each configured AniList source.
     try:
+        from homescreen_hero.core.db import get_sync_status
+
         config = load_config()
         sources = list(getattr(getattr(config, "anilist", None), "sources", []) or [])
 
         statuses: list[AniListSourceStatus] = []
         for idx, source in enumerate(sources):
+            record = get_sync_status("anilist", source.name)
             statuses.append(
                 AniListSourceStatus(
                     source_index=idx,
                     name=source.name,
-                    last_sync_time=None,
-                    sync_status="never_synced",
-                    error_message=None,
-                    items_matched=0,
-                    items_total=0,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
                 )
             )
 
@@ -996,6 +1084,7 @@ def sync_anilist_source(
     # Manually sync a specific AniList source to Plex collection.
     try:
         from homescreen_hero.core.integrations.anilist_sync import sync_single_anilist_source
+        from homescreen_hero.core.db import record_sync_result
 
         config = load_config()
         sources = list(getattr(getattr(config, "anilist", None), "sources", []) or [])
@@ -1010,6 +1099,14 @@ def sync_anilist_source(
         total, matched = sync_single_anilist_source(server, config, source)
         missing = total - matched
 
+        record_sync_result(
+            integration_type="anilist",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
         return AniListSyncResponse(
             ok=True,
             message=f"Synced '{source.name}' successfully",
@@ -1022,6 +1119,24 @@ def sync_anilist_source(
         raise
     except Exception as exc:
         logger.error("Error syncing AniList source at index %d: %s", index, exc)
+
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "anilist", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="anilist",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
 
 

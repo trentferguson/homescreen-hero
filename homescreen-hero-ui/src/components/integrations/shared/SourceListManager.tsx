@@ -315,11 +315,6 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
                                 Last synced: {formatDate(status.last_sync_time)}
                             </p>
                         )}
-                        {status && status.sync_status !== "never_synced" && (
-                            <p className="text-xs text-slate-500">
-                                Matched {status.items_matched} of {status.items_total} items
-                            </p>
-                        )}
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
@@ -357,6 +352,11 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
                             }`}
                         />
                         Missing items
+                        {status && status.sync_status !== "never_synced" && (
+                            <span className="text-slate-500 font-normal">
+                                · {status.items_matched}/{status.items_total} matched
+                            </span>
+                        )}
                     </button>
 
                     {isExpanded && (

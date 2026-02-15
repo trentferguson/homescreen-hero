@@ -119,6 +119,7 @@ def _sync_selected_collections(
     from .integrations.letterboxd_sync import sync_single_letterboxd_source
     from .integrations.mdblist_sync import sync_single_mdblist_source
     from .integrations.anilist_sync import sync_single_anilist_source
+    from .db import record_sync_result
 
     # Build a map of collection name -> source for quick lookup
     trakt_sources = {}
@@ -142,20 +143,42 @@ def _sync_selected_collections(
         for source in config.anilist.sources:
             anilist_sources[source.name] = source
 
+    def _sync_and_record(integration_type: str, source, sync_fn):
+        try:
+            total, matched = sync_fn(server, config, source)
+            record_sync_result(
+                integration_type=integration_type,
+                source_name=source.name,
+                source_url=source.url,
+                items_total=total,
+                items_matched=matched,
+            )
+        except Exception as exc:
+            logger.error(f"Error syncing {integration_type} source '{source.name}': {exc}")
+            record_sync_result(
+                integration_type=integration_type,
+                source_name=source.name,
+                source_url=source.url,
+                items_total=0,
+                items_matched=0,
+                sync_status="error",
+                error_message=str(exc),
+            )
+
     # Sync only the selected collections
     for collection_name in selected_collections:
         if collection_name in trakt_sources:
             logger.info(f"Syncing selected Trakt collection: {collection_name}")
-            sync_single_trakt_source(server, config, trakt_sources[collection_name])
+            _sync_and_record("trakt", trakt_sources[collection_name], sync_single_trakt_source)
         elif collection_name in letterboxd_sources:
             logger.info(f"Syncing selected Letterboxd collection: {collection_name}")
-            sync_single_letterboxd_source(server, config, letterboxd_sources[collection_name])
+            _sync_and_record("letterboxd", letterboxd_sources[collection_name], sync_single_letterboxd_source)
         elif collection_name in mdblist_sources:
             logger.info(f"Syncing selected MDBList collection: {collection_name}")
-            sync_single_mdblist_source(server, config, mdblist_sources[collection_name])
+            _sync_and_record("mdblist", mdblist_sources[collection_name], sync_single_mdblist_source)
         elif collection_name in anilist_sources:
             logger.info(f"Syncing selected AniList collection: {collection_name}")
-            sync_single_anilist_source(server, config, anilist_sources[collection_name])
+            _sync_and_record("anilist", anilist_sources[collection_name], sync_single_anilist_source)
         else:
             logger.debug(f"Collection '{collection_name}' is not a synced source, skipping sync")
 

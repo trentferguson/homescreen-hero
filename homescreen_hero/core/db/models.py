@@ -238,6 +238,22 @@ class PinnedCollection(Base):
     visibility_recommended = Column(Boolean, nullable=False, default=False)
 
 
+class SourceSyncRecord(Base):
+    # Tracks the latest sync result for each integration source
+    __tablename__ = "source_sync_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    integration_type = Column(String, nullable=False, index=True)  # trakt, letterboxd, mdblist, anilist
+    source_name = Column(String, nullable=False, index=True)
+    source_url = Column(String, nullable=False)
+
+    sync_status = Column(String, nullable=False, default="never_synced")  # success, error, never_synced
+    last_sync_time = Column(DateTime, nullable=True)
+    items_total = Column(Integer, nullable=False, default=0)
+    items_matched = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+
+
 class CollectionDisplayOrder(Base):
     # Tracks the display order of active collections on the homescreen
     __tablename__ = "collection_display_order"
