@@ -48,7 +48,7 @@ export interface UseListIntegrationReturn<TSettings, TMissing> {
     // Source mutations
     newSource: Source;
     setNewSource: React.Dispatch<React.SetStateAction<Source>>;
-    addSource: () => Promise<void>;
+    addSource: (sourceOverride?: Source) => Promise<void>;
     removeSource: (index: number) => Promise<void>;
     syncSource: (index: number) => Promise<void>;
     savingSource: boolean;
@@ -250,8 +250,9 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         }
     }, [healthEndpoint, integrationName]);
 
-    // Add source
-    const addSource = useCallback(async () => {
+    // Add source (accepts optional override for integrations with custom forms)
+    const addSource = useCallback(async (sourceOverride?: Source) => {
+        const sourceToAdd = sourceOverride || newSource;
         try {
             setSavingSource(true);
             setSourcesError(null);
@@ -260,7 +261,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
             const r = await fetchWithAuth(`${basePath}/sources`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newSource),
+                body: JSON.stringify(sourceToAdd),
             });
 
             if (!r.ok) throw new Error(await r.text());
@@ -274,7 +275,9 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setSources(refreshedSources || []);
             }
 
-            setNewSource({ name: "", url: "", plex_library: "" });
+            if (!sourceOverride) {
+                setNewSource({ name: "", url: "", plex_library: "" });
+            }
             setSourcesMessage(data.message);
         } catch (e) {
             setSourcesError(String(e));

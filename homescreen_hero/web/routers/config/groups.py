@@ -16,6 +16,7 @@ from homescreen_hero.core.config.schema import (
     TraktSettings,
     LetterboxdSettings,
     MDBListSettings,
+    AniListSettings,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 
@@ -244,9 +245,21 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
                     )
                 )
 
+        anilist_sources: list[CollectionSourcesResponse.CollectionSource] = []
+        anilist_cfg: Optional[AniListSettings] = getattr(config, "anilist", None)
+        if anilist_cfg and getattr(anilist_cfg, "sources", None):
+            for src in anilist_cfg.sources:
+                anilist_sources.append(
+                    CollectionSourcesResponse.CollectionSource(
+                        name=src.name,
+                        source="anilist",
+                        detail=src.plex_library or src.url,
+                    )
+                )
+
         # Plex collections created by third-party sync duplicate those sources.
         # Filter them out so the UI only shows the authoritative source.
-        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources}
+        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources + anilist_sources}
         plex_sources = [s for s in plex_sources if s.name not in third_party_names]
 
         return CollectionSourcesResponse(
@@ -254,6 +267,7 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
             trakt=trakt_sources,
             letterboxd=letterboxd_sources,
             mdblist=mdblist_sources,
+            anilist=anilist_sources,
         )
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc

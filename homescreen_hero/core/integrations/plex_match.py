@@ -77,3 +77,60 @@ def find_movie(guid_map, library, title, year, imdb_id=None, tmdb_id=None):
             return results[0]
 
     return None
+
+
+def find_show(guid_map, library, title, year, tvdb_id=None, tmdb_id=None, imdb_id=None):
+    # Match a show against the Plex library using GUID map first, then title/year fallback
+
+    if tvdb_id is not None:
+        item = guid_map.get(f"tvdb://{tvdb_id}")
+        if item:
+            return item
+
+    if tmdb_id is not None:
+        item = guid_map.get(f"tmdb://{tmdb_id}")
+        if item:
+            return item
+
+    if imdb_id:
+        item = guid_map.get(f"imdb://{imdb_id}")
+        if item:
+            return item
+
+    # Legacy agent formats
+    if tvdb_id is not None:
+        item = guid_map.get(f"com.plexapp.agents.thetvdb://{tvdb_id}?lang=en")
+        if item:
+            return item
+
+    if tmdb_id is not None:
+        item = guid_map.get(f"com.plexapp.agents.themoviedb://{tmdb_id}?lang=en")
+        if item:
+            return item
+
+    if imdb_id:
+        item = guid_map.get(f"com.plexapp.agents.imdb://{imdb_id}?lang=en")
+        if item:
+            return item
+
+    # Fallback: title/year search with normalized title
+    normalized = normalize_title(title)
+    search_title = normalized if normalized != title else title
+
+    if year:
+        results = library.search(title=search_title, year=year)
+    else:
+        results = library.search(title=search_title)
+
+    if results:
+        return results[0]
+
+    if normalized != title:
+        if year:
+            results = library.search(title=title, year=year)
+        else:
+            results = library.search(title=title)
+        if results:
+            return results[0]
+
+    return None

@@ -16,6 +16,7 @@ from homescreen_hero.core.config.schema import (
     TraktSettings,
     LetterboxdSettings,
     MDBListSettings,
+    AniListSettings,
     TautulliSettings,
     SeerrSettings,
     DisplaySettings,
@@ -29,6 +30,7 @@ from .schemas import (
     TraktConfigSaveRequest,
     LetterboxdConfigSaveRequest,
     MDBListConfigSaveRequest,
+    AniListConfigSaveRequest,
     TautulliConfigSaveRequest,
     SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
@@ -264,6 +266,58 @@ def save_mdblist_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="MDBList settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# ANILIST SETTINGS
+# ========================================================================
+
+@router.get("/anilist", response_model=AniListSettings)
+def get_anilist_settings(current_user: str = Depends(get_current_user)) -> AniListSettings:
+    # Return the currently configured AniList settings
+    try:
+        config = load_config()
+        if config.anilist is None:
+            return AniListSettings(enabled=False, sources=[])
+        return config.anilist
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/anilist", response_model=ConfigSaveResponse)
+def save_anilist_settings(
+    payload: AniListConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    # Update only AniList settings in config.yaml while preserving other keys
+    try:
+        data = load_config_mapping()
+
+        anilist_section = data.get("anilist") if isinstance(data.get("anilist"), dict) else {}
+        anilist_section = dict(anilist_section)
+
+        anilist_section.update(
+            enabled=payload.enabled,
+        )
+
+        data["anilist"] = anilist_section
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="AniList settings saved and validated.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

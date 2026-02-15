@@ -10,6 +10,7 @@ from .integrations import (
     sync_all_trakt_sources,
     sync_all_letterboxd_sources,
     sync_all_mdblist_sources,
+    sync_all_anilist_sources,
     apply_home_screen_selection,
 )
 from .integrations.plex_client import get_library_collections
@@ -117,23 +118,29 @@ def _sync_selected_collections(
     from .integrations.trakt_sync import sync_single_trakt_source
     from .integrations.letterboxd_sync import sync_single_letterboxd_source
     from .integrations.mdblist_sync import sync_single_mdblist_source
+    from .integrations.anilist_sync import sync_single_anilist_source
 
     # Build a map of collection name -> source for quick lookup
     trakt_sources = {}
     letterboxd_sources = {}
     mdblist_sources = {}
+    anilist_sources = {}
 
     if config.trakt and config.trakt.enabled:
         for source in config.trakt.sources:
             trakt_sources[source.name] = source
 
-    if config.letterboxd and config.letterboxd.enabled:
+    if config.letterboxd and config.letterboxd.sources:
         for source in config.letterboxd.sources:
             letterboxd_sources[source.name] = source
 
     if config.mdblist and config.mdblist.enabled:
         for source in config.mdblist.sources:
             mdblist_sources[source.name] = source
+
+    if config.anilist and config.anilist.sources:
+        for source in config.anilist.sources:
+            anilist_sources[source.name] = source
 
     # Sync only the selected collections
     for collection_name in selected_collections:
@@ -146,8 +153,11 @@ def _sync_selected_collections(
         elif collection_name in mdblist_sources:
             logger.info(f"Syncing selected MDBList collection: {collection_name}")
             sync_single_mdblist_source(server, config, mdblist_sources[collection_name])
+        elif collection_name in anilist_sources:
+            logger.info(f"Syncing selected AniList collection: {collection_name}")
+            sync_single_anilist_source(server, config, anilist_sources[collection_name])
         else:
-            logger.debug(f"Collection '{collection_name}' is not a Trakt, Letterboxd, or MDBList source, skipping sync")
+            logger.debug(f"Collection '{collection_name}' is not a synced source, skipping sync")
 
 
 def run_rotation_once(
@@ -187,7 +197,7 @@ def run_rotation_once(
     if config.rotation.sync_all_on_rotation:
         # Sync all Trakt, Letterboxd, and MDBList sources
         # Errors are non-fatal: if sync fails, rotation continues with existing Plex collections
-        logger.info("Syncing all Trakt, Letterboxd, and MDBList sources")
+        logger.info("Syncing all integration sources")
         try:
             sync_all_trakt_sources(server, config)
         except Exception as e:
@@ -200,6 +210,10 @@ def run_rotation_once(
             sync_all_mdblist_sources(server, config)
         except Exception as e:
             logger.error("MDBList sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_anilist_sources(server, config)
+        except Exception as e:
+            logger.error("AniList sync failed, continuing with rotation: %s", e)
     else:
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")
@@ -394,6 +408,7 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     sync_all_trakt_sources(server, config)
     sync_all_letterboxd_sources(server, config)
     sync_all_mdblist_sources(server, config)
+    sync_all_anilist_sources(server, config)
 
     logger.info("Manual sync complete")
 

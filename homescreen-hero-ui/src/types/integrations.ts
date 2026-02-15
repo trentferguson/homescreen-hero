@@ -52,6 +52,16 @@ export interface MDBListMissingItem extends BaseMissingItem {
     mdblist_id: string | null;
 }
 
+// AniList-specific missing item
+export interface AniListMissingItem extends BaseMissingItem {
+    media_format: string | null;
+    anilist_id: number | null;
+    mal_id: number | null;
+    tmdb_id: number | null;
+    imdb_id: string | null;
+    tvdb_id: number | null;
+}
+
 // Settings types
 export interface TraktSettings {
     enabled: boolean;

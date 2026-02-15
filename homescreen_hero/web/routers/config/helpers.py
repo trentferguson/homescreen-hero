@@ -69,3 +69,16 @@ def load_mdblist_sources(data: dict) -> list[dict]:
         raise ValueError("config.mdblist.sources must be a list")
 
     return list(sources or [])
+
+
+def load_anilist_sources(data: dict) -> list[dict]:
+    # Extract the list of AniList sources from config mapping
+    anilist_section = data.get("anilist")
+    if anilist_section and not isinstance(anilist_section, dict):
+        raise ValueError("config.anilist must be a mapping if present")
+
+    sources = anilist_section.get("sources") if isinstance(anilist_section, dict) else []
+    if sources and not isinstance(sources, list):
+        raise ValueError("config.anilist.sources must be a list")
+
+    return list(sources or [])

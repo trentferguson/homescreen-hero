@@ -2,6 +2,7 @@ import { Tab } from "@headlessui/react";
 import { TraktIntegration } from "../components/integrations/TraktIntegration";
 import { LetterboxdIntegration } from "../components/integrations/LetterboxdIntegration";
 import { MDBListIntegration } from "../components/integrations/MDBListIntegration";
+import { AnimeIntegration } from "../components/integrations/AnimeIntegration";
 import { TautulliIntegration } from "../components/integrations/TautulliIntegration";
 import { SeerrIntegration } from "../components/integrations/SeerrIntegration";
 
@@ -9,6 +10,7 @@ const tabs = [
     { name: "Trakt", component: TraktIntegration },
     { name: "Letterboxd", component: LetterboxdIntegration },
     { name: "MDBList", component: MDBListIntegration },
+    { name: "Anime", component: AnimeIntegration },
     { name: "Tautulli", component: TautulliIntegration },
     { name: "Seerr", component: SeerrIntegration },
 ] as const;

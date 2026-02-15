@@ -12,6 +12,7 @@ from homescreen_hero.core.db import init_db
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 from homescreen_hero.core.integrations.trakt_client import get_trakt_client
 from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
+from homescreen_hero.core.integrations.anilist_client import get_anilist_client
 from homescreen_hero.core.logging_config import level_from_name, setup_logging
 from homescreen_hero.core.config.schema import HealthComponent, HealthResponse
 
@@ -205,6 +206,57 @@ def _check_seerr(config: Any) -> HealthComponent:
         )
 
 
+# Helper function for AniList health check
+def _check_anilist(config: Any) -> HealthComponent:
+    try:
+        anilist_client = get_anilist_client(config)
+
+        if anilist_client is None:
+            return HealthComponent(ok=True, error="AniList disabled or not configured")
+
+        a_ok, a_error = anilist_client.ping()
+        issues: list[str] = []
+
+        if not a_ok:
+            issues.append(f"AniList ping failed: {a_error or 'unknown error'}")
+
+        try:
+            server = get_plex_server(config)
+
+            if config.anilist and config.anilist.sources:
+                for src in config.anilist.sources:
+                    if not src.plex_library:
+                        issues.append(f"Source '{src.name}' has no plex_library set")
+                        continue
+
+                    try:
+                        server.library.section(src.plex_library)
+                    except NotFound:
+                        issues.append(
+                            f"Source '{src.name}' uses unknown Plex library "
+                            f"'{src.plex_library}'"
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        issues.append(
+                            f"Source '{src.name}' failed library check "
+                            f"'{src.plex_library}': {exc}"
+                        )
+        except Exception as exc:  # pragma: no cover - defensive
+            issues.append(f"Failed to validate AniList sources against Plex: {exc}")
+
+        return (
+            HealthComponent(ok=False, error="; ".join(issues))
+            if issues
+            else HealthComponent(ok=True)
+        )
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("AniList health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in AniList health check: {exc}"
+        )
+
+
 # Helper function for Plex health check
 def _check_plex(config: Any) -> HealthComponent:
     try:
@@ -303,6 +355,16 @@ def health_seerr() -> HealthComponent:
     return _check_seerr(config)
 
 
+# Validate AniList connectivity and configured Plex library references
+@router.get("/health/anilist", response_model=HealthComponent)
+def health_anilist() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_anilist(config)
+
+
 # Validate Plex connectivity and configured library is accessible
 @router.get("/health/plex", response_model=HealthComponent)
 def health_plex() -> HealthComponent:
@@ -331,6 +393,7 @@ def health_check() -> HealthResponse:
 
     components["trakt"] = _check_trakt(config)
     components["mdblist"] = _check_mdblist(config)
+    components["anilist"] = _check_anilist(config)
     components["tautulli"] = _check_tautulli(config)
     components["seerr"] = _check_seerr(config)
     components["plex"] = _check_plex(config)

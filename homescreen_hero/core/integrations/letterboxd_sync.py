@@ -213,11 +213,7 @@ def sync_all_letterboxd_sources(
         server: PlexServer instance
         config: Application configuration
     """
-    if not config.letterboxd or not config.letterboxd.enabled:
-        logger.info("Letterboxd disabled or not configured; skipping Letterboxd sync")
-        return
-
-    if not config.letterboxd.sources:
+    if not config.letterboxd or not config.letterboxd.sources:
         logger.info("No Letterboxd sources configured; skipping Letterboxd sync")
         return
 

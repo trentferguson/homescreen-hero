@@ -1,8 +1,111 @@
 import type { ReactNode } from "react";
-import { RefreshCw, ChevronRight, ChevronLeft } from "lucide-react";
+import { RefreshCw, ChevronRight, ChevronLeft, ListPlus } from "lucide-react";
 import type { Source, SourceStatus, BaseMissingItem, PlexLibraryConfig } from "../../../types/integrations";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { LibrarySelect } from "./LibrarySelect";
+
+// ─── SourceList (reusable source list without the add form) ─────────────────
+
+export interface SourceListProps<TMissing extends BaseMissingItem> {
+    sources: Source[];
+    statuses: Map<number, SourceStatus>;
+    onSyncSource: (index: number) => void;
+    onRemoveSource: (index: number) => void;
+    loadingSources: boolean;
+    syncingSource: number | null;
+    deletingSource: number | null;
+    missingItems: Map<number, TMissing[]>;
+    expandedMissing: Set<number>;
+    missingPages: Map<number, number>;
+    loadingMissing: Set<number>;
+    onToggleMissing: (index: number) => void;
+    onSetMissingPage: (index: number, page: number) => void;
+    renderMissingItem: (item: TMissing, index: number) => ReactNode;
+    itemsPerPage?: number;
+}
+
+export function SourceList<TMissing extends BaseMissingItem>(
+    props: SourceListProps<TMissing>
+) {
+    const {
+        sources,
+        statuses,
+        onSyncSource,
+        onRemoveSource,
+        loadingSources,
+        syncingSource,
+        deletingSource,
+        missingItems,
+        expandedMissing,
+        missingPages,
+        loadingMissing,
+        onToggleMissing,
+        onSetMissingPage,
+        renderMissingItem,
+        itemsPerPage = 10,
+    } = props;
+
+    if (loadingSources) {
+        return <p className="text-xs text-slate-400">Loading sources…</p>;
+    }
+
+    if (sources.length === 0) {
+        return (
+            <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/30 px-4 py-6 flex items-center gap-4">
+                <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2">
+                        <div className="h-4 w-32 rounded bg-slate-800" />
+                        <div className="h-4 w-16 rounded-full bg-slate-800/60" />
+                    </div>
+                    <div className="h-3 w-56 rounded bg-slate-800/40" />
+                    <div className="h-3 w-28 rounded bg-slate-800/40" />
+                </div>
+                <div className="flex flex-col items-center gap-1.5 px-4">
+                    <ListPlus className="h-7 w-7 text-slate-700" />
+                    <p className="text-sm text-slate-400 whitespace-nowrap">No lists added yet</p>
+                </div>
+                <div className="flex gap-2 flex-1 justify-end">
+                    <div className="h-7 w-20 rounded-lg bg-slate-800/40" />
+                    <div className="h-7 w-16 rounded-lg bg-slate-800/40" />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            {sources.map((source, idx) => {
+                const status = statuses.get(idx);
+                const missing = missingItems.get(idx);
+                const isExpanded = expandedMissing.has(idx);
+                const isLoadingMissing = loadingMissing.has(idx);
+                const currentPage = missingPages.get(idx) || 0;
+
+                return (
+                    <SourceCard
+                        key={`${source.name}-${idx}`}
+                        source={source}
+                        status={status}
+                        onSync={() => onSyncSource(idx)}
+                        onRemove={() => onRemoveSource(idx)}
+                        isSyncing={syncingSource === idx}
+                        isDeleting={deletingSource === idx}
+                        missingItems={missing}
+                        isExpanded={isExpanded}
+                        isLoadingMissing={isLoadingMissing}
+                        currentPage={currentPage}
+                        itemsPerPage={itemsPerPage}
+                        onToggleMissing={() => onToggleMissing(idx)}
+                        onSetPage={(page) => onSetMissingPage(idx, page)}
+                        renderMissingItem={renderMissingItem}
+                    />
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── SourceListManager (add form + SourceList, used by Trakt/Letterboxd/MDBList) ─
 
 interface SourceListManagerProps<TMissing extends BaseMissingItem> {
     // Header
@@ -48,11 +151,6 @@ interface SourceListManagerProps<TMissing extends BaseMissingItem> {
 
     // Optional note (like Letterboxd's scraping disclaimer)
     note?: ReactNode;
-}
-
-function formatDate(dateString: string | null): string {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleString();
 }
 
 export function SourceListManager<TMissing extends BaseMissingItem>(
@@ -101,7 +199,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
                     type="button"
                     onClick={onAddSource}
                     disabled={savingSource || loadingSources || !canAdd}
-                    className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-slate-800 disabled:opacity-60"
+                    className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     {savingSource ? "Adding…" : "Add List"}
                 </button>
@@ -149,48 +247,29 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
             )}
 
             {/* Source list */}
-            <div className="space-y-3">
-                {loadingSources ? (
-                    <p className="text-xs text-slate-400">Loading sources…</p>
-                ) : sources.length === 0 ? (
-                    <p className="text-xs text-slate-400">
-                        No lists added yet. Use the form above to add your first list.
-                    </p>
-                ) : (
-                    sources.map((source, idx) => {
-                        const status = statuses.get(idx);
-                        const missing = missingItems.get(idx);
-                        const isExpanded = expandedMissing.has(idx);
-                        const isLoadingMissing = loadingMissing.has(idx);
-                        const currentPage = missingPages.get(idx) || 0;
-
-                        return (
-                            <SourceCard
-                                key={`${source.name}-${idx}`}
-                                source={source}
-                                status={status}
-                                onSync={() => onSyncSource(idx)}
-                                onRemove={() => onRemoveSource(idx)}
-                                isSyncing={syncingSource === idx}
-                                isDeleting={deletingSource === idx}
-                                missingItems={missing}
-                                isExpanded={isExpanded}
-                                isLoadingMissing={isLoadingMissing}
-                                currentPage={currentPage}
-                                itemsPerPage={itemsPerPage}
-                                onToggleMissing={() => onToggleMissing(idx)}
-                                onSetPage={(page) => onSetMissingPage(idx, page)}
-                                renderMissingItem={renderMissingItem}
-                            />
-                        );
-                    })
-                )}
-            </div>
+            <SourceList
+                sources={sources}
+                statuses={statuses}
+                onSyncSource={onSyncSource}
+                onRemoveSource={onRemoveSource}
+                loadingSources={loadingSources}
+                syncingSource={syncingSource}
+                deletingSource={deletingSource}
+                missingItems={missingItems}
+                expandedMissing={expandedMissing}
+                missingPages={missingPages}
+                loadingMissing={loadingMissing}
+                onToggleMissing={onToggleMissing}
+                onSetMissingPage={onSetMissingPage}
+                renderMissingItem={renderMissingItem}
+                itemsPerPage={itemsPerPage}
+            />
         </div>
     );
 }
 
-// Internal SourceCard component
+// ─── SourceCard (internal) ──────────────────────────────────────────────────
+
 interface SourceCardProps<TMissing> {
     source: Source;
     status: SourceStatus | undefined;
@@ -206,6 +285,11 @@ interface SourceCardProps<TMissing> {
     onToggleMissing: () => void;
     onSetPage: (page: number) => void;
     renderMissingItem: (item: TMissing, index: number) => ReactNode;
+}
+
+function formatDate(dateString: string | null): string {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleString();
 }
 
 function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMissing>) {

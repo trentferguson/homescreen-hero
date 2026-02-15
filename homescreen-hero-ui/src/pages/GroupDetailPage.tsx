@@ -38,7 +38,7 @@ type CollectionGroup = {
 
 type CollectionSource = {
     name: string;
-    source: "plex" | "trakt" | "letterboxd" | "mdblist";
+    source: "plex" | "trakt" | "letterboxd" | "mdblist" | "anilist";
     detail?: string | null;
 };
 
@@ -47,6 +47,7 @@ type CollectionSourcesResponse = {
     trakt: CollectionSource[];
     letterboxd: CollectionSource[];
     mdblist: CollectionSource[];
+    anilist: CollectionSource[];
 };
 
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
@@ -130,7 +131,7 @@ export default function GroupDetailPage() {
         fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
-                const combined = [...(data.plex || []), ...(data.trakt || []), ...(data.letterboxd || []), ...(data.mdblist || [])];
+                const combined = [...(data.plex || []), ...(data.trakt || []), ...(data.letterboxd || []), ...(data.mdblist || []), ...(data.anilist || [])];
                 setSources(combined);
             })
             .catch(() => {

@@ -14,6 +14,8 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSource,
     MDBListSettings,
     MDBListSource,
+    AniListSettings,
+    AniListSource,
     TautulliSettings,
     SeerrSettings,
     CollectionGroupConfig,
@@ -79,6 +81,16 @@ class MDBListSourcePayload(MDBListSource):
     pass
 
 
+# Incoming payload for AniList settings updates.
+class AniListConfigSaveRequest(AniListSettings):
+    pass
+
+
+# Incoming payload for AniList source create/update operations.
+class AniListSourcePayload(AniListSource):
+    pass
+
+
 # Incoming payload for Tautulli settings updates.
 class TautulliConfigSaveRequest(TautulliSettings):
     pass
@@ -112,13 +124,14 @@ class GroupReorderRequest(BaseModel):
 class CollectionSourcesResponse(BaseModel):
     class CollectionSource(BaseModel):
         name: str
-        source: Literal["plex", "trakt", "letterboxd", "mdblist"]
+        source: Literal["plex", "trakt", "letterboxd", "mdblist", "anilist"]
         detail: Optional[str] = None
 
     plex: List[CollectionSource]
     trakt: List[CollectionSource]
     letterboxd: List[CollectionSource]
     mdblist: List[CollectionSource]
+    anilist: List[CollectionSource]
 
 
 # Status information for a Trakt source including sync history.
@@ -216,6 +229,42 @@ class MDBListMissingItemOut(BaseModel):
     tmdb_id: Optional[int]
     trakt_id: Optional[int]
     mdblist_id: Optional[str]
+    first_seen: datetime
+    last_seen: datetime
+    times_seen: int
+
+
+# Status information for an AniList source including sync history.
+class AniListSourceStatus(BaseModel):
+    source_index: int
+    name: str
+    last_sync_time: Optional[datetime] = None
+    sync_status: Literal["success", "error", "pending", "never_synced"]
+    error_message: Optional[str] = None
+    items_matched: int = 0
+    items_total: int = 0
+
+
+# Response from manual AniList sync operation.
+class AniListSyncResponse(BaseModel):
+    ok: bool
+    message: str
+    items_total: int
+    items_matched: int
+    items_missing: int
+    sync_time: datetime
+
+
+# An AniList item that wasn't found in Plex.
+class AniListMissingItemOut(BaseModel):
+    title: str
+    year: Optional[int]
+    media_format: Optional[str]
+    anilist_id: Optional[int]
+    mal_id: Optional[int]
+    tmdb_id: Optional[int]
+    imdb_id: Optional[str]
+    tvdb_id: Optional[int]
     first_seen: datetime
     last_seen: datetime
     times_seen: int

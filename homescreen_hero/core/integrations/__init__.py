@@ -3,6 +3,7 @@ from .trakt_client import get_trakt_client
 from .trakt_sync import sync_all_trakt_sources
 from .letterboxd_sync import sync_all_letterboxd_sources
 from .mdblist_sync import sync_all_mdblist_sources
+from .anilist_sync import sync_all_anilist_sources
 
 __all__ = [
     "get_plex_server",
@@ -10,5 +11,6 @@ __all__ = [
     "sync_all_trakt_sources",
     "sync_all_letterboxd_sources",
     "sync_all_mdblist_sources",
+    "sync_all_anilist_sources",
     "apply_home_screen_selection",
 ]

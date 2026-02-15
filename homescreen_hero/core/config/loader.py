@@ -213,7 +213,7 @@ def _validate_collection_references(config: AppConfig) -> None:
         for source in config.trakt.sources:
             integration_collections.add(source.name)
 
-    if config.letterboxd and config.letterboxd.enabled and config.letterboxd.sources:
+    if config.letterboxd and config.letterboxd.sources:
         for source in config.letterboxd.sources:
             integration_collections.add(source.name)
 

@@ -70,7 +70,7 @@ def get_configured_collection_names(config: AppConfig) -> Set[str]:
             names.add(source.name)
 
     # Add collections from Letterboxd sources
-    if config.letterboxd and config.letterboxd.enabled and config.letterboxd.sources:
+    if config.letterboxd and config.letterboxd.sources:
         for source in config.letterboxd.sources:
             names.add(source.name)
 
@@ -125,7 +125,7 @@ def cleanup_deleted_integration_sources(
         for source in config.trakt.sources:
             current_integration_sources.add(source.name)
 
-    if config.letterboxd and config.letterboxd.enabled and config.letterboxd.sources:
+    if config.letterboxd and config.letterboxd.sources:
         for source in config.letterboxd.sources:
             current_integration_sources.add(source.name)
 
