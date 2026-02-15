@@ -65,6 +65,10 @@ def setup_logging(level: int | str = logging.INFO, reconfigure: bool = False) ->
     for handler in root.handlers:
         handler.setLevel(level)
 
+    # Keep noisy third-party loggers at WARNING even when log level is set to DEBUG
+    for noisy in ("urllib3", "httpcore", "httpx"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
     logging.captureWarnings(True)
     root.debug(
         "Logging configured (level=%s, handlers=%d, log_file=%s)",
