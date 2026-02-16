@@ -98,15 +98,6 @@ export function LetterboxdIntegration() {
                                     </button>
                                 </div>
 
-                                {/* Note */}
-                                <div className="rounded-lg border border-blue-700/50 bg-blue-900/20 px-4 py-3">
-                                    <p className="text-xs text-blue-200">
-                                        <strong>Note:</strong> Letterboxd integration uses web scraping since their
-                                        API requires approval. Movies are matched by title and year, which may be
-                                        less accurate than ID-based matching.
-                                    </p>
-                                </div>
-
                                 {/* Source list */}
                                 <SourceList<LetterboxdMissingItem>
                                     sources={integration.sources}

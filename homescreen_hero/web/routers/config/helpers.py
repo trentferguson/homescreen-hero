@@ -84,10 +84,23 @@ def load_anilist_sources(data: dict) -> list[dict]:
     return list(sources or [])
 
 
+def load_mal_sources(data: dict) -> list[dict]:
+    # Extract the list of MAL sources from config mapping
+    mal_section = data.get("mal")
+    if mal_section and not isinstance(mal_section, dict):
+        raise ValueError("config.mal must be a mapping if present")
+
+    sources = mal_section.get("sources") if isinstance(mal_section, dict) else []
+    if sources and not isinstance(sources, list):
+        raise ValueError("config.mal.sources must be a list")
+
+    return list(sources or [])
+
+
 def get_all_source_names(data: dict) -> set[str]:
     # Collect all source names across integrations (used for duplicate validation)
     names: set[str] = set()
-    for section_key in ("trakt", "letterboxd", "mdblist", "anilist"):
+    for section_key in ("trakt", "letterboxd", "mdblist", "anilist", "mal"):
         section = data.get(section_key)
         if not isinstance(section, dict):
             continue

@@ -247,6 +247,30 @@ class AniListSettings(BaseModel):
     sources: List[AniListSource] = Field(default_factory=list)
 
 
+class MALSource(BaseModel):
+    name: str = Field(..., description="Display name for this list (becomes Plex collection name)")
+    url: str = Field(..., description="MAL user list URL or mal://ranking/... or mal://season/...")
+    plex_library: str = Field(..., description="Target Plex library name")
+    max_items: Optional[int] = Field(
+        default=100,
+        ge=10,
+        le=500,
+        description="Maximum number of items to fetch for ranking/seasonal lists (ignored for user lists)",
+    )
+
+
+class MALSettings(BaseModel):
+    enabled: bool = Field(
+        default=False,
+        description="Whether MAL integration is enabled",
+    )
+    client_id: Optional[str] = Field(
+        default=None,
+        description="MAL Client ID (can be set via HSH_MAL_CLIENT_ID env var)",
+    )
+    sources: List[MALSource] = Field(default_factory=list)
+
+
 class TautulliSettings(BaseModel):
     # Tautulli connection details for analytics.
     enabled: bool = Field(
@@ -306,6 +330,7 @@ class AppConfig(BaseModel):
     letterboxd: Optional[LetterboxdSettings] = None
     mdblist: Optional[MDBListSettings] = None
     anilist: Optional[AniListSettings] = None
+    mal: Optional[MALSettings] = None
     tautulli: Optional[TautulliSettings] = None
     seerr: Optional[SeerrSettings] = None
     logging: LoggingSettings = LoggingSettings()

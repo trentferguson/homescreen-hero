@@ -163,6 +163,18 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             logger.info("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
             config.tautulli.base_url = tautulli_base_url
 
+    # MAL Client ID override (if MAL is enabled)
+    if config.mal and config.mal.enabled:
+        mal_client_id = os.getenv("HSH_MAL_CLIENT_ID")
+        if mal_client_id:
+            logger.info("Using MAL Client ID from HSH_MAL_CLIENT_ID environment variable")
+            config.mal.client_id = mal_client_id
+        elif not config.mal.client_id:
+            raise ValueError(
+                "MAL Client ID is required when MAL is enabled. "
+                "Set it in config.yaml or via HSH_MAL_CLIENT_ID environment variable"
+            )
+
     # Seerr API key override (if Seerr is enabled)
     if config.seerr and config.seerr.enabled:
         seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
@@ -223,6 +235,10 @@ def _validate_collection_references(config: AppConfig) -> None:
 
     if config.anilist and config.anilist.sources:
         for source in config.anilist.sources:
+            integration_collections.add(source.name)
+
+    if config.mal and config.mal.enabled and config.mal.sources:
+        for source in config.mal.sources:
             integration_collections.add(source.name)
 
     # Check each group for collections that don't have integration sources

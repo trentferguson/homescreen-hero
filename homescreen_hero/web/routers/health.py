@@ -13,6 +13,7 @@ from homescreen_hero.core.integrations.plex_client import get_plex_server
 from homescreen_hero.core.integrations.trakt_client import get_trakt_client
 from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
 from homescreen_hero.core.integrations.anilist_client import get_anilist_client
+from homescreen_hero.core.integrations.mal_client import get_mal_client
 from homescreen_hero.core.logging_config import level_from_name, setup_logging
 from homescreen_hero.core.config.schema import HealthComponent, HealthResponse
 
@@ -257,6 +258,60 @@ def _check_anilist(config: Any) -> HealthComponent:
         )
 
 
+# Helper function for MAL health check
+def _check_mal(config: Any) -> HealthComponent:
+    try:
+        mal_client = get_mal_client(config)
+
+        if mal_client is None:
+            # Check if MAL is enabled - if so, this is an error (missing client ID)
+            if config.mal and config.mal.enabled:
+                return HealthComponent(ok=False, error="MAL enabled but Client ID not configured")
+            return HealthComponent(ok=True, error="MAL disabled or not configured")
+
+        m_ok, m_error = mal_client.ping()
+        issues: list[str] = []
+
+        if not m_ok:
+            issues.append(f"MAL ping failed: {m_error or 'unknown error'}")
+
+        try:
+            server = get_plex_server(config)
+
+            if config.mal and config.mal.sources:
+                for src in config.mal.sources:
+                    if not src.plex_library:
+                        issues.append(f"Source '{src.name}' has no plex_library set")
+                        continue
+
+                    try:
+                        server.library.section(src.plex_library)
+                    except NotFound:
+                        issues.append(
+                            f"Source '{src.name}' uses unknown Plex library "
+                            f"'{src.plex_library}'"
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        issues.append(
+                            f"Source '{src.name}' failed library check "
+                            f"'{src.plex_library}': {exc}"
+                        )
+        except Exception as exc:  # pragma: no cover - defensive
+            issues.append(f"Failed to validate MAL sources against Plex: {exc}")
+
+        return (
+            HealthComponent(ok=False, error="; ".join(issues))
+            if issues
+            else HealthComponent(ok=True)
+        )
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("MAL health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in MAL health check: {exc}"
+        )
+
+
 # Helper function for Plex health check
 def _check_plex(config: Any) -> HealthComponent:
     try:
@@ -365,6 +420,16 @@ def health_anilist() -> HealthComponent:
     return _check_anilist(config)
 
 
+# Validate MAL connectivity and configured Plex library references
+@router.get("/health/mal", response_model=HealthComponent)
+def health_mal() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_mal(config)
+
+
 # Validate Plex connectivity and configured library is accessible
 @router.get("/health/plex", response_model=HealthComponent)
 def health_plex() -> HealthComponent:
@@ -394,6 +459,7 @@ def health_check() -> HealthResponse:
     components["trakt"] = _check_trakt(config)
     components["mdblist"] = _check_mdblist(config)
     components["anilist"] = _check_anilist(config)
+    components["mal"] = _check_mal(config)
     components["tautulli"] = _check_tautulli(config)
     components["seerr"] = _check_seerr(config)
     components["plex"] = _check_plex(config)

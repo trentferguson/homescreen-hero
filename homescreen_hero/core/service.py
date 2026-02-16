@@ -11,6 +11,7 @@ from .integrations import (
     sync_all_letterboxd_sources,
     sync_all_mdblist_sources,
     sync_all_anilist_sources,
+    sync_all_mal_sources,
     apply_home_screen_selection,
 )
 from .integrations.plex_client import get_library_collections
@@ -119,6 +120,7 @@ def _sync_selected_collections(
     from .integrations.letterboxd_sync import sync_single_letterboxd_source
     from .integrations.mdblist_sync import sync_single_mdblist_source
     from .integrations.anilist_sync import sync_single_anilist_source
+    from .integrations.mal_sync import sync_single_mal_source
     from .db import record_sync_result
 
     # Build a map of collection name -> source for quick lookup
@@ -126,6 +128,7 @@ def _sync_selected_collections(
     letterboxd_sources = {}
     mdblist_sources = {}
     anilist_sources = {}
+    mal_sources = {}
 
     if config.trakt and config.trakt.enabled:
         for source in config.trakt.sources:
@@ -142,6 +145,10 @@ def _sync_selected_collections(
     if config.anilist and config.anilist.sources:
         for source in config.anilist.sources:
             anilist_sources[source.name] = source
+
+    if config.mal and config.mal.enabled:
+        for source in config.mal.sources:
+            mal_sources[source.name] = source
 
     def _sync_and_record(integration_type: str, source, sync_fn):
         try:
@@ -179,6 +186,9 @@ def _sync_selected_collections(
         elif collection_name in anilist_sources:
             logger.info(f"Syncing selected AniList collection: {collection_name}")
             _sync_and_record("anilist", anilist_sources[collection_name], sync_single_anilist_source)
+        elif collection_name in mal_sources:
+            logger.info(f"Syncing selected MAL collection: {collection_name}")
+            _sync_and_record("mal", mal_sources[collection_name], sync_single_mal_source)
         else:
             logger.debug(f"Collection '{collection_name}' is not a synced source, skipping sync")
 
@@ -237,6 +247,10 @@ def run_rotation_once(
             sync_all_anilist_sources(server, config)
         except Exception as e:
             logger.error("AniList sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_mal_sources(server, config)
+        except Exception as e:
+            logger.error("MAL sync failed, continuing with rotation: %s", e)
     else:
         # First, select collections to determine which ones need syncing
         logger.info("Selective sync mode: will only sync collections selected for rotation")
@@ -432,6 +446,7 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     sync_all_letterboxd_sources(server, config)
     sync_all_mdblist_sources(server, config)
     sync_all_anilist_sources(server, config)
+    sync_all_mal_sources(server, config)
 
     logger.info("Manual sync complete")
 

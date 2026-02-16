@@ -16,6 +16,7 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSource,
     MDBListSource,
     AniListSource,
+    MALSource,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 
@@ -26,6 +27,7 @@ from .helpers import (
     load_letterboxd_sources,
     load_mdblist_sources,
     load_anilist_sources,
+    load_mal_sources,
     get_all_source_names,
 )
 from .schemas import (
@@ -46,6 +48,10 @@ from .schemas import (
     AniListSourceStatus,
     AniListSyncResponse,
     AniListMissingItemOut,
+    MALSourcePayload,
+    MALSourceStatus,
+    MALSyncResponse,
+    MALMissingItemOut,
 )
 
 import os
@@ -1184,4 +1190,282 @@ def get_missing_items_for_anilist_source(
         raise
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("Error fetching missing items for AniList source at index %d: %s", index, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# MAL SOURCES
+# ========================================================================
+
+@router.get("/mal/sources", response_model=list[MALSource])
+def list_mal_sources(current_user: str = Depends(get_current_user)) -> list[MALSource]:
+    # Return list of all configured MAL sources
+    try:
+        config = load_config()
+        return list(getattr(getattr(config, "mal", None), "sources", []) or [])
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/mal/sources", response_model=ConfigSaveResponse)
+def create_mal_source(
+    payload: MALSourcePayload,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    # Append new MAL source to config.yaml
+    try:
+        data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
+        mal_section = data.get("mal") if isinstance(data.get("mal"), dict) else {}
+        mal_section = dict(mal_section)
+
+        sources = load_mal_sources(data)
+        sources.append(payload.model_dump(exclude_none=True))
+
+        mal_section["sources"] = sources
+        data["mal"] = mal_section
+
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"MAL source '{payload.name}' added.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.put("/mal/sources/{index}", response_model=ConfigSaveResponse)
+def update_mal_source(
+    index: int,
+    payload: MALSourcePayload,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
+    # Replace existing MAL source at given index in config.yaml
+    try:
+        data = load_config_mapping()
+        mal_section = data.get("mal") if isinstance(data.get("mal"), dict) else {}
+        mal_section = dict(mal_section)
+
+        sources = load_mal_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="MAL source not found")
+
+        sources[index] = payload.model_dump(exclude_none=True)
+        mal_section["sources"] = sources
+        data["mal"] = mal_section
+
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"MAL source '{payload.name}' updated.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.delete("/mal/sources/{index}", response_model=ConfigSaveResponse)
+def delete_mal_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    # Remove MAL source at given index from config.yaml
+    try:
+        data = load_config_mapping()
+        mal_section = data.get("mal") if isinstance(data.get("mal"), dict) else {}
+        mal_section = dict(mal_section)
+
+        sources = load_mal_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="MAL source not found")
+
+        removed = sources.pop(index)
+        mal_section["sources"] = sources
+        data["mal"] = mal_section
+
+        save_config_mapping(data)
+
+        name = removed.get("name") if isinstance(removed, dict) else None
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"MAL source '{name or index}' deleted.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/mal/sources/status", response_model=list[MALSourceStatus])
+def get_mal_sources_status(
+    current_user: str = Depends(get_current_user)
+) -> list[MALSourceStatus]:
+    # Return sync status for each configured MAL source.
+    try:
+        from homescreen_hero.core.db import get_sync_status
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "mal", None), "sources", []) or [])
+
+        statuses: list[MALSourceStatus] = []
+        for idx, source in enumerate(sources):
+            record = get_sync_status("mal", source.name)
+            statuses.append(
+                MALSourceStatus(
+                    source_index=idx,
+                    name=source.name,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
+                )
+            )
+
+        return statuses
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/mal/sources/{index}/sync", response_model=MALSyncResponse)
+def sync_mal_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> MALSyncResponse:
+    # Manually sync a specific MAL source to Plex collection.
+    try:
+        from homescreen_hero.core.integrations.mal_sync import sync_single_mal_source
+        from homescreen_hero.core.db import record_sync_result
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "mal", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="MAL source not found")
+
+        source = sources[index]
+        server = get_plex_server(config)
+
+        # Execute the sync
+        total, matched = sync_single_mal_source(server, config, source)
+        missing = total - matched
+
+        record_sync_result(
+            integration_type="mal",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
+        return MALSyncResponse(
+            ok=True,
+            message=f"Synced '{source.name}' successfully",
+            items_total=total,
+            items_matched=matched,
+            items_missing=missing,
+            sync_time=datetime.utcnow(),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error syncing MAL source at index %d: %s", index, exc)
+
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "mal", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="mal",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
+
+
+@router.get("/mal/sources/{index}/missing", response_model=list[MALMissingItemOut])
+def get_missing_items_for_mal_source(
+    index: int,
+    current_user: str = Depends(get_current_user)
+) -> list[MALMissingItemOut]:
+    # Get items from a MAL list that weren't found in Plex.
+    try:
+        from homescreen_hero.core.db import get_session
+        from homescreen_hero.core.db.models import MALMissingItem
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "mal", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="MAL source not found")
+
+        source = sources[index]
+
+        with get_session() as session:
+            results = session.query(MALMissingItem).filter(
+                MALMissingItem.source_name == source.name,
+                MALMissingItem.source_url == source.url
+            ).order_by(MALMissingItem.last_seen.desc()).all()
+
+            return [
+                MALMissingItemOut(
+                    title=item.title,
+                    year=item.year,
+                    media_type=item.media_type,
+                    mal_id=item.mal_id,
+                    anilist_id=item.anilist_id,
+                    tmdb_id=item.tmdb_id,
+                    imdb_id=item.imdb_id,
+                    tvdb_id=item.tvdb_id,
+                    first_seen=item.first_seen,
+                    last_seen=item.last_seen,
+                    times_seen=item.times_seen,
+                )
+                for item in results
+            ]
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Error fetching missing items for MAL source at index %d: %s", index, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc

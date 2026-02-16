@@ -37,6 +37,7 @@ from .schemas import (
     MDBListTestRequest,
     TautulliTestRequest,
     SeerrTestRequest,
+    MALTestRequest,
     ConnectionTestResponse,
     QuickStartRequest,
 )
@@ -294,6 +295,7 @@ def check_env_vars() -> EnvVarsResponse:
         tautulli_url_from_env=bool(os.getenv("HSH_TAUTULLI_BASE_URL")),
         seerr_api_key_from_env=bool(os.getenv("HSH_SEERR_API_KEY")),
         seerr_url_from_env=bool(os.getenv("HSH_SEERR_BASE_URL")),
+        mal_client_id_from_env=bool(os.getenv("HSH_MAL_CLIENT_ID")),
     )
 
 
@@ -384,6 +386,26 @@ def test_seerr_connection(payload: SeerrTestRequest) -> ConnectionTestResponse:
         return ConnectionTestResponse(ok=ok, error=error)
     except Exception as exc:
         logger.exception("Seerr connection test failed")
+        return ConnectionTestResponse(ok=False, error=str(exc))
+
+
+@router.post("/test-mal", response_model=ConnectionTestResponse)
+def test_mal_connection(payload: MALTestRequest) -> ConnectionTestResponse:
+    # Test MAL connection with provided credentials (for quick-start wizard).
+    try:
+        from homescreen_hero.core.integrations.mal_client import MALClient, MALConfig
+
+        # Use provided client_id or fall back to environment variable
+        client_id = payload.client_id or os.getenv("HSH_MAL_CLIENT_ID")
+        if not client_id:
+            return ConnectionTestResponse(ok=False, error="No MAL Client ID provided")
+
+        cfg = MALConfig(client_id=client_id)
+        client = MALClient(cfg)
+        ok, error = client.ping()
+        return ConnectionTestResponse(ok=ok, error=error)
+    except Exception as exc:
+        logger.exception("MAL connection test failed")
         return ConnectionTestResponse(ok=False, error=str(exc))
 
 

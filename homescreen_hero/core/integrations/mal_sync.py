@@ -7,17 +7,21 @@ from typing import Any, Dict, List, Optional, Tuple
 from plexapi.exceptions import NotFound
 from plexapi.server import PlexServer
 
-from homescreen_hero.core.config.schema import AppConfig, AniListSource
-from homescreen_hero.core.db.models import AniListMissingItem
+from homescreen_hero.core.config.schema import AppConfig, MALSource
+from homescreen_hero.core.db.models import MALMissingItem
 from homescreen_hero.core.db.sync_status import record_sync_result
-from homescreen_hero.core.integrations.anilist_client import (
-    AniListItem,
-    get_anilist_client,
+from homescreen_hero.core.integrations.anime_id_map import load_anime_id_map_by_mal
+from homescreen_hero.core.integrations.mal_client import (
+    MALClient,
+    MALConfig,
+    MALItem,
     is_browse_url,
-    parse_anilist_url,
-    parse_browse_url,
+    is_ranking_url,
+    is_season_url,
+    parse_mal_user_url,
+    parse_ranking_url,
+    parse_season_url,
 )
-from homescreen_hero.core.integrations.anime_id_map import load_anime_id_map_by_anilist
 from homescreen_hero.core.integrations.plex_match import (
     build_guid_map,
     normalize_title,
@@ -25,13 +29,12 @@ from homescreen_hero.core.integrations.plex_match import (
 
 logger = logging.getLogger(__name__)
 
-# AniList formats that map to Plex show libraries
-SHOW_FORMATS = {"TV", "TV_SHORT", "OVA", "ONA", "SPECIAL"}
-MOVIE_FORMATS = {"MOVIE"}
+# MAL media_type values that map to Plex show vs movie libraries
+SHOW_TYPES = {"tv", "ova", "ona", "special"}
+MOVIE_TYPES = {"movie"}
 
 
 def _guid_lookup(guid_map: dict, *keys: str):
-    # Try multiple GUID keys against the map, return first match
     for key in keys:
         if key and key in guid_map:
             return guid_map[key]
@@ -39,21 +42,18 @@ def _guid_lookup(guid_map: dict, *keys: str):
 
 
 def _match_item(
-    item: AniListItem,
+    item: MALItem,
     guid_map: dict,
     library,
     anime_id_map: Dict[int, Dict[str, Any]],
     is_movie_library: bool,
 ):
-    # Try to find a Plex item matching an AniList entry
-    # 1. Look up mapped IDs from anime-lists
-    mapped = anime_id_map.get(item.anilist_id, {})
+
+    mapped = anime_id_map.get(item.mal_id, {})
     tmdb_id = mapped.get("tmdb_id")
     imdb_id = mapped.get("imdb_id")
     tvdb_id = mapped.get("tvdb_id")
 
-    # 2. Direct GUID map lookup (no title fallback — avoids false positives
-    #    from find_show/find_movie searching Plex with empty/partial titles)
     if is_movie_library:
         plex_item = _guid_lookup(
             guid_map,
@@ -75,8 +75,8 @@ def _match_item(
     if plex_item:
         return plex_item
 
-    # 3. Fallback: title/year search
-    title = item.title_english or item.title_romaji
+    # Fallback: title/year search
+    title = item.title_en or item.title
     if not title:
         return None
 
@@ -91,36 +91,35 @@ def _match_item(
     if results:
         return results[0]
 
-    # Try romaji title if English title didn't match
-    if item.title_romaji and item.title_english and item.title_romaji != title:
-        romaji = item.title_romaji
+    # Try Japanese title if English title didn't match
+    if item.title_ja and item.title_ja != title:
         if item.year:
-            results = library.search(title=romaji, year=item.year)
+            results = library.search(title=item.title_ja, year=item.year)
         else:
-            results = library.search(title=romaji)
+            results = library.search(title=item.title_ja)
         if results:
             return results[0]
 
     return None
 
 
-def sync_single_anilist_source(
+def sync_single_mal_source(
     server: PlexServer,
     config: AppConfig,
-    source: AniListSource,
+    source: MALSource,
 ) -> Tuple[int, int]:
-    # Returns (total_items, matched_items)
-    # AniList needs no credentials, so create the client directly
-    from homescreen_hero.core.integrations.anilist_client import AniListClient, AniListConfig
-    client = AniListClient(AniListConfig())
-
-    logger.info("Syncing AniList source '%s' from %s", source.name, source.url)
-
-    if not source.plex_library:
-        logger.warning("AniList source '%s' has no plex_library set; skipping", source.name)
+    if not config.mal or not config.mal.client_id:
+        logger.warning("MAL is not configured; skipping sync for '%s'", source.name)
         return 0, 0
 
-    # Resolve the Plex library
+    client = MALClient(MALConfig(client_id=config.mal.client_id))
+
+    logger.info("Syncing MAL source '%s' from %s", source.name, source.url)
+
+    if not source.plex_library:
+        logger.warning("MAL source '%s' has no plex_library set; skipping", source.name)
+        return 0, 0
+
     try:
         library = server.library.section(source.plex_library)
     except NotFound:
@@ -129,62 +128,62 @@ def sync_single_anilist_source(
         except Exception:
             available = "unknown (failed to list libraries)"
         logger.error(
-            "AniList source '%s' references unknown Plex library '%s'. Available: %s. Skipping.",
+            "MAL source '%s' references unknown Plex library '%s'. Available: %s. Skipping.",
             source.name, source.plex_library, available,
         )
         return 0, 0
     except Exception as exc:
         logger.error(
-            "Unexpected error looking up Plex library '%s' for AniList source '%s': %s. Skipping.",
+            "Unexpected error looking up Plex library '%s' for MAL source '%s': %s. Skipping.",
             source.plex_library, source.name, exc,
         )
         return 0, 0
 
-    # Detect library type
     is_movie_library = library.type == "movie"
 
-    # Fetch items from AniList (browse list vs user list)
-    if is_browse_url(source.url):
+    max_items = source.max_items or 100
+    if is_ranking_url(source.url):
         try:
-            sort_key = parse_browse_url(source.url)
+            ranking_type = parse_ranking_url(source.url)
         except ValueError as exc:
-            logger.error("Invalid AniList browse URL for source '%s': %s", source.name, exc)
+            logger.error("Invalid MAL ranking URL for source '%s': %s", source.name, exc)
             return 0, 0
-        # Pre-filter by format at the API level so we get a full page of the right type
-        format_filter = list(MOVIE_FORMATS) if is_movie_library else list(SHOW_FORMATS)
-        max_items = source.max_items or 100
-        items = client.get_browse_list(sort_key, max_items=max_items, format_in=format_filter)
+        items = client.get_ranking_list(ranking_type, max_items=max_items)
+    elif is_season_url(source.url):
+        try:
+            year, season = parse_season_url(source.url)
+        except ValueError as exc:
+            logger.error("Invalid MAL season URL for source '%s': %s", source.name, exc)
+            return 0, 0
+        items = client.get_seasonal_list(year, season, max_items=max_items)
     else:
         try:
-            username, list_name = parse_anilist_url(source.url)
+            username, status = parse_mal_user_url(source.url)
         except ValueError as exc:
-            logger.error("Invalid AniList URL for source '%s': %s", source.name, exc)
+            logger.error("Invalid MAL URL for source '%s': %s", source.name, exc)
             return 0, 0
-        items = client.get_user_list(username, list_name)
+        items = client.get_user_list(username, status)
 
-    # Filter items by format based on library type
+    # Filter items by media_type based on library type
     if is_movie_library:
-        filtered_items = [i for i in items if i.media_format in MOVIE_FORMATS]
+        filtered_items = [i for i in items if i.media_type in MOVIE_TYPES]
     else:
-        filtered_items = [i for i in items if i.media_format in SHOW_FORMATS]
+        filtered_items = [i for i in items if i.media_type in SHOW_TYPES]
 
     if not filtered_items:
         logger.info(
-            "AniList source '%s': no %s items found (had %d total items)",
+            "MAL source '%s': no %s items found (had %d total items)",
             source.name,
             "movie" if is_movie_library else "show",
             len(items),
         )
         return len(items), 0
 
-    # Load anime-lists ID mapping
-    anime_id_map = load_anime_id_map_by_anilist()
+    anime_id_map = load_anime_id_map_by_mal()
 
-    # Build Plex GUID map
     logger.info("Building Plex library GUID index for '%s'...", source.plex_library)
     guid_map = build_guid_map(library)
 
-    # Get existing collection items for diff
     existing_collection_items = []
     try:
         existing_collection_items = library.collection(source.name).items()
@@ -202,23 +201,21 @@ def sync_single_anilist_source(
         if plex_item is not None:
             matched_items.append(plex_item)
         else:
-            mapped = anime_id_map.get(item.anilist_id, {})
+            mapped = anime_id_map.get(item.mal_id, {})
             missing_items.append({
-                "title": item.title_english or item.title_romaji or "Unknown",
+                "title": item.title_en or item.title or "Unknown",
                 "year": item.year,
-                "anilist_id": item.anilist_id,
                 "mal_id": item.mal_id,
-                "media_format": item.media_format,
+                "media_type": item.media_type,
+                "anilist_id": mapped.get("anilist_id"),
                 "tmdb_id": mapped.get("tmdb_id"),
                 "imdb_id": mapped.get("imdb_id"),
                 "tvdb_id": mapped.get("tvdb_id"),
             })
 
-    # Add matched items to the collection
     for plex_item in matched_items:
         plex_item.addCollection(source.name)
 
-    # Only remove items if we successfully fetched from AniList
     if items:
         new_keys = {item.ratingKey for item in matched_items}
         to_remove_keys = existing_ids - new_keys
@@ -234,7 +231,7 @@ def sync_single_anilist_source(
                     )
     else:
         logger.warning(
-            "AniList source '%s' returned no items — skipping removal to prevent data loss.",
+            "MAL source '%s' returned no items -- skipping removal to prevent data loss.",
             source.name,
         )
 
@@ -243,15 +240,15 @@ def sync_single_anilist_source(
     missing = len(missing_items)
 
     logger.info(
-        "AniList source '%s': total %d (%s), matched %d, missing %d",
+        "MAL source '%s': total %d (%s), matched %d, missing %d",
         source.name, total, "movies" if is_movie_library else "shows", matched, missing,
     )
 
     if missing_items:
         for m in missing_items:
             logger.debug(
-                "AniList missing in Plex: %s (%s) anilist_id=%s",
-                m.get("title"), m.get("year"), m.get("anilist_id"),
+                "MAL missing in Plex: %s (%s) mal_id=%s",
+                m.get("title"), m.get("year"), m.get("mal_id"),
             )
 
     record_missing_items_in_db(source, missing_items)
@@ -259,28 +256,28 @@ def sync_single_anilist_source(
     return total, matched
 
 
-def sync_all_anilist_sources(
+def sync_all_mal_sources(
     server: PlexServer,
     config: AppConfig,
 ) -> None:
-    if not config.anilist or not config.anilist.sources:
-        logger.info("No AniList sources configured; skipping AniList sync")
+    if not config.mal or not config.mal.enabled or not config.mal.sources:
+        logger.info("No MAL sources configured; skipping MAL sync")
         return
 
-    for source in config.anilist.sources:
+    for source in config.mal.sources:
         try:
-            total, matched = sync_single_anilist_source(server, config, source)
+            total, matched = sync_single_mal_source(server, config, source)
             record_sync_result(
-                integration_type="anilist",
+                integration_type="mal",
                 source_name=source.name,
                 source_url=source.url,
                 items_total=total,
                 items_matched=matched,
             )
         except Exception as e:
-            logger.error("Failed to sync AniList source '%s': %s", source.name, e, exc_info=True)
+            logger.error("Failed to sync MAL source '%s': %s", source.name, e, exc_info=True)
             record_sync_result(
-                integration_type="anilist",
+                integration_type="mal",
                 source_name=source.name,
                 source_url=source.url,
                 items_total=0,
@@ -291,7 +288,7 @@ def sync_all_anilist_sources(
 
 
 def record_missing_items_in_db(
-    source: AniListSource,
+    source: MALSource,
     missing_items: List[Dict[str, Any]],
 ) -> None:
     if not missing_items:
@@ -301,32 +298,32 @@ def record_missing_items_in_db(
 
     with get_session() as session:
         for m in missing_items:
-            anilist_id = m.get("anilist_id")
+            mal_id = m.get("mal_id")
             title = m.get("title")
             year = m.get("year")
 
-            existing = session.query(AniListMissingItem).filter(
-                AniListMissingItem.source_name == source.name,
-                AniListMissingItem.source_url == source.url,
-                AniListMissingItem.title == title,
-                AniListMissingItem.year == year,
-                AniListMissingItem.anilist_id == anilist_id,
+            existing = session.query(MALMissingItem).filter(
+                MALMissingItem.source_name == source.name,
+                MALMissingItem.source_url == source.url,
+                MALMissingItem.title == title,
+                MALMissingItem.year == year,
+                MALMissingItem.mal_id == mal_id,
             ).first()
 
             if existing:
                 existing.last_seen = datetime.utcnow()
                 existing.times_seen += 1
             else:
-                row = AniListMissingItem(
+                row = MALMissingItem(
                     source_name=source.name,
                     source_url=source.url,
                     plex_library=source.plex_library,
                     plex_collection=source.name,
                     title=title,
                     year=year,
-                    media_format=m.get("media_format"),
-                    anilist_id=anilist_id,
-                    mal_id=m.get("mal_id"),
+                    media_type=m.get("media_type"),
+                    mal_id=mal_id,
+                    anilist_id=m.get("anilist_id"),
                     tmdb_id=m.get("tmdb_id"),
                     imdb_id=m.get("imdb_id"),
                     tvdb_id=m.get("tvdb_id"),

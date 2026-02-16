@@ -17,6 +17,7 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSettings,
     MDBListSettings,
     AniListSettings,
+    MALSettings,
     TautulliSettings,
     SeerrSettings,
     DisplaySettings,
@@ -31,6 +32,7 @@ from .schemas import (
     LetterboxdConfigSaveRequest,
     MDBListConfigSaveRequest,
     AniListConfigSaveRequest,
+    MALConfigSaveRequest,
     TautulliConfigSaveRequest,
     SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
@@ -314,6 +316,67 @@ def save_anilist_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="AniList settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# MAL SETTINGS
+# ========================================================================
+
+@router.get("/mal", response_model=MALSettings)
+def get_mal_settings(current_user: str = Depends(get_current_user)) -> MALSettings:
+    # Return the currently configured MAL settings
+    try:
+        config = load_config()
+        if config.mal is None:
+            return MALSettings(enabled=False, client_id=None, sources=[])
+        return config.mal
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/mal", response_model=ConfigSaveResponse)
+def save_mal_settings(
+    payload: MALConfigSaveRequest,
+    current_user: str = Depends(get_current_user)
+) -> ConfigSaveResponse:
+    # Update only MAL settings in config.yaml while preserving other keys
+    try:
+        data = load_config_mapping()
+
+        mal_section = data.get("mal") if isinstance(data.get("mal"), dict) else {}
+        mal_section = dict(mal_section)
+
+        # Only save client_id to config if it's not coming from environment variable
+        client_id_from_env = os.getenv("HSH_MAL_CLIENT_ID")
+        if client_id_from_env:
+            # Don't write client_id to config if it's set in environment
+            mal_section.pop("client_id", None)
+        else:
+            # Write client_id to config only if not using env var
+            mal_section["client_id"] = payload.client_id
+
+        mal_section.update(
+            enabled=payload.enabled,
+        )
+
+        data["mal"] = mal_section
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="MAL settings saved and validated.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

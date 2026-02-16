@@ -325,24 +325,6 @@ export function AniListIntegration() {
                 </div>
             )}
 
-            {/* Info note */}
-            <div className="rounded-lg border border-blue-700/50 bg-blue-900/20 px-4 py-3">
-                <p className="text-xs text-blue-200">
-                    <strong>Note:</strong> AniList items are matched to Plex using the{" "}
-                    <a
-                        href="https://github.com/Fribb/anime-lists"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:text-blue-100"
-                    >
-                        anime-lists
-                    </a>{" "}
-                    ID mapping database, with a fallback to title/year matching. Point your
-                    source at a show library for anime series, or a movie library for anime
-                    films.
-                </p>
-            </div>
-
             {/* Source list */}
             <SourceList<AniListMissingItem>
                 sources={integration.sources}

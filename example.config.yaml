@@ -85,6 +85,27 @@ anilist:
 #   plex_library: "Anime"
 #   max_items: 50  # Limit items for browse lists (default: 100, range: 10-500)
 
+# Optional: MyAnimeList integration
+mal:
+  enabled: false
+  # client_id: "YOUR_MAL_CLIENT_ID"  # RECOMMENDED: Use HSH_MAL_CLIENT_ID environment variable instead
+  # Get your Client ID from: https://myanimelist.net/apiconfig
+  sources:
+  - name: "My MAL Watchlist"  # This is the name that will show up in Plex
+    url: "https://myanimelist.net/animelist/username"  # Fetches all statuses by default
+    plex_library: "Anime"
+# - name: "Completed Anime"
+#   url: "https://myanimelist.net/animelist/username?status=completed"  # A specific status filter
+#   plex_library: "Anime"
+# - name: "Top Anime"
+#   url: "mal://ranking/all"  # MAL global ranking (options: all, airing, upcoming, bypopularity, favorite)
+#   plex_library: "Anime"
+#   max_items: 50  # Limit items for ranking/seasonal lists (default: 100, range: 10-500)
+# - name: "Winter 2026 Anime"
+#   url: "mal://season/2026/winter"  # Seasonal anime (seasons: winter, spring, summer, fall)
+#   plex_library: "Anime"
+#   max_items: 50
+
 # Optional: MDBList integration
 mdblist:
   enabled: false

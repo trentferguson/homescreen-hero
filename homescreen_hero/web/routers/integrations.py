@@ -19,6 +19,8 @@ from .health import (
     _check_seerr,
     _check_plex,
     _check_mdblist,
+    _check_anilist,
+    _check_mal,
 )
 
 logger = logging.getLogger(__name__)
@@ -161,6 +163,52 @@ def get_integrations_health(
             ok=seerr_health.ok or not seerr_enabled,
             status=seerr_status,
             detail=seerr_detail,
+        )
+    )
+
+    # 6. AniList
+    anilist_health = _check_anilist(config)
+    anilist_enabled = bool(config.anilist and config.anilist.sources)
+    if not anilist_enabled:
+        anilist_status = "disabled"
+        anilist_detail = anilist_health.error or "AniList not configured"
+    elif not anilist_health.ok:
+        anilist_status = "error"
+        anilist_detail = anilist_health.error
+    else:
+        anilist_status = "online"
+        anilist_detail = "AniList OK"
+
+    integrations.append(
+        IntegrationHealthOut(
+            name="AniList",
+            enabled=anilist_enabled,
+            ok=anilist_health.ok or not anilist_enabled,
+            status=anilist_status,
+            detail=anilist_detail,
+        )
+    )
+
+    # 7. MAL
+    mal_health = _check_mal(config)
+    mal_enabled = bool(config.mal and config.mal.enabled)
+    if not mal_enabled:
+        mal_status = "disabled"
+        mal_detail = mal_health.error or "MAL disabled"
+    elif not mal_health.ok:
+        mal_status = "error"
+        mal_detail = mal_health.error
+    else:
+        mal_status = "online"
+        mal_detail = "MAL OK"
+
+    integrations.append(
+        IntegrationHealthOut(
+            name="MAL",
+            enabled=mal_enabled,
+            ok=mal_health.ok or not mal_enabled,
+            status=mal_status,
+            detail=mal_detail,
         )
     )
 

@@ -17,6 +17,7 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSettings,
     MDBListSettings,
     AniListSettings,
+    MALSettings,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 
@@ -257,9 +258,21 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
                     )
                 )
 
+        mal_sources: list[CollectionSourcesResponse.CollectionSource] = []
+        mal_cfg: Optional[MALSettings] = getattr(config, "mal", None)
+        if mal_cfg and getattr(mal_cfg, "sources", None):
+            for src in mal_cfg.sources:
+                mal_sources.append(
+                    CollectionSourcesResponse.CollectionSource(
+                        name=src.name,
+                        source="mal",
+                        detail=src.plex_library or src.url,
+                    )
+                )
+
         # Plex collections created by third-party sync duplicate those sources.
         # Filter them out so the UI only shows the authoritative source.
-        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources + anilist_sources}
+        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources + anilist_sources + mal_sources}
         plex_sources = [s for s in plex_sources if s.name not in third_party_names]
 
         return CollectionSourcesResponse(
@@ -268,6 +281,7 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
             letterboxd=letterboxd_sources,
             mdblist=mdblist_sources,
             anilist=anilist_sources,
+            mal=mal_sources,
         )
     except Exception as exc:  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -63,6 +63,16 @@ export interface AniListMissingItem extends BaseMissingItem {
     tvdb_id: number | null;
 }
 
+// MAL-specific missing item
+export interface MALMissingItem extends BaseMissingItem {
+    media_type: string | null;
+    mal_id: number | null;
+    anilist_id: number | null;
+    tmdb_id: number | null;
+    imdb_id: string | null;
+    tvdb_id: number | null;
+}
+
 // Settings types
 export interface TraktSettings {
     enabled: boolean;
@@ -90,6 +100,11 @@ export interface SeerrSettings {
     enabled: boolean;
     api_key: string;
     base_url: string;
+}
+
+export interface MALSettings {
+    enabled: boolean;
+    client_id: string;
 }
 
 export interface PlexLibraryConfig {

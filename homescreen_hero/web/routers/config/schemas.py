@@ -16,6 +16,8 @@ from homescreen_hero.core.config.schema import (
     MDBListSource,
     AniListSettings,
     AniListSource,
+    MALSettings,
+    MALSource,
     TautulliSettings,
     SeerrSettings,
     CollectionGroupConfig,
@@ -91,6 +93,16 @@ class AniListSourcePayload(AniListSource):
     pass
 
 
+# Incoming payload for MAL settings updates.
+class MALConfigSaveRequest(MALSettings):
+    pass
+
+
+# Incoming payload for MAL source create/update operations.
+class MALSourcePayload(MALSource):
+    pass
+
+
 # Incoming payload for Tautulli settings updates.
 class TautulliConfigSaveRequest(TautulliSettings):
     pass
@@ -124,7 +136,7 @@ class GroupReorderRequest(BaseModel):
 class CollectionSourcesResponse(BaseModel):
     class CollectionSource(BaseModel):
         name: str
-        source: Literal["plex", "trakt", "letterboxd", "mdblist", "anilist"]
+        source: Literal["plex", "trakt", "letterboxd", "mdblist", "anilist", "mal"]
         detail: Optional[str] = None
 
     plex: List[CollectionSource]
@@ -132,6 +144,7 @@ class CollectionSourcesResponse(BaseModel):
     letterboxd: List[CollectionSource]
     mdblist: List[CollectionSource]
     anilist: List[CollectionSource]
+    mal: List[CollectionSource]
 
 
 # Status information for a Trakt source including sync history.
@@ -270,6 +283,42 @@ class AniListMissingItemOut(BaseModel):
     times_seen: int
 
 
+# Status information for a MAL source including sync history.
+class MALSourceStatus(BaseModel):
+    source_index: int
+    name: str
+    last_sync_time: Optional[datetime] = None
+    sync_status: Literal["success", "error", "pending", "never_synced"]
+    error_message: Optional[str] = None
+    items_matched: int = 0
+    items_total: int = 0
+
+
+# Response from manual MAL sync operation.
+class MALSyncResponse(BaseModel):
+    ok: bool
+    message: str
+    items_total: int
+    items_matched: int
+    items_missing: int
+    sync_time: datetime
+
+
+# A MAL item that wasn't found in Plex.
+class MALMissingItemOut(BaseModel):
+    title: str
+    year: Optional[int]
+    media_type: Optional[str]
+    mal_id: Optional[int]
+    anilist_id: Optional[int]
+    tmdb_id: Optional[int]
+    imdb_id: Optional[str]
+    tvdb_id: Optional[int]
+    first_seen: datetime
+    last_seen: datetime
+    times_seen: int
+
+
 # Quick start setup endpoints
 class ConfigExistsResponse(BaseModel):
     exists: bool
@@ -289,6 +338,7 @@ class EnvVarsResponse(BaseModel):
     tautulli_url_from_env: bool
     seerr_api_key_from_env: bool
     seerr_url_from_env: bool
+    mal_client_id_from_env: bool
 
 
 # Request payload for testing Trakt connection with provided credentials.
@@ -313,6 +363,11 @@ class TautulliTestRequest(BaseModel):
 class SeerrTestRequest(BaseModel):
     api_key: Optional[str] = None  # Falls back to HSH_SEERR_API_KEY env var
     base_url: str = "http://localhost:5055"  # Falls back to HSH_SEERR_BASE_URL env var
+
+
+# Request payload for testing MAL connection with provided credentials.
+class MALTestRequest(BaseModel):
+    client_id: Optional[str] = None  # Falls back to HSH_MAL_CLIENT_ID env var
 
 
 # Response for connection test endpoints.
