@@ -85,6 +85,10 @@ class RotationSettings(BaseModel):
         default_factory=AutoRotateSettings,
         description="Settings for auto-rotate mode",
     )
+    randomize_group_order: bool = Field(
+        default=False,
+        description="Shuffle the processing order of groups each rotation instead of using display_order or weight",
+    )
     per_library_limits: Dict[str, int] = Field(
         default_factory=dict,
         description="Maximum collections per library during rotation. Keys are library names, values are max counts.",

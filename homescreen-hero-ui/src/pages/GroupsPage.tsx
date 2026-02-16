@@ -19,6 +19,7 @@ import {
     RefreshCw,
     Search,
     Share2,
+    Shuffle,
     SlidersHorizontal,
     Trash2,
 } from "lucide-react";
@@ -96,6 +97,7 @@ type RotationSettings = {
     sync_all_on_rotation: boolean;
     blacklisted_collections: string[];
     auto_rotate: AutoRotateSettings;
+    randomize_group_order: boolean;
 };
 
 const defaultAutoRotate: AutoRotateSettings = {
@@ -1174,6 +1176,40 @@ export default function GroupsPage() {
                                 <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
                                     <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
                                     <p className="text-xs text-blue-200">Groups are processed in display order. Collections that haven't been featured recently are picked first.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <hr className="border-slate-700/50" />
+
+                        {/* Randomize Group Order */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-white">Randomize Group Order</label>
+                                    <p className="text-xs text-slate-400">
+                                        Shuffle which groups get priority each rotation so no single group always dominates.
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={rotationSettings?.randomize_group_order ?? false}
+                                    onChange={(val) => saveRotationField({ randomize_group_order: val })}
+                                    disabled={!rotationSettings}
+                                    className={`${
+                                        rotationSettings?.randomize_group_order ? "bg-primary" : "bg-slate-700"
+                                    } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 shrink-0 ml-4`}
+                                >
+                                    <span
+                                        className={`${
+                                            rotationSettings?.randomize_group_order ? "translate-x-6" : "translate-x-1"
+                                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                                    />
+                                </Switch>
+                            </div>
+                            {rotationSettings?.randomize_group_order && (
+                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
+                                    <Shuffle className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
+                                    <p className="text-xs text-blue-200">Group processing order will be shuffled each rotation, overriding display order and weight-based sorting.</p>
                                 </div>
                             )}
                         </div>

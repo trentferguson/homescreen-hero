@@ -23,6 +23,7 @@ def _get_ordered_groups(
     groups: List[CollectionGroupConfig],
     strategy: str,
     rng: random.Random,
+    randomize: bool = False,
 ) -> List[CollectionGroupConfig]:
     """
     Order groups based on the selection strategy.
@@ -31,10 +32,17 @@ def _get_ordered_groups(
         groups: List of all groups from config
         strategy: Selection strategy ('random', 'weighted', or 'lru')
         rng: Random number generator for reproducibility
+        randomize: Shuffle group order each rotation
 
     Returns:
         Ordered list of groups to process
     """
+    if randomize:
+        logger.debug("Randomizing group processing order")
+        shuffled = list(groups)
+        rng.shuffle(shuffled)
+        return shuffled
+
     if strategy == "weighted":
         # Sort groups by weight (descending), then by config order for ties
         # Higher weight = processed first = higher priority
@@ -220,7 +228,10 @@ def run_rotation_with_history(
     )
 
     # Order groups based on strategy
-    ordered_groups = _get_ordered_groups(config.groups, config.rotation.strategy, rng)
+    ordered_groups = _get_ordered_groups(
+        config.groups, config.rotation.strategy, rng,
+        randomize=config.rotation.randomize_group_order,
+    )
 
     for group in ordered_groups:
         is_active = _group_is_active(group, today)
@@ -541,7 +552,10 @@ def run_rotation_dry(
     logger.info("Starting dry rotation for %d groups", len(config.groups))
 
     # Order groups based on strategy
-    ordered_groups = _get_ordered_groups(config.groups, config.rotation.strategy, rng)
+    ordered_groups = _get_ordered_groups(
+        config.groups, config.rotation.strategy, rng,
+        randomize=config.rotation.randomize_group_order,
+    )
 
     # For dry run, we don't have usage history, so use empty map
     usage_map: Dict[str, CollectionUsage] = {}

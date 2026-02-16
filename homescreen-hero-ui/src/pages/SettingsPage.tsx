@@ -26,6 +26,7 @@ type RotationSettings = {
     strategy: string;
     allow_repeats: boolean;
     sync_all_on_rotation: boolean;
+    randomize_group_order: boolean;
     blacklisted_collections: string[];
     per_library_limits: Record<string, number>;
 };
@@ -135,6 +136,7 @@ export default function SettingsPage() {
         strategy: "random",
         allow_repeats: false,
         sync_all_on_rotation: true,
+        randomize_group_order: false,
         blacklisted_collections: [],
         per_library_limits: {},
     });
