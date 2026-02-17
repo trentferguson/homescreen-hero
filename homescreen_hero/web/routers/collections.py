@@ -653,15 +653,15 @@ def search_library_items(
     library: str,
     query: Optional[str] = None,
     collection_title: Optional[str] = None,
-    limit: int = 50,
-    _current_user: str = Depends(get_current_user),
+    limit: int = 100,
+    offset: int = 0,
 ) -> LibrarySearchResponse:
     config = load_config()
     server = get_plex_server(config)
 
     try:
         # Get the library section
-        logger.info(f"Searching library: {library}, query: {query}")
+        logger.info(f"Searching library: {library}, query: {query}, offset: {offset}, limit: {limit}")
         section = server.library.section(library)
         logger.info(f"Found section: {section.title} (type: {section.type})")
 
@@ -673,13 +673,29 @@ def search_library_items(
                     collection_item_keys = {str(item.ratingKey) for item in col.items()}
                     break
 
-        # Search or get all items
+        # Get the ACTUAL total count first (before pagination)
+        # For query searches, we need to get all results to count them
+        # For full library listing, use the section's totalSize
         if query:
-            items = section.search(title=query, limit=limit)
+            # Do a full search to get actual total (search results are usually smaller)
+            all_search_results = section.search(title=query)
+            total_available = len(all_search_results)
+            logger.info(f"Search query '{query}' found {total_available} total results")
+            
+            # Now get just the page we need
+            items = all_search_results[offset:offset + limit]
         else:
-            items = section.all(limit=limit)
+            # For browsing entire library, use totalSize for efficiency
+            total_available = section.totalSize
+            logger.info(f"Library '{library}' has {total_available} total items")
+            
+            # Fetch only what we need for this page
+            # Note: PlexAPI doesn't have native offset, so we fetch more and slice
+            fetch_limit = offset + limit
+            all_items = section.all(maxresults=fetch_limit)
+            items = all_items[offset:offset + limit]
 
-        logger.info(f"Found {len(items)} items in library {library}")
+        logger.info(f"Returning {len(items)} items (offset: {offset}, total: {total_available})")
 
         # Build response
         library_items = []
@@ -687,10 +703,6 @@ def search_library_items(
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
                 thumb_url = _create_proxy_url(server.url(item.thumb, includeToken=True))
-
-            # Log first few items to help debug
-            if idx < 3:
-                logger.info(f"Item {idx}: {item.title} (type: {item.type})")
 
             library_items.append(
                 LibraryItemOut(
@@ -703,7 +715,7 @@ def search_library_items(
                 )
             )
 
-        return LibrarySearchResponse(items=library_items, total=len(library_items))
+        return LibrarySearchResponse(items=library_items, total=total_available)
 
     except Exception as e:
         logger.error(f"Error searching library: {e}")

@@ -64,6 +64,9 @@ export default function CollectionDetailPage() {
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const [adding, setAdding] = useState(false);
     const [pendingRemove, setPendingRemove] = useState<{ ratingKey: string; title: string } | null>(null);
+    const [searchOffset, setSearchOffset] = useState(0);
+    const [searchHasMore, setSearchHasMore] = useState(true);
+    const [searchTotal, setSearchTotal] = useState(0);
 
     // Edit collection modal (consolidated)
     const [showEditModal, setShowEditModal] = useState(false);
@@ -94,16 +97,21 @@ export default function CollectionDetailPage() {
         }
     }, [library, collectionTitle]);
 
-    // Debounce search for add items modal
+    // Debounce search for add items modal - only when query changes
     useEffect(() => {
         if (!showAddModal) return;
+        
+        // Don't trigger on initial empty query - that's handled by openAddModal
+        if (searchQuery === "") return;
 
         const timeoutId = setTimeout(() => {
-            searchLibrary(searchQuery);
+            setSearchOffset(0);
+            setSearchHasMore(true);
+            searchLibrary(searchQuery, 0, false);
         }, 300); // 300ms delay
 
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, showAddModal]);
+    }, [searchQuery]);
 
     const loadCollectionDetails = async () => {
         try {
@@ -120,11 +128,13 @@ export default function CollectionDetailPage() {
         }
     };
 
-    const searchLibrary = async (query: string) => {
+    const searchLibrary = async (query: string, offset = 0, append = false) => {
         try {
             setSearchLoading(true);
             const params = new URLSearchParams({
                 collection_title: collectionTitle!,
+                limit: "100",
+                offset: offset.toString(),
                 ...(query && { query }),
             });
 
@@ -132,11 +142,36 @@ export default function CollectionDetailPage() {
                 `/api/collections/${encodeURIComponent(library!)}/search?${params}`
             );
             const data = await response.json();
-            setSearchResults(data.items);
+            
+            if (append) {
+                setSearchResults(prev => [...prev, ...data.items]);
+            } else {
+                setSearchResults(data.items);
+            }
+            
+            setSearchTotal(data.total);
+            setSearchOffset(offset);
+            setSearchHasMore(offset + data.items.length < data.total);
+            
+            // Debug logging
+            console.log('Search results:', {
+                total: data.total,
+                offset: offset,
+                itemsLoaded: data.items.length,
+                currentTotal: append ? searchResults.length + data.items.length : data.items.length,
+                hasMore: offset + data.items.length < data.total
+            });
         } catch (err) {
             console.error("Search failed:", err);
         } finally {
             setSearchLoading(false);
+        }
+    };
+
+    const loadMoreSearchResults = () => {
+        if (!searchLoading && searchHasMore) {
+            const newOffset = searchOffset + 100;
+            searchLibrary(searchQuery, newOffset, false); // false = replace instead of append
         }
     };
 
@@ -223,8 +258,12 @@ export default function CollectionDetailPage() {
     const openAddModal = () => {
         setShowAddModal(true);
         setSelectedItems(new Set()); // Clear any previous selections
-        setSearchQuery(""); // Reset search query - the debounce effect will handle the initial load
+        setSearchQuery(""); // Reset search query
+        setSearchOffset(0);
+        setSearchHasMore(true);
         setSearchLoading(true); // Show loading immediately when modal opens
+        // Trigger immediate search when modal opens
+        setTimeout(() => searchLibrary("", 0, false), 0);
     };
 
     const closeAddModal = () => {
@@ -232,6 +271,9 @@ export default function CollectionDetailPage() {
         setSelectedItems(new Set());
         setSearchQuery("");
         setSearchResults([]);
+        setSearchOffset(0);
+        setSearchHasMore(true);
+        setSearchTotal(0);
     };
 
     const openEditModal = () => {
@@ -632,6 +674,19 @@ export default function CollectionDetailPage() {
                                         </button>
                                     ))}
                                 </div>
+                                
+                                {/* Load More Button */}
+                                {searchHasMore && (
+                                    <div className="mt-6 text-center">
+                                        <button
+                                            onClick={loadMoreSearchResults}
+                                            disabled={searchLoading}
+                                            className="px-6 py-3 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-white text-sm font-medium border border-slate-700 hover:border-slate-600 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {searchLoading ? "Loading..." : `Load More (${searchTotal - (searchOffset + searchResults.length)} remaining)`}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-slate-400 text-center py-8">
