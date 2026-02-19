@@ -9,6 +9,7 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [plexLoading, setPlexLoading] = useState(false);
+    const [pendingApproval, setPendingApproval] = useState(false);
     const navigate = useNavigate();
     const { login, authEnabled, authMethod, loading: authLoading } = useAuth();
 
@@ -41,7 +42,7 @@ export default function LoginPage() {
                     }
                     // User is pending admin approval
                     if (data.status === "pending_approval") {
-                        setError("Your account is pending admin approval. Please contact your server admin.");
+                        setPendingApproval(true);
                         setPlexLoading(false);
                         return;
                     }
@@ -145,8 +146,16 @@ export default function LoginPage() {
                         />
                     </div>
 
+                    {/* Pending approval message */}
+                    {pendingApproval && (
+                        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm">
+                            <p className="font-medium">Account pending approval</p>
+                            <p className="mt-1">Your sign-in was successful, but an admin needs to approve your account before you can access the app. Please check back later.</p>
+                        </div>
+                    )}
+
                     {/* Error message */}
-                    {error && (
+                    {error && !pendingApproval && (
                         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
                             {error}
                         </div>

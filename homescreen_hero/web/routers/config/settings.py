@@ -4,7 +4,7 @@ import os
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, require_admin
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -50,7 +50,7 @@ router = APIRouter()
 # ========================================================================
 
 @router.get("/plex", response_model=PlexSettings)
-def get_plex_settings(current_user: str = Depends(get_current_user)) -> PlexSettings:
+def get_plex_settings(_current_user: CurrentUser = Depends(require_admin)) -> PlexSettings:
     # Return the currently configured Plex settings
     try:
         config = load_config()
@@ -64,7 +64,7 @@ def get_plex_settings(current_user: str = Depends(get_current_user)) -> PlexSett
 @router.post("/plex", response_model=ConfigSaveResponse)
 def save_plex_settings(
     payload: PlexConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only Plex settings in config.yaml while preserving other keys
     try:
@@ -113,7 +113,7 @@ def save_plex_settings(
 # ========================================================================
 
 @router.get("/trakt", response_model=TraktSettings)
-def get_trakt_settings(current_user: str = Depends(get_current_user)) -> TraktSettings:
+def get_trakt_settings(_current_user: CurrentUser = Depends(require_admin)) -> TraktSettings:
     # Return the currently configured Trakt settings
     try:
         config = load_config()
@@ -127,7 +127,7 @@ def get_trakt_settings(current_user: str = Depends(get_current_user)) -> TraktSe
 @router.post("/trakt", response_model=ConfigSaveResponse)
 def save_trakt_settings(
     payload: TraktConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only Trakt settings in config.yaml while preserving other keys
     try:
@@ -173,7 +173,7 @@ def save_trakt_settings(
 # ========================================================================
 
 @router.get("/letterboxd", response_model=LetterboxdSettings)
-def get_letterboxd_settings(current_user: str = Depends(get_current_user)) -> LetterboxdSettings:
+def get_letterboxd_settings(_current_user: CurrentUser = Depends(require_admin)) -> LetterboxdSettings:
     # Return the currently configured Letterboxd settings
     try:
         config = load_config()
@@ -187,7 +187,7 @@ def get_letterboxd_settings(current_user: str = Depends(get_current_user)) -> Le
 @router.post("/letterboxd", response_model=ConfigSaveResponse)
 def save_letterboxd_settings(
     payload: LetterboxdConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only Letterboxd settings in config.yaml while preserving other keys
     try:
@@ -221,7 +221,7 @@ def save_letterboxd_settings(
 # ========================================================================
 
 @router.get("/mdblist", response_model=MDBListSettings)
-def get_mdblist_settings(current_user: str = Depends(get_current_user)) -> MDBListSettings:
+def get_mdblist_settings(_current_user: CurrentUser = Depends(require_admin)) -> MDBListSettings:
     # Return the currently configured MDBList settings
     try:
         config = load_config()
@@ -237,7 +237,7 @@ def get_mdblist_settings(current_user: str = Depends(get_current_user)) -> MDBLi
 @router.post("/mdblist", response_model=ConfigSaveResponse)
 def save_mdblist_settings(
     payload: MDBListConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only MDBList settings in config.yaml while preserving other keys
     try:
@@ -283,7 +283,7 @@ def save_mdblist_settings(
 # ========================================================================
 
 @router.get("/anilist", response_model=AniListSettings)
-def get_anilist_settings(current_user: str = Depends(get_current_user)) -> AniListSettings:
+def get_anilist_settings(_current_user: CurrentUser = Depends(require_admin)) -> AniListSettings:
     # Return the currently configured AniList settings
     try:
         config = load_config()
@@ -299,7 +299,7 @@ def get_anilist_settings(current_user: str = Depends(get_current_user)) -> AniLi
 @router.post("/anilist", response_model=ConfigSaveResponse)
 def save_anilist_settings(
     payload: AniListConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only AniList settings in config.yaml while preserving other keys
     try:
@@ -333,7 +333,7 @@ def save_anilist_settings(
 # ========================================================================
 
 @router.get("/mal", response_model=MALSettings)
-def get_mal_settings(current_user: str = Depends(get_current_user)) -> MALSettings:
+def get_mal_settings(_current_user: CurrentUser = Depends(require_admin)) -> MALSettings:
     # Return the currently configured MAL settings
     try:
         config = load_config()
@@ -349,7 +349,7 @@ def get_mal_settings(current_user: str = Depends(get_current_user)) -> MALSettin
 @router.post("/mal", response_model=ConfigSaveResponse)
 def save_mal_settings(
     payload: MALConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only MAL settings in config.yaml while preserving other keys
     try:
@@ -394,7 +394,7 @@ def save_mal_settings(
 # ========================================================================
 
 @router.get("/tautulli", response_model=TautulliSettings)
-def get_tautulli_settings(current_user: str = Depends(get_current_user)) -> TautulliSettings:
+def get_tautulli_settings(_current_user: CurrentUser = Depends(require_admin)) -> TautulliSettings:
     # Return the currently configured Tautulli settings
     try:
         config = load_config()
@@ -416,7 +416,7 @@ def get_tautulli_settings(current_user: str = Depends(get_current_user)) -> Taut
 @router.post("/tautulli", response_model=ConfigSaveResponse)
 def save_tautulli_settings(
     payload: TautulliConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only Tautulli settings in config.yaml while preserving other keys
     try:
@@ -464,7 +464,7 @@ def save_tautulli_settings(
 # ========================================================================
 
 @router.get("/seerr", response_model=SeerrSettings)
-def get_seerr_settings(current_user: str = Depends(get_current_user)) -> SeerrSettings:
+def get_seerr_settings(_current_user: CurrentUser = Depends(require_admin)) -> SeerrSettings:
     # Return the currently configured Seerr settings
     try:
         config = load_config()
@@ -484,7 +484,7 @@ def get_seerr_settings(current_user: str = Depends(get_current_user)) -> SeerrSe
 @router.post("/seerr", response_model=ConfigSaveResponse)
 def save_seerr_settings(
     payload: SeerrConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only Seerr settings in config.yaml while preserving other keys
     try:
@@ -530,7 +530,7 @@ def save_seerr_settings(
 # ========================================================================
 
 @router.get("/rotation", response_model=RotationSettings)
-def get_rotation_settings(current_user: str = Depends(get_current_user)) -> RotationSettings:
+def get_rotation_settings(_current_user: CurrentUser = Depends(require_admin)) -> RotationSettings:
     # Return all rotation scheduler configuration settings
     try:
         config = load_config()
@@ -544,7 +544,7 @@ def get_rotation_settings(current_user: str = Depends(get_current_user)) -> Rota
 @router.post("/rotation", response_model=ConfigSaveResponse)
 def save_rotation_settings(
     payload: RotationConfigSaveRequest,
-    current_user: str = Depends(get_current_user)
+    _current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Update only global rotation settings while preserving other config keys
     try:
@@ -594,7 +594,7 @@ def save_rotation_settings(
 # ========================================================================
 
 @router.get("/display", response_model=DisplaySettings)
-def get_display_settings(current_user: str = Depends(get_current_user)) -> DisplaySettings:
+def get_display_settings(_current_user: CurrentUser = Depends(require_admin)) -> DisplaySettings:
     # Return the currently configured display settings
     try:
         config = load_config()
@@ -608,7 +608,7 @@ def get_display_settings(current_user: str = Depends(get_current_user)) -> Displ
 @router.post("/display", response_model=ConfigSaveResponse)
 def save_display_settings(
     payload: DisplaySettingsSaveRequest,
-    current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Update display settings in config.yaml while preserving other keys
     try:
@@ -636,7 +636,7 @@ def save_display_settings(
 # ========================================================================
 
 @router.get("/auth-method", response_model=AuthSettingsResponse)
-def get_auth_settings(current_user: str = Depends(get_current_user)) -> AuthSettingsResponse:
+def get_auth_settings(_current_user: CurrentUser = Depends(require_admin)) -> AuthSettingsResponse:
     # Return the currently configured auth settings
     try:
         config = load_config()
@@ -652,7 +652,7 @@ def get_auth_settings(current_user: str = Depends(get_current_user)) -> AuthSett
 @router.post("/auth-method", response_model=ConfigSaveResponse)
 def save_auth_settings(
     payload: AuthSettingsSaveRequest,
-    current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Update auth settings in config.yaml, preserving sensitive fields
     try:

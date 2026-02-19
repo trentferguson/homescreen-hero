@@ -124,11 +124,19 @@ export default function SettingsPage() {
     // Track which section should be expanded based on URL param
     const sectionParam = searchParams.get("section");
     const [rotationExpanded] = useState(sectionParam === "rotation");
+    const [authExpanded] = useState(sectionParam === "auth");
+    const authSectionRef = useRef<HTMLDivElement | null>(null);
 
-    // Clear the URL param after initial load to avoid re-expanding on tab switches
+    // Clear the URL param after initial load and scroll to the target section
     useEffect(() => {
         if (sectionParam) {
             setSearchParams({}, { replace: true });
+            if (sectionParam === "auth") {
+                // Small delay to let the section render before scrolling
+                setTimeout(() => {
+                    authSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 200);
+            }
         }
     }, []);
     const [rotationSettings, setRotationSettings] = useState<RotationSettings>({
@@ -970,10 +978,12 @@ export default function SettingsPage() {
                         />
                     </CollapsibleFormSection>
 
+                    <div ref={authSectionRef}>
                     <CollapsibleFormSection
                         title="Authentication"
                         description="Control how users sign in to the dashboard."
                         icon={Shield}
+                        defaultExpanded={authExpanded}
                     >
                         <FieldRow label="Login Methods" hint="Choose which authentication methods are available on the login page.">
                             <Listbox
@@ -1119,6 +1129,7 @@ export default function SettingsPage() {
                             )}
                         </div>
                     </CollapsibleFormSection>
+                    </div>
 
                     <CollapsibleFormSection
                         title="Rotation Settings"

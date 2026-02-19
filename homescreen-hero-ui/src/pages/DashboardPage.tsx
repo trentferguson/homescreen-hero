@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
-import { Lock, Unlock, ChevronDown } from "lucide-react";
+import { Lock, Unlock, ChevronDown, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../utils/auth";
 import type { ActiveCollection } from "../components/ActiveCollectionsCard";
 import { DraggableWidget, DroppableSection, EditModeBanner } from "../components/dashboard";
 import { widgetRegistry } from "../widgets/registry";
@@ -81,6 +83,8 @@ export default function Dashboard() {
     const [showSimulationModal, setShowSimulationModal] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
+    const [pendingUserCount, setPendingUserCount] = useState(0);
+
     const [activeCollections, setActiveCollections] = useState<ActiveCollection[]>([]);
     const [activeLoading, setActiveLoading] = useState(true);
     const [tautulliEnabled, setTautulliEnabled] = useState<boolean>(false);
@@ -94,6 +98,9 @@ export default function Dashboard() {
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [rotationDropdownOpen, setRotationDropdownOpen] = useState(false);
     const rotationDropdownRef = useRef<HTMLDivElement>(null);
+
+    const navigate = useNavigate();
+    const { authMethod } = useAuth();
 
     // Dashboard layout customization
     const {
@@ -292,11 +299,26 @@ export default function Dashboard() {
         }
     };
 
+    const loadPendingUsers = async () => {
+        if (authMethod !== "plex" && authMethod !== "both") return;
+        try {
+            const resp = await fetchWithAuth("/api/auth/users");
+            if (resp.ok) {
+                const data = await resp.json();
+                const pending = (data.users ?? []).filter((u: { status: string }) => u.status === "pending");
+                setPendingUserCount(pending.length);
+            }
+        } catch {
+            // Non-critical — silently ignore
+        }
+    };
+
     useEffect(() => {
         void loadActiveCollections();
         void loadSchedulerStatus();
         void loadTautulliConfig();
         void loadSeerrConfig();
+        void loadPendingUsers();
     }, []);
 
     // Update current time every second for live countdown
@@ -717,6 +739,23 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+
+                {/* Pending user approvals banner */}
+                {pendingUserCount > 0 && (
+                    <button
+                        onClick={() => navigate("/settings?section=auth")}
+                        className="flex items-center gap-3 w-full p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-sm hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                    >
+                        <Users size={18} />
+                        <span>
+                            <strong>{pendingUserCount}</strong> {pendingUserCount === 1 ? "user" : "users"} pending approval
+                        </span>
+                        <span className="ml-auto flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 text-sm">
+                            Review
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
+                        </span>
+                    </button>
+                )}
 
                 {/* Errors */}
                 {error ? (
