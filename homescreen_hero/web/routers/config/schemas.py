@@ -418,3 +418,11 @@ class ConfigImportResponse(BaseModel):
 class BackupStatusResponse(BaseModel):
     exists: bool
     modified_at: Optional[str] = None
+
+
+class AuthMethodResponse(BaseModel):
+    method: Literal["password", "plex", "both"]
+
+
+class AuthMethodSaveRequest(BaseModel):
+    method: Literal["password", "plex", "both"]

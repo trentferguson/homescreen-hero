@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -158,9 +158,13 @@ class AuthSettings(BaseModel):
         default=False,
         description="Whether authentication is required",
     )
+    method: Literal["password", "plex", "both"] = Field(
+        default="password",
+        description="Auth method: 'password', 'plex', or 'both'",
+    )
     username: str = Field(
         default="admin",
-        description="Username for authentication",
+        description="Username for password authentication",
     )
     password: Optional[str] = Field(
         default=None,

@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Form, HTTPException, Path, Depends
 from pydantic import BaseModel
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.service import (
     apply_simulation,
     run_rotation_once,
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/rotate")
 
 # Trigger a dry-run rotation and return the execution details as JSON, without touching Plex
 @router.post("/dry-run", response_model=RotationExecution)
-def rotate_dry_run(current_user: str = Depends(get_current_user)) -> RotationExecution:
+def rotate_dry_run(current_user: CurrentUser = Depends(require_admin)) -> RotationExecution:
     try:
         logger.info("Handling /rotate/dry-run request")
         execution = run_rotation_once(dry_run=True)
@@ -37,7 +37,7 @@ def rotate_dry_run(current_user: str = Depends(get_current_user)) -> RotationExe
 
 # Trigger an immediate rotation and return the execution details as JSON
 @router.post("/rotate-now", response_model=RotationExecution)
-def rotate_now(current_user: str = Depends(get_current_user)) -> RotationExecution:
+def rotate_now(current_user: CurrentUser = Depends(require_admin)) -> RotationExecution:
     try:
         logger.info("Handling /rotate-now request")
         execution = run_rotation_once(dry_run=False)
@@ -51,7 +51,7 @@ def rotate_now(current_user: str = Depends(get_current_user)) -> RotationExecuti
 
 # Simulate a rotation and return the simulation details as JSON, without touching Plex
 @router.post("/simulate-next", response_model=RotationExecution)
-def simulate_next_rotation(current_user: str = Depends(get_current_user)) -> RotationExecution:
+def simulate_next_rotation(current_user: CurrentUser = Depends(require_admin)) -> RotationExecution:
     try:
         logger.info("Handling /simulate-next request")
         execution = simulate_rotation_once()
@@ -65,7 +65,7 @@ def simulate_next_rotation(current_user: str = Depends(get_current_user)) -> Rot
 @router.post("/use-simulation/{simulation_id}", response_model=RotationExecution)
 def use_simulation(
     simulation_id: int = Path(..., description="ID of the previously simulated rotation"),
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> RotationExecution:
     try:
         logger.info("Applying simulation %s", simulation_id)
@@ -85,7 +85,7 @@ def use_simulation(
 @router.post("/use-simulation-form", response_model=RotationExecution)
 def use_simulation_form(
     simulation_id: int = Form(...),
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> RotationExecution:
     try:
         execution = apply_simulation(simulation_id)
@@ -107,7 +107,7 @@ class SchedulerStatusResponse(BaseModel):
 
 #Get the current scheduler status including next scheduled rotation time.
 @router.get("/scheduler-status", response_model=SchedulerStatusResponse)
-def get_scheduler_status(current_user: str = Depends(get_current_user)) -> SchedulerStatusResponse:
+def get_scheduler_status(current_user: CurrentUser = Depends(require_admin)) -> SchedulerStatusResponse:
     try:
         config = load_config()
 
@@ -139,7 +139,7 @@ class SyncResponse(BaseModel):
 
 # Manually sync all third party sources without running a rotation.
 @router.post("/sync-all", response_model=SyncResponse)
-def sync_all(current_user: str = Depends(get_current_user)) -> SyncResponse:
+def sync_all(current_user: CurrentUser = Depends(require_admin)) -> SyncResponse:
     try:
         logger.info("Handling /sync-all request")
         sync_all_sources()

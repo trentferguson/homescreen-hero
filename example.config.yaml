@@ -48,6 +48,7 @@ rotation:
 # Optional: Authentication settings
 auth:
   enabled: true
+  method: "password"  # "password", "plex", or "both"
   username: "admin"
   # password: ""  # RECOMMENDED: Use HSH_AUTH_PASSWORD environment variable instead
   # secret_key: ""  # RECOMMENDED: Use HSH_AUTH_SECRET_KEY environment variable instead

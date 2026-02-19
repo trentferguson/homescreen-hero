@@ -19,7 +19,7 @@ from homescreen_hero.core.integrations.plex_client import (
     get_server_for_user,
 )
 from homescreen_hero.core.integrations.tautulli_client import get_tautulli_client
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 
 
 logger = logging.getLogger(__name__)
@@ -176,7 +176,7 @@ class CopyWatchHistoryApplyResponse(BaseModel):
 def get_recent_media(
     library: str = "all",
     limit: int = 50,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SearchMediaResponse:
     """Get recently added movies and shows, sorted by added_at descending."""
     config = load_config()
@@ -244,7 +244,7 @@ def search_media(
     query: str,
     library: str = "all",
     limit: int = 50,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SearchMediaResponse:
     """Search for movies and shows across enabled libraries."""
     config = load_config()
@@ -313,7 +313,7 @@ def search_media(
 @router.post("/update-added-at", response_model=UpdateAddedAtResponse)
 def update_added_at(
     request: UpdateAddedAtRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> UpdateAddedAtResponse:
     """Update the addedAt date for one or more media items."""
     config = load_config()
@@ -356,7 +356,7 @@ def search_shows(
     query: str,
     library: str = "all",
     limit: int = 50,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SearchShowsResponse:
     """Search for TV shows with episode watch counts."""
     config = load_config()
@@ -418,7 +418,7 @@ def search_shows(
 @router.post("/mark-unwatched", response_model=MarkUnwatchedResponse)
 def mark_unwatched(
     request: MarkUnwatchedRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> MarkUnwatchedResponse:
     """Mark all episodes of selected TV shows as unwatched."""
     config = load_config()
@@ -681,7 +681,7 @@ def _get_unwatched_items(
 @router.post("/unwatched-report", response_model=UnwatchedReportResponse)
 def generate_unwatched_report(
     request: UnwatchedReportRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> UnwatchedReportResponse:
     # Generate a paginated report of unwatched items
     config = load_config()
@@ -727,7 +727,7 @@ def generate_unwatched_report(
 @router.post("/unwatched-report/export")
 def export_unwatched_report(
     request: UnwatchedReportRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> Response:
     # Export unwatched report as CSV
     config = load_config()
@@ -798,7 +798,7 @@ def export_unwatched_report(
 
 @router.get("/home-users", response_model=HomeUsersResponse)
 def get_home_users_endpoint(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> HomeUsersResponse:
     # Get list of Plex Home users available for watch history operations
     config = load_config()
@@ -816,7 +816,7 @@ def get_home_users_endpoint(
 @router.post("/copy-watch-history/preview", response_model=CopyWatchHistoryPreviewResponse)
 def preview_copy_watch_history(
     request: CopyWatchHistoryPreviewRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> CopyWatchHistoryPreviewResponse:
     # Preview what would be changed when copying watch history
     config = load_config()
@@ -904,7 +904,7 @@ def preview_copy_watch_history(
 @router.post("/copy-watch-history/apply", response_model=CopyWatchHistoryApplyResponse)
 def apply_copy_watch_history(
     request: CopyWatchHistoryApplyRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> CopyWatchHistoryApplyResponse:
     # Apply watch history copy from source to target user
     config = load_config()
@@ -1004,7 +1004,7 @@ def apply_copy_watch_history(
 async def apply_copy_watch_history_stream(
     request: CopyWatchHistoryApplyRequest,
     req: Request,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     # SSE streaming version of apply - sends progress updates
     config = load_config()

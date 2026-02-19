@@ -19,6 +19,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import CollectionDetailPage from "./pages/CollectionDetailPage";
 import CollectionsPage from "./pages/CollectionsPage";
 import ToolsPage from "./pages/ToolsPage";
+import UserLandingPage from "./pages/UserLandingPage";
 
 
 const router = createBrowserRouter([
@@ -31,8 +32,16 @@ const router = createBrowserRouter([
     element: <QuickStartPage />,
   },
   {
+    path: "/user",
     element: (
       <ProtectedRoute>
+        <UserLandingPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    element: (
+      <ProtectedRoute requireAdmin>
         <AppLayout />
       </ProtectedRoute>
     ),

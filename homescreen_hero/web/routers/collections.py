@@ -12,7 +12,7 @@ from cachetools import TTLCache
 
 from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.config.schema import HealthResponse
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.db.history import init_db
 from homescreen_hero.core.db.tools import list_rotations
 from homescreen_hero.core.db.pinning import (
@@ -223,13 +223,13 @@ def invalidate_collections_cache():
 
 
 @router.get("/cache-version", response_model=CacheVersionResponse)
-def get_cache_version(_current_user: str = Depends(get_current_user)) -> CacheVersionResponse:
+def get_cache_version(_current_user: CurrentUser = Depends(require_admin)) -> CacheVersionResponse:
     """Get the current cache version to check if client-side cache should be invalidated."""
     return CacheVersionResponse(version=_cache_version)
 
 
 @router.post("/invalidate-cache")
-def invalidate_cache_endpoint(_current_user: str = Depends(get_current_user)) -> dict:
+def invalidate_cache_endpoint(_current_user: CurrentUser = Depends(require_admin)) -> dict:
     """API endpoint to invalidate client-side collections cache."""
     new_version = invalidate_collections_cache()
     return {"success": True, "version": new_version}
@@ -238,7 +238,7 @@ def invalidate_cache_endpoint(_current_user: str = Depends(get_current_user)) ->
 # Return the collections currently featured on the Plex home screen
 @router.get("/active", response_model=ActiveCollectionsResponse)
 def get_active_collections(
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> ActiveCollectionsResponse:
     init_db()
     config = load_config()
@@ -322,7 +322,7 @@ def get_active_collections(
 # Return all collections from the Plex library with their metadata, including active status.
 @router.get("/all", response_model=AllCollectionsResponse)
 def get_all_collections(
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> AllCollectionsResponse:
     init_db()
 
@@ -383,7 +383,7 @@ class GroupPostersResponse(BaseModel):
 @router.get("/group-posters", response_model=GroupPostersResponse)
 async def get_group_posters(
     collection_names: str,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> GroupPostersResponse:
     try:
         config = load_config()
@@ -508,7 +508,7 @@ class LibrariesResponse(BaseModel):
 
 @router.get("/libraries", response_model=LibrariesResponse)
 def get_available_libraries(
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> LibrariesResponse:
     """Get all available Plex library sections."""
     config = load_config()
@@ -547,7 +547,7 @@ def get_available_libraries(
 def get_collection_details(
     library: str,
     collection_title: str,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> CollectionDetailResponse:
     """Get detailed information about a specific collection, including all items."""
     config = load_config()
@@ -654,7 +654,7 @@ def search_library_items(
     query: Optional[str] = None,
     collection_title: Optional[str] = None,
     limit: int = 50,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> LibrarySearchResponse:
     config = load_config()
     server = get_plex_server(config)
@@ -718,7 +718,7 @@ def add_item_to_collection(
     library: str,
     collection_title: str,
     request: AddItemRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     config = load_config()
     server = get_plex_server(config)
@@ -760,7 +760,7 @@ def remove_item_from_collection(
     library: str,
     collection_title: str,
     request: RemoveItemRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     config = load_config()
     server = get_plex_server(config)
@@ -801,7 +801,7 @@ def remove_item_from_collection(
 @router.post("/create")
 def create_collection(
     request: CreateCollectionRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     config = load_config()
     server = get_plex_server(config)
@@ -869,7 +869,7 @@ def update_collection(
     library: str,
     collection_title: str,
     request: UpdateCollectionRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     config = load_config()
     server = get_plex_server(config)
@@ -958,7 +958,7 @@ def update_collection(
 def delete_collection(
     library: str,
     collection_title: str,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     config = load_config()
     server = get_plex_server(config)
@@ -1003,7 +1003,7 @@ async def upload_collection_poster(
     collection_title: str,
     file: Optional[UploadFile] = File(None),
     url: Optional[str] = Form(None),
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     """
     Upload a custom poster to a Plex collection.
@@ -1095,7 +1095,7 @@ async def upload_item_poster(
     rating_key: str,
     file: Optional[UploadFile] = File(None),
     url: Optional[str] = Form(None),
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     """
     Upload a custom poster to a Plex library item (movie or show).
@@ -1177,7 +1177,7 @@ async def upload_item_poster(
 
 @router.get("/pinned", response_model=PinnedCollectionsResponse)
 def get_pinned_collections_endpoint(
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> PinnedCollectionsResponse:
     init_db()
     pinned = get_pinned_collections()
@@ -1197,7 +1197,7 @@ def get_pinned_collections_endpoint(
 @router.post("/toggle-pin", response_model=TogglePinResponse)
 def toggle_pin_collection_endpoint(
     request: TogglePinRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> TogglePinResponse:
     init_db()
     currently_pinned = is_collection_pinned(request.collection_name)
@@ -1275,7 +1275,7 @@ def toggle_pin_collection_endpoint(
 @router.post("/reorder", response_model=ReorderResponse)
 def reorder_collections_endpoint(
     request: ReorderCollectionsRequest,
-    _current_user: str = Depends(get_current_user),
+    _current_user: CurrentUser = Depends(require_admin),
 ) -> ReorderResponse:
     init_db()
     try:

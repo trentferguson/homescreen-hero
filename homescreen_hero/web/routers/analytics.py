@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from ...core.auth import get_current_user
+from ...core.auth import CurrentUser, get_current_user, require_admin
 from ...core.config.loader import load_config
 from ...core.db.analytics import (
     get_collection_analytics_history,
@@ -125,7 +125,7 @@ class HourlyConcurrentOut(BaseModel):
 def get_analytics(
     collection_name: Optional[str] = None,
     limit: int = 50,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[CollectionAnalyticsOut]:
     """
     Get analytics history for collections.
@@ -169,7 +169,7 @@ def get_top_collections(
     limit: int = 10,
     since_rotation_id: Optional[int] = None,
     media_type: Optional[str] = None,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[TopCollectionOut]:
     """
     Get top performing collections by play count.
@@ -207,7 +207,7 @@ def get_top_collections(
 @router.get("/rotation/{rotation_id}", response_model=List[CollectionAnalyticsOut])
 def get_rotation_analytics_endpoint(
     rotation_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[CollectionAnalyticsOut]:
     """
     Get analytics for a specific rotation.
@@ -246,7 +246,7 @@ def get_rotation_analytics_endpoint(
 
 @router.post("/collect", response_model=AnalyticsCollectionResponse)
 def trigger_analytics_collection(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> AnalyticsCollectionResponse:
     """
     Manually trigger analytics collection for all active collections.
@@ -307,7 +307,7 @@ def trigger_analytics_collection(
 def get_most_active_users(
     limit: int = 10,
     query_days: int = 30,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[ActiveUserOut]:
     """
     Get most active users by watch time and play count.
@@ -414,7 +414,7 @@ def get_most_active_users(
 
 @router.get("/activity/current", response_model=CurrentActivityOut)
 def get_current_activity(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> CurrentActivityOut:
     """
     Get current active streams on Plex server.
@@ -519,7 +519,7 @@ def get_current_activity(
 @router.get("/graph/plays-by-hour", response_model=List[HourlyPlaysOut])
 def get_plays_by_hour(
     query_days: int = 30,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[HourlyPlaysOut]:
     """
     Get play counts grouped by hour of day for graphing.
@@ -620,7 +620,7 @@ def get_plays_by_hour(
 @router.get("/graph/plays-by-date", response_model=List[DailyPlaysOut])
 def get_plays_by_date(
     query_days: int = 30,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[DailyPlaysOut]:
     """
     Get play counts grouped by date for graphing.
@@ -693,7 +693,7 @@ def get_plays_by_date(
 @router.get("/graph/concurrent-by-date", response_model=List[DailyConcurrentOut])
 def get_concurrent_by_date(
     query_days: int = 30,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[DailyConcurrentOut]:
     """
     Get peak concurrent viewer counts by date.
@@ -806,7 +806,7 @@ def get_concurrent_by_date(
 
 @router.get("/graph/concurrent-by-hour", response_model=List[HourlyConcurrentOut])
 def get_concurrent_by_hour(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[HourlyConcurrentOut]:
     """
     Get peak concurrent viewer counts by hour for the last 24 hours.

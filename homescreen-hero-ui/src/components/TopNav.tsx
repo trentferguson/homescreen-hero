@@ -22,7 +22,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 }
 
 export default function TopNav() {
-    const { logout, username, authEnabled } = useAuth();
+    const { logout, username, authEnabled, thumb } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -62,7 +62,15 @@ export default function TopNav() {
                     </IconButton>
 
                     <IconButton label={username ?? "User"}>
-                        <User size={20} />
+                        {thumb ? (
+                            <img
+                                src={thumb}
+                                alt={username ?? "User"}
+                                className="h-5 w-5 rounded-full object-cover"
+                            />
+                        ) : (
+                            <User size={20} />
+                        )}
                     </IconButton>
 
                     {authEnabled && (

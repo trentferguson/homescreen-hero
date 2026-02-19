@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -38,7 +38,7 @@ router = APIRouter()
 # ========================================================================
 
 @router.get("/groups", response_model=list[CollectionGroupConfig])
-def list_groups(current_user: str = Depends(get_current_user)) -> list[CollectionGroupConfig]:
+def list_groups(current_user: CurrentUser = Depends(require_admin)) -> list[CollectionGroupConfig]:
     # Return list of all configured collection groups
     try:
         config = load_config()
@@ -52,7 +52,7 @@ def list_groups(current_user: str = Depends(get_current_user)) -> list[Collectio
 @router.post("/groups", response_model=ConfigSaveResponse)
 def create_group(
     payload: CollectionGroupPayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new collection group to config.yaml
     try:
@@ -85,7 +85,7 @@ def create_group(
 def update_group(
     index: int,
     payload: CollectionGroupPayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing collection group at given index in config.yaml
     try:
@@ -118,7 +118,7 @@ def update_group(
 @router.delete("/groups/{index}", response_model=ConfigSaveResponse)
 def delete_group(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove collection group at given index from config.yaml
     try:
@@ -152,7 +152,7 @@ def delete_group(
 @router.post("/groups/reorder", response_model=ConfigSaveResponse)
 def reorder_groups(
     payload: GroupReorderRequest,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Update display_order for each group based on the provided name ordering
     try:
@@ -190,7 +190,7 @@ def reorder_groups(
 # ========================================================================
 
 @router.get("/group-sources", response_model=CollectionSourcesResponse)
-def list_group_sources(current_user: str = Depends(get_current_user)) -> CollectionSourcesResponse:
+def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> CollectionSourcesResponse:
     # Return list of all available Plex collections and configured Trakt/Letterboxd sources
     try:
         config = load_config()
@@ -292,7 +292,7 @@ def list_group_sources(current_user: str = Depends(get_current_user)) -> Collect
 # ========================================================================
 
 @router.get("/validate", response_model=List[GroupValidationResult])
-def validate_config_groups(current_user: str = Depends(get_current_user)) -> List[GroupValidationResult]:
+def validate_config_groups(current_user: CurrentUser = Depends(require_admin)) -> List[GroupValidationResult]:
     # Validate configured collection groups against Plex collections
     config = load_config()
     server = get_plex_server(config)

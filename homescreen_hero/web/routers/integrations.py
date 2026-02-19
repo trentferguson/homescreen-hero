@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from ...core.auth import get_current_user
+from ...core.auth import CurrentUser, get_current_user, require_admin
 from .health import (
     _check_config,
     _check_trakt,
@@ -52,7 +52,7 @@ class IntegrationsHealthOut(BaseModel):
 
 @router.get("/health", response_model=IntegrationsHealthOut)
 def get_integrations_health(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> IntegrationsHealthOut:
     # Get health status for all configured integrations
         

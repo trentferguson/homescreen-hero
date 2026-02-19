@@ -21,6 +21,7 @@ from homescreen_hero.core.config.schema import (
     TautulliSettings,
     SeerrSettings,
     DisplaySettings,
+    AuthSettings,
 )
 from homescreen_hero.core.scheduler import update_rotation_schedule
 
@@ -37,6 +38,8 @@ from .schemas import (
     SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
     DisplaySettingsSaveRequest,
+    AuthMethodResponse,
+    AuthMethodSaveRequest,
 )
 
 router = APIRouter()
@@ -619,6 +622,54 @@ def save_display_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="Display settings saved.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# AUTH METHOD
+# ========================================================================
+
+@router.get("/auth-method", response_model=AuthMethodResponse)
+def get_auth_method(current_user: str = Depends(get_current_user)) -> AuthMethodResponse:
+    # Return the currently configured auth method
+    try:
+        config = load_config()
+        method = config.auth.method if config.auth else "password"
+        return AuthMethodResponse(method=method)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/auth-method", response_model=ConfigSaveResponse)
+def save_auth_method(
+    payload: AuthMethodSaveRequest,
+    current_user: str = Depends(get_current_user),
+) -> ConfigSaveResponse:
+    # Update only auth.method in config.yaml, preserving all other auth settings
+    try:
+        data = load_config_mapping()
+
+        auth_section = data.get("auth") if isinstance(data.get("auth"), dict) else {}
+        auth_section = dict(auth_section)
+        auth_section["method"] = payload.method
+
+        data["auth"] = auth_section
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="Auth method saved.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

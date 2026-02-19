@@ -291,6 +291,27 @@ class SourceSyncRecord(Base):
     error_message = Column(Text, nullable=True)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Plex identity (nullable for password-only admin)
+    plex_id = Column(Integer, nullable=True, unique=True, index=True)
+    plex_username = Column(String, nullable=True)
+    plex_email = Column(String, nullable=True)
+    plex_thumb = Column(String, nullable=True)
+
+    # "admin" or "user"
+    role = Column(String, nullable=False, default="user")
+
+    # For password-auth fallback (only admin uses this)
+    password_hash = Column(String, nullable=True)
+
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+
+
 class CollectionDisplayOrder(Base):
     # Tracks the display order of active collections on the homescreen
     __tablename__ = "collection_display_order"

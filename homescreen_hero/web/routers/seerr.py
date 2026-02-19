@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.integrations.seerr_client import get_seerr_client
 
@@ -186,7 +186,7 @@ def get_seerr_requests(
     take: int = 5,
     skip: int = 0,
     filter: Optional[str] = None,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SeerrRequestsResponse:
     # Get recent Seerr requests with optional status filter
     # filter values: "all", "pending", "approved", "available", "processing", etc.
@@ -295,7 +295,7 @@ def get_seerr_requests(
 @router.post("/requests/{request_id}/approve")
 def approve_seerr_request(
     request_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     # Approve a pending Seerr request
     try:
@@ -337,7 +337,7 @@ def approve_seerr_request(
 @router.post("/requests/{request_id}/decline")
 def decline_seerr_request(
     request_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     # Decline a pending Seerr request
     try:
@@ -379,7 +379,7 @@ def decline_seerr_request(
 @router.delete("/requests/{request_id}")
 def delete_seerr_request(
     request_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> dict:
     # Delete a Seerr request
     try:
@@ -421,7 +421,7 @@ def delete_seerr_request(
 @router.get("/requests/{request_id}", response_model=SeerrRequestDetail)
 def get_seerr_request_detail(
     request_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SeerrRequestDetail:
     # Get detailed info for a single Seerr request
     try:
@@ -543,7 +543,7 @@ def get_seerr_request_detail(
 def search_seerr(
     query: str,
     page: int = 1,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> SeerrSearchResponse:
     # Search Overseerr for movies and TV shows
     try:
@@ -612,7 +612,7 @@ def search_seerr(
 
 @router.get("/services", response_model=ServicesResponse)
 def get_seerr_services(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ServicesResponse:
     # Get available Radarr/Sonarr services with quality profiles
     try:
@@ -691,7 +691,7 @@ def get_seerr_services(
 @router.get("/tv/{tmdb_id}/seasons", response_model=List[SeasonInfo])
 def get_tv_seasons(
     tmdb_id: int,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> List[SeasonInfo]:
     # Get season info for a TV show
     try:
@@ -758,7 +758,7 @@ def get_tv_seasons(
 @router.post("/requests/new", response_model=CreateRequestResponse)
 def create_seerr_request(
     body: CreateRequestBody,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> CreateRequestResponse:
     # Create a new media request
     try:

@@ -9,7 +9,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -53,7 +53,7 @@ router = APIRouter()
 
 @router.get("/file", response_model=ConfigFileResponse)
 def read_config_file(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigFileResponse:
     # Return the current configuration file contents
     try:
@@ -68,7 +68,7 @@ def read_config_file(
 @router.post("/file", response_model=ConfigSaveResponse)
 def save_config(
     payload: ConfigUpdateRequest,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Validate and persist configuration updates provided as YAML text
     try:
@@ -94,7 +94,7 @@ def save_config(
 
 @router.get("/export")
 def export_config(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> Response:
     # Download the current config.yaml as a file attachment
     try:
@@ -117,7 +117,7 @@ def export_config(
 def import_config(
     file: UploadFile = File(...),
     validate_only: bool = Query(False),
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     # Import a config.yaml file, optionally just validating without applying
     MAX_CONFIG_SIZE = 1_048_576  # 1 MB
@@ -194,7 +194,7 @@ def import_config(
 
 @router.get("/backup-status", response_model=BackupStatusResponse)
 def get_backup_status(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> BackupStatusResponse:
     # Check if a .bak backup file exists and when it was last modified
     backup_path = get_config_path().with_suffix(".yaml.bak")
@@ -208,7 +208,7 @@ def get_backup_status(
 
 @router.post("/revert", response_model=ConfigImportResponse)
 def revert_config(
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigImportResponse:
     # Revert to the most recent .bak backup, backing up the current config first
     config_path = get_config_path()
@@ -423,12 +423,14 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         if config_status.is_configured:
             try:
                 config = load_config()
-                # If auth is enabled and configured, reject the request
-                if config.auth.enabled and config.auth.password:
+                # If auth is enabled, reject — covers password, plex, and both modes
+                if config.auth and config.auth.enabled:
                     raise HTTPException(
                         status_code=403,
                         detail="Configuration is protected. Use the settings page to modify configuration."
                     )
+            except HTTPException:
+                raise
             except Exception:
                 # If we can't load config, allow the setup to proceed
                 pass

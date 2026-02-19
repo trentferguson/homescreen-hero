@@ -1,11 +1,16 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 
+type AuthMethod = "password" | "plex" | "both" | null;
+
 interface AuthContextType {
     isAuthenticated: boolean;
     authEnabled: boolean;
+    authMethod: AuthMethod;
     token: string | null;
     username: string | null;
-    login: (token: string, username: string) => void;
+    role: string | null;
+    thumb: string | null;
+    login: (token: string, username: string, role?: string, thumb?: string) => void;
     logout: () => void;
     loading: boolean;
 }
@@ -15,18 +20,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
     const [username, setUsername] = useState<string | null>(null);
+    const [role, setRole] = useState<string | null>(null);
+    const [thumb, setThumb] = useState<string | null>(null);
     const [authEnabled, setAuthEnabled] = useState<boolean>(true);
+    const [authMethod, setAuthMethod] = useState<AuthMethod>(null);
     const [loading, setLoading] = useState(true);
 
     // Check backend auth status and load token from localStorage on mount
     useEffect(() => {
         const checkAuthStatus = async () => {
             try {
-                // First, check if we have a stored token
                 const storedToken = localStorage.getItem("auth_token");
                 const storedUsername = localStorage.getItem("username");
+                const storedRole = localStorage.getItem("role");
+                const storedThumb = localStorage.getItem("thumb");
 
-                // Try to call /api/auth/me to check if auth is enabled
+                // Fetch auth config (public endpoint)
+                const configResp = await fetch("/api/auth/config");
+                if (configResp.ok) {
+                    const configData = await configResp.json();
+                    setAuthEnabled(configData.auth_enabled);
+                    setAuthMethod(configData.method || null);
+                }
+
+                // Try to validate stored token via /api/auth/me
                 const headers: HeadersInit = {};
                 if (storedToken) {
                     headers["Authorization"] = `Bearer ${storedToken}`;
@@ -37,21 +54,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (response.ok) {
                     const data = await response.json();
                     setAuthEnabled(data.auth_enabled);
+                    setAuthMethod(data.method || null);
 
-                    // If auth is enabled and we got a valid response, we're authenticated
                     if (data.auth_enabled && storedToken && storedUsername) {
                         setToken(storedToken);
                         setUsername(data.username);
+                        setRole(data.role || storedRole || "admin");
+                        setThumb(data.thumb || storedThumb || null);
                     } else if (!data.auth_enabled) {
-                        // If auth is disabled, set anonymous user
                         setUsername(data.username || "anonymous");
+                        setRole("admin");
                     }
                 } else {
-                    // If the request fails, assume auth is enabled and we're not authenticated
                     setAuthEnabled(true);
                 }
             } catch (error) {
-                // On error, assume auth is enabled (safer default)
                 console.error("Failed to check auth status:", error);
                 setAuthEnabled(true);
             } finally {
@@ -62,25 +79,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkAuthStatus();
     }, []);
 
-    const login = (newToken: string, newUsername: string) => {
+    const login = (newToken: string, newUsername: string, newRole?: string, newThumb?: string) => {
         localStorage.setItem("auth_token", newToken);
         localStorage.setItem("username", newUsername);
+        if (newRole) localStorage.setItem("role", newRole);
+        if (newThumb) localStorage.setItem("thumb", newThumb);
         setToken(newToken);
         setUsername(newUsername);
+        setRole(newRole || "admin");
+        setThumb(newThumb || null);
     };
 
     const logout = () => {
         localStorage.removeItem("auth_token");
         localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        localStorage.removeItem("thumb");
         setToken(null);
         setUsername(null);
+        setRole(null);
+        setThumb(null);
     };
 
-    const value = {
+    const value: AuthContextType = {
         isAuthenticated: !authEnabled || !!token,
         authEnabled,
+        authMethod,
         token,
         username,
+        role,
+        thumb,
         login,
         logout,
         loading,

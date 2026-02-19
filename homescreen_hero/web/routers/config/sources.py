@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from homescreen_hero.core.auth import get_current_user
+from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -66,7 +66,7 @@ router = APIRouter()
 # ========================================================================
 
 @router.get("/trakt/sources", response_model=list[TraktSource])
-def list_trakt_sources(current_user: str = Depends(get_current_user)) -> list[TraktSource]:
+def list_trakt_sources(current_user: CurrentUser = Depends(require_admin)) -> list[TraktSource]:
     # Return list of all configured Trakt sources
     try:
         config = load_config()
@@ -80,7 +80,7 @@ def list_trakt_sources(current_user: str = Depends(get_current_user)) -> list[Tr
 @router.post("/trakt/sources", response_model=ConfigSaveResponse)
 def create_trakt_source(
     payload: TraktSourcePayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new Trakt source to config.yaml
     try:
@@ -121,7 +121,7 @@ def create_trakt_source(
 def update_trakt_source(
     index: int,
     payload: TraktSourcePayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing Trakt source at given index in config.yaml
     try:
@@ -159,7 +159,7 @@ def update_trakt_source(
 @router.delete("/trakt/sources/{index}", response_model=ConfigSaveResponse)
 def delete_trakt_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove Trakt source at given index from config.yaml
     try:
@@ -197,7 +197,7 @@ def delete_trakt_source(
 
 @router.get("/trakt/sources/status", response_model=list[TraktSourceStatus])
 def get_trakt_sources_status(
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[TraktSourceStatus]:
     # Return sync status for each configured Trakt source.
     try:
@@ -231,7 +231,7 @@ def get_trakt_sources_status(
 @router.post("/trakt/sources/{index}/sync", response_model=TraktSyncResponse)
 def sync_trakt_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> TraktSyncResponse:
     # Manually sync a specific Trakt source to Plex collection.
     try:
@@ -296,7 +296,7 @@ def sync_trakt_source(
 @router.get("/trakt/sources/{index}/missing", response_model=list[TraktMissingItemOut])
 def get_missing_items_for_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[TraktMissingItemOut]:
     # Get items from a Trakt list that weren't found in Plex.
     try:
@@ -345,7 +345,7 @@ def get_missing_items_for_source(
 # ========================================================================
 
 @router.get("/letterboxd/sources", response_model=list[LetterboxdSource])
-def list_letterboxd_sources(current_user: str = Depends(get_current_user)) -> list[LetterboxdSource]:
+def list_letterboxd_sources(current_user: CurrentUser = Depends(require_admin)) -> list[LetterboxdSource]:
     # Return list of all configured Letterboxd sources
     try:
         config = load_config()
@@ -359,7 +359,7 @@ def list_letterboxd_sources(current_user: str = Depends(get_current_user)) -> li
 @router.post("/letterboxd/sources", response_model=ConfigSaveResponse)
 def create_letterboxd_source(
     payload: LetterboxdSourcePayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new Letterboxd source to config.yaml
     try:
@@ -400,7 +400,7 @@ def create_letterboxd_source(
 def update_letterboxd_source(
     index: int,
     payload: LetterboxdSourcePayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing Letterboxd source at given index in config.yaml
     try:
@@ -438,7 +438,7 @@ def update_letterboxd_source(
 @router.delete("/letterboxd/sources/{index}", response_model=ConfigSaveResponse)
 def delete_letterboxd_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove Letterboxd source at given index from config.yaml
     try:
@@ -476,7 +476,7 @@ def delete_letterboxd_source(
 
 @router.get("/letterboxd/sources/status", response_model=list[LetterboxdSourceStatus])
 def get_letterboxd_sources_status(
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[LetterboxdSourceStatus]:
     # Return sync status for each configured Letterboxd source.
     try:
@@ -510,7 +510,7 @@ def get_letterboxd_sources_status(
 @router.post("/letterboxd/sources/{index}/sync", response_model=LetterboxdSyncResponse)
 def sync_letterboxd_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> LetterboxdSyncResponse:
     # Manually sync a specific Letterboxd source to Plex collection.
     try:
@@ -574,7 +574,7 @@ def sync_letterboxd_source(
 @router.get("/letterboxd/sources/{index}/missing", response_model=list[LetterboxdMissingItemOut])
 def get_missing_items_for_letterboxd_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[LetterboxdMissingItemOut]:
     # Get items from a Letterboxd list that weren't found in Plex.
     try:
@@ -621,7 +621,7 @@ def get_missing_items_for_letterboxd_source(
 # ========================================================================
 
 @router.get("/mdblist/sources", response_model=list[MDBListSource])
-def list_mdblist_sources(current_user: str = Depends(get_current_user)) -> list[MDBListSource]:
+def list_mdblist_sources(current_user: CurrentUser = Depends(require_admin)) -> list[MDBListSource]:
     # Return list of all configured MDBList sources
     try:
         config = load_config()
@@ -635,7 +635,7 @@ def list_mdblist_sources(current_user: str = Depends(get_current_user)) -> list[
 @router.post("/mdblist/sources", response_model=ConfigSaveResponse)
 def create_mdblist_source(
     payload: MDBListSourcePayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new MDBList source to config.yaml
     try:
@@ -676,7 +676,7 @@ def create_mdblist_source(
 def update_mdblist_source(
     index: int,
     payload: MDBListSourcePayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing MDBList source at given index in config.yaml
     try:
@@ -714,7 +714,7 @@ def update_mdblist_source(
 @router.delete("/mdblist/sources/{index}", response_model=ConfigSaveResponse)
 def delete_mdblist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove MDBList source at given index from config.yaml
     try:
@@ -752,7 +752,7 @@ def delete_mdblist_source(
 
 @router.get("/mdblist/sources/status", response_model=list[MDBListSourceStatus])
 def get_mdblist_sources_status(
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[MDBListSourceStatus]:
     # Return sync status for each configured MDBList source.
     try:
@@ -786,7 +786,7 @@ def get_mdblist_sources_status(
 @router.post("/mdblist/sources/{index}/sync", response_model=MDBListSyncResponse)
 def sync_mdblist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> MDBListSyncResponse:
     # Manually sync a specific MDBList source to Plex collection.
     try:
@@ -850,7 +850,7 @@ def sync_mdblist_source(
 @router.get("/mdblist/sources/{index}/missing", response_model=list[MDBListMissingItemOut])
 def get_missing_items_for_mdblist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[MDBListMissingItemOut]:
     # Get items from an MDBList list that weren't found in Plex.
     try:
@@ -901,7 +901,7 @@ def get_missing_items_for_mdblist_source(
 @router.get("/anilist/user-lists")
 def get_anilist_user_lists(
     username: str,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     # Fetch list names for an AniList user (for the dropdown)
     from homescreen_hero.core.integrations.anilist_client import AniListClient, AniListConfig
@@ -920,7 +920,7 @@ def get_anilist_user_lists(
 
 
 @router.get("/anilist/sources", response_model=list[AniListSource])
-def list_anilist_sources(current_user: str = Depends(get_current_user)) -> list[AniListSource]:
+def list_anilist_sources(current_user: CurrentUser = Depends(require_admin)) -> list[AniListSource]:
     # Return list of all configured AniList sources
     try:
         config = load_config()
@@ -934,7 +934,7 @@ def list_anilist_sources(current_user: str = Depends(get_current_user)) -> list[
 @router.post("/anilist/sources", response_model=ConfigSaveResponse)
 def create_anilist_source(
     payload: AniListSourcePayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new AniList source to config.yaml
     try:
@@ -975,7 +975,7 @@ def create_anilist_source(
 def update_anilist_source(
     index: int,
     payload: AniListSourcePayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing AniList source at given index in config.yaml
     try:
@@ -1013,7 +1013,7 @@ def update_anilist_source(
 @router.delete("/anilist/sources/{index}", response_model=ConfigSaveResponse)
 def delete_anilist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove AniList source at given index from config.yaml
     try:
@@ -1051,7 +1051,7 @@ def delete_anilist_source(
 
 @router.get("/anilist/sources/status", response_model=list[AniListSourceStatus])
 def get_anilist_sources_status(
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[AniListSourceStatus]:
     # Return sync status for each configured AniList source.
     try:
@@ -1085,7 +1085,7 @@ def get_anilist_sources_status(
 @router.post("/anilist/sources/{index}/sync", response_model=AniListSyncResponse)
 def sync_anilist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> AniListSyncResponse:
     # Manually sync a specific AniList source to Plex collection.
     try:
@@ -1149,7 +1149,7 @@ def sync_anilist_source(
 @router.get("/anilist/sources/{index}/missing", response_model=list[AniListMissingItemOut])
 def get_missing_items_for_anilist_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[AniListMissingItemOut]:
     # Get items from an AniList list that weren't found in Plex.
     try:
@@ -1198,7 +1198,7 @@ def get_missing_items_for_anilist_source(
 # ========================================================================
 
 @router.get("/mal/sources", response_model=list[MALSource])
-def list_mal_sources(current_user: str = Depends(get_current_user)) -> list[MALSource]:
+def list_mal_sources(current_user: CurrentUser = Depends(require_admin)) -> list[MALSource]:
     # Return list of all configured MAL sources
     try:
         config = load_config()
@@ -1212,7 +1212,7 @@ def list_mal_sources(current_user: str = Depends(get_current_user)) -> list[MALS
 @router.post("/mal/sources", response_model=ConfigSaveResponse)
 def create_mal_source(
     payload: MALSourcePayload,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Append new MAL source to config.yaml
     try:
@@ -1253,7 +1253,7 @@ def create_mal_source(
 def update_mal_source(
     index: int,
     payload: MALSourcePayload,
-    current_user: str = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Replace existing MAL source at given index in config.yaml
     try:
@@ -1291,7 +1291,7 @@ def update_mal_source(
 @router.delete("/mal/sources/{index}", response_model=ConfigSaveResponse)
 def delete_mal_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> ConfigSaveResponse:
     # Remove MAL source at given index from config.yaml
     try:
@@ -1329,7 +1329,7 @@ def delete_mal_source(
 
 @router.get("/mal/sources/status", response_model=list[MALSourceStatus])
 def get_mal_sources_status(
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[MALSourceStatus]:
     # Return sync status for each configured MAL source.
     try:
@@ -1363,7 +1363,7 @@ def get_mal_sources_status(
 @router.post("/mal/sources/{index}/sync", response_model=MALSyncResponse)
 def sync_mal_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> MALSyncResponse:
     # Manually sync a specific MAL source to Plex collection.
     try:
@@ -1427,7 +1427,7 @@ def sync_mal_source(
 @router.get("/mal/sources/{index}/missing", response_model=list[MALMissingItemOut])
 def get_missing_items_for_mal_source(
     index: int,
-    current_user: str = Depends(get_current_user)
+    current_user: CurrentUser = Depends(require_admin)
 ) -> list[MALMissingItemOut]:
     # Get items from a MAL list that weren't found in Plex.
     try:

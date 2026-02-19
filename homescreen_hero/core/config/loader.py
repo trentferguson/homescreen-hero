@@ -106,18 +106,23 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             "Plex token is required. Set it in config.yaml or via HSH_PLEX_TOKEN environment variable"
         )
 
-    # Auth password override
+    # Auth overrides
     if config.auth and config.auth.enabled:
-        auth_password = os.getenv("HSH_AUTH_PASSWORD")
-        if auth_password:
-            logger.info("Using auth password from HSH_AUTH_PASSWORD environment variable")
-            config.auth.password = auth_password
-        elif not config.auth.password:
-            raise ValueError(
-                "Auth password is required when auth is enabled. Set it in config.yaml or via HSH_AUTH_PASSWORD environment variable"
-            )
+        method = config.auth.method
 
-        # Auth secret key override
+        # Password is only required when method allows password login
+        if method in ("password", "both"):
+            auth_password = os.getenv("HSH_AUTH_PASSWORD")
+            if auth_password:
+                logger.info("Using auth password from HSH_AUTH_PASSWORD environment variable")
+                config.auth.password = auth_password
+            elif not config.auth.password:
+                raise ValueError(
+                    "Auth password is required when auth method is '%s'. "
+                    "Set it in config.yaml or via HSH_AUTH_PASSWORD environment variable" % method
+                )
+
+        # Secret key is always required when auth is enabled (used for JWT signing)
         auth_secret = os.getenv("HSH_AUTH_SECRET_KEY")
         if auth_secret:
             logger.info("Using auth secret key from HSH_AUTH_SECRET_KEY environment variable")

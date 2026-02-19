@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
     children: ReactNode;
+    requireAdmin?: boolean;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-    const { isAuthenticated, authEnabled, loading } = useAuth();
+export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+    const { isAuthenticated, authEnabled, role, loading } = useAuth();
     const [configStatus, setConfigStatus] = useState<{
         exists: boolean;
         is_configured: boolean;
@@ -63,6 +64,11 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     // If auth is enabled but user is not authenticated, redirect to login
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    // If admin is required but user is not admin, redirect to user landing
+    if (requireAdmin && role !== "admin") {
+        return <Navigate to="/user" replace />;
     }
 
     return <>{children}</>;

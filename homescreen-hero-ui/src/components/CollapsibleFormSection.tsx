@@ -30,7 +30,7 @@ export default function CollapsibleFormSection({
     }, [expanded]);
 
     return (
-        <section className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 overflow-hidden shadow-lg shadow-primary/5">
+        <section className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5">
             <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -61,7 +61,7 @@ export default function CollapsibleFormSection({
                     isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                 }`}
             >
-                <div className="overflow-hidden">
+                <div className={isExpanded ? "overflow-visible" : "overflow-hidden"}>
                     <div className="px-6 pb-6 space-y-4 border-t border-slate-800">
                         {actions && (
                             <div className="flex justify-end pt-4">
