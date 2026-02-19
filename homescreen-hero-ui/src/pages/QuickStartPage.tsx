@@ -6,6 +6,7 @@ import { Switch, Listbox } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
 import { Checkbox } from "../components/ui/checkbox";
 import { getShuffledStaticPosters } from "../utils/staticPosters";
+import { useAuth } from "../utils/auth";
 
 type EnvVars = {
     plex_token_from_env: boolean;
@@ -1575,6 +1576,7 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
 
 function CompleteStep({ wizardData }: { wizardData: WizardData }) {
     const navigate = useNavigate();
+    const { refreshAuthConfig } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -1618,6 +1620,7 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                 throw new Error(text || "Setup failed");
             }
 
+            await refreshAuthConfig();
             navigate("/");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Setup failed");

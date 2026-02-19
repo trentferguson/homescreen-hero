@@ -129,6 +129,8 @@ async def get_current_user(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Account is not active",
                 )
+            # Refresh role from DB so demotions take effect immediately
+            user = CurrentUser(id=user.id, username=user.username, role=db_user.role)
 
     return user
 

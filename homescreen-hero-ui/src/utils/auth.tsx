@@ -12,6 +12,7 @@ interface AuthContextType {
     thumb: string | null;
     login: (token: string, username: string, role?: string, thumb?: string) => void;
     logout: () => void;
+    refreshAuthConfig: () => Promise<void>;
     loading: boolean;
 }
 
@@ -26,6 +27,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authMethod, setAuthMethod] = useState<AuthMethod>(null);
     const [loading, setLoading] = useState(true);
 
+    // Re-fetch auth config from the backend (public endpoint)
+    const refreshAuthConfig = async () => {
+        try {
+            const resp = await fetch("/api/auth/config");
+            if (resp.ok) {
+                const data = await resp.json();
+                setAuthEnabled(data.auth_enabled);
+                setAuthMethod(data.method || null);
+            }
+        } catch (error) {
+            console.error("Failed to refresh auth config:", error);
+        }
+    };
+
     // Check backend auth status and load token from localStorage on mount
     useEffect(() => {
         const checkAuthStatus = async () => {
@@ -36,12 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const storedThumb = localStorage.getItem("thumb");
 
                 // Fetch auth config (public endpoint)
-                const configResp = await fetch("/api/auth/config");
-                if (configResp.ok) {
-                    const configData = await configResp.json();
-                    setAuthEnabled(configData.auth_enabled);
-                    setAuthMethod(configData.method || null);
-                }
+                await refreshAuthConfig();
 
                 // Try to validate stored token via /api/auth/me
                 const headers: HeadersInit = {};
@@ -99,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUsername(null);
         setRole(null);
         setThumb(null);
+        // Re-fetch config so login page reflects current auth method
+        refreshAuthConfig();
     };
 
     const value: AuthContextType = {
@@ -111,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         thumb,
         login,
         logout,
+        refreshAuthConfig,
         loading,
     };
 
