@@ -15,6 +15,7 @@ from homescreen_hero.core.auth import (
     CurrentUser,
     create_access_token,
     get_current_user,
+    require_admin,
     verify_password,
 )
 from homescreen_hero.core.config.loader import load_config
@@ -55,6 +56,26 @@ class AuthConfigResponse(BaseModel):
     method: Optional[str] = None
 
 
+class UserListItem(BaseModel):
+    id: int
+    plex_username: Optional[str] = None
+    plex_email: Optional[str] = None
+    plex_thumb: Optional[str] = None
+    role: str
+    status: str
+    created_at: datetime
+    last_login_at: Optional[datetime] = None
+
+
+class UserListResponse(BaseModel):
+    users: List[UserListItem]
+
+
+class UserUpdateRequest(BaseModel):
+    role: Optional[str] = None
+    status: Optional[str] = None
+
+
 class PlexPinRequest(BaseModel):
     forward_url: str
 
@@ -76,8 +97,10 @@ def _upsert_plex_user(
     email: str | None,
     thumb: str | None,
     role: str,
+    status: str = "approved",
 ) -> User:
     # Create or update a user by plex_id. Never downgrades admin to user.
+    # Status is only set on creation — existing users keep their current status.
     with session_scope() as db:
         user = db.query(User).filter(User.plex_id == plex_id).first()
         if user:
@@ -95,6 +118,7 @@ def _upsert_plex_user(
                 plex_email=email,
                 plex_thumb=thumb,
                 role=role,
+                status=status,
                 last_login_at=datetime.utcnow(),
             )
             db.add(user)
@@ -194,9 +218,15 @@ async def create_plex_login_pin(request: PlexPinRequest, http_request: Request) 
             detail="Plex login is not enabled. Use password authentication.",
         )
 
-    # Validate forward_url is same-origin to prevent open redirect via Plex
+    # Validate forward_url is same-origin to prevent open redirect via Plex.
+    # Use the Origin header (sent by browsers on POST) so this works behind
+    # proxies and when the frontend dev server is on a different port.
     parsed_forward = urlparse(request.forward_url)
-    request_origin = urlparse(str(http_request.base_url))
+    origin_header = http_request.headers.get("origin")
+    if origin_header:
+        request_origin = urlparse(origin_header)
+    else:
+        request_origin = urlparse(str(http_request.base_url))
     if parsed_forward.netloc and parsed_forward.netloc != request_origin.netloc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -276,13 +306,27 @@ async def plex_oauth_callback(request: PlexCallbackRequest) -> LoginResponse:
 
     # Create/update user in DB
     role = "admin" if result["is_owner"] else "user"
+
+    # Server owners are always approved; regular users depend on auto_approve setting
+    auto_approve = config.auth.auto_approve_users if config.auth else True
+    initial_status = "approved" if (role == "admin" or auto_approve) else "pending"
+
     user = _upsert_plex_user(
         plex_id=result["plex_id"],
         username=result["username"],
         email=result.get("email"),
         thumb=result.get("thumb"),
         role=role,
+        status=initial_status,
     )
+
+    # Don't issue a token for pending users
+    if user.status == "pending":
+        return Response(
+            content='{"status": "pending_approval", "message": "Your account is pending admin approval."}',
+            status_code=200,
+            media_type="application/json",
+        )
 
     # Issue JWT
     expires_delta = timedelta(days=config.auth.token_expire_days)
@@ -328,6 +372,86 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> UserR
         role=current_user.role,
         thumb=thumb,
     )
+
+
+# --- User management (admin only) ---
+
+@router.get("/users", response_model=UserListResponse)
+async def list_users(
+    current_user: CurrentUser = Depends(require_admin),
+) -> UserListResponse:
+    with session_scope() as db:
+        users = db.query(User).order_by(User.created_at.desc()).all()
+        items = [
+            UserListItem(
+                id=u.id,
+                plex_username=u.plex_username,
+                plex_email=u.plex_email,
+                plex_thumb=u.plex_thumb,
+                role=u.role,
+                status=u.status,
+                created_at=u.created_at,
+                last_login_at=u.last_login_at,
+            )
+            for u in users
+        ]
+    return UserListResponse(users=items)
+
+
+@router.patch("/users/{user_id}")
+async def update_user(
+    user_id: int,
+    payload: UserUpdateRequest,
+    current_user: CurrentUser = Depends(require_admin),
+):
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify your own account",
+        )
+
+    with session_scope() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if payload.role is not None:
+            if payload.role not in ("admin", "user"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Role must be 'admin' or 'user'",
+                )
+            user.role = payload.role
+
+        if payload.status is not None:
+            if payload.status not in ("approved", "pending"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Status must be 'approved' or 'pending'",
+                )
+            user.status = payload.status
+
+    return {"ok": True}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    current_user: CurrentUser = Depends(require_admin),
+):
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account",
+        )
+
+    with session_scope() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        db.delete(user)
+
+    return {"ok": True}
 
 
 # --- Login page posters ---

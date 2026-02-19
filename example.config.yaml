@@ -53,6 +53,7 @@ auth:
   # password: ""  # RECOMMENDED: Use HSH_AUTH_PASSWORD environment variable instead
   # secret_key: ""  # RECOMMENDED: Use HSH_AUTH_SECRET_KEY environment variable instead
   token_expire_days: 30
+  auto_approve_users: true  # When false, new Plex users require admin approval before they can sign in
 
 # Optional: Trakt integration
 trakt:

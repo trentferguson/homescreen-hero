@@ -38,8 +38,8 @@ from .schemas import (
     SeerrConfigSaveRequest,
     RotationConfigSaveRequest,
     DisplaySettingsSaveRequest,
-    AuthMethodResponse,
-    AuthMethodSaveRequest,
+    AuthSettingsResponse,
+    AuthSettingsSaveRequest,
 )
 
 router = APIRouter()
@@ -635,13 +635,14 @@ def save_display_settings(
 # AUTH METHOD
 # ========================================================================
 
-@router.get("/auth-method", response_model=AuthMethodResponse)
-def get_auth_method(current_user: str = Depends(get_current_user)) -> AuthMethodResponse:
-    # Return the currently configured auth method
+@router.get("/auth-method", response_model=AuthSettingsResponse)
+def get_auth_settings(current_user: str = Depends(get_current_user)) -> AuthSettingsResponse:
+    # Return the currently configured auth settings
     try:
         config = load_config()
         method = config.auth.method if config.auth else "password"
-        return AuthMethodResponse(method=method)
+        auto_approve = config.auth.auto_approve_users if config.auth else True
+        return AuthSettingsResponse(method=method, auto_approve_users=auto_approve)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
@@ -649,17 +650,18 @@ def get_auth_method(current_user: str = Depends(get_current_user)) -> AuthMethod
 
 
 @router.post("/auth-method", response_model=ConfigSaveResponse)
-def save_auth_method(
-    payload: AuthMethodSaveRequest,
+def save_auth_settings(
+    payload: AuthSettingsSaveRequest,
     current_user: str = Depends(get_current_user),
 ) -> ConfigSaveResponse:
-    # Update only auth.method in config.yaml, preserving all other auth settings
+    # Update auth settings in config.yaml, preserving sensitive fields
     try:
         data = load_config_mapping()
 
         auth_section = data.get("auth") if isinstance(data.get("auth"), dict) else {}
         auth_section = dict(auth_section)
         auth_section["method"] = payload.method
+        auth_section["auto_approve_users"] = payload.auto_approve_users
 
         data["auth"] = auth_section
         save_config_mapping(data)

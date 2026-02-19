@@ -117,6 +117,19 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # For Plex users (id > 0), verify they still exist and are approved
+    if user.id > 0:
+        from homescreen_hero.core.db.base import session_scope
+        from homescreen_hero.core.db.models import User as UserModel
+
+        with session_scope() as db:
+            db_user = db.query(UserModel).filter(UserModel.id == user.id).first()
+            if db_user is None or db_user.status != "approved":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account is not active",
+                )
+
     return user
 
 

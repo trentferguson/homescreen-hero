@@ -23,6 +23,7 @@ def init_db() -> None:
     # Run schema migrations for existing tables
     _migrate_collection_analytics(engine)
     _migrate_pinned_collections_visibility(engine)
+    _migrate_users_status(engine)
 
 
 def _migrate_collection_analytics(engine) -> None:
@@ -75,6 +76,25 @@ def _migrate_pinned_collections_visibility(engine) -> None:
     with engine.connect() as conn:
         for col_name, col_type, default_val in columns_to_add:
             conn.execute(text(f"ALTER TABLE pinned_collections ADD COLUMN {col_name} {col_type} NOT NULL DEFAULT {default_val}"))
+        conn.commit()
+
+
+def _migrate_users_status(engine) -> None:
+    # Add status column to users table if it doesn't exist
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    if "users" not in inspector.get_table_names():
+        return
+
+    columns = [col["name"] for col in inspector.get_columns("users")]
+    if "status" in columns:
+        return
+
+    logger.info("Migrating users: adding status column")
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR NOT NULL DEFAULT 'approved'"))
         conn.commit()
 
 

@@ -305,6 +305,9 @@ class User(Base):
     # "admin" or "user"
     role = Column(String, nullable=False, default="user")
 
+    # "approved" or "pending"
+    status = Column(String, nullable=False, default="approved")
+
     # For password-auth fallback (only admin uses this)
     password_hash = Column(String, nullable=True)
 

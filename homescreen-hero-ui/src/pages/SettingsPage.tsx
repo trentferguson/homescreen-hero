@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2, Shield } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2, Shield, Users } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
 import TestConnectionCta from "../components/TestConnectionCta";
 import Toast from "../components/Toast";
+import UserRow from "../components/UserRow";
+import { useAuth } from "../utils/auth";
 
 const tabs = [
     { id: "general", label: "General", icon: SlidersHorizontal },
@@ -164,12 +166,28 @@ export default function SettingsPage() {
     const [plexError, setPlexError] = useState<string | null>(null);
     const [plexMessage, setPlexMessage] = useState<string | null>(null);
 
-    // Auth method state
+    // Auth settings state
     const [authMethod, setAuthMethod] = useState<"password" | "plex" | "both">("password");
+    const [autoApproveUsers, setAutoApproveUsers] = useState(true);
     const [loadingAuth, setLoadingAuth] = useState(true);
     const [savingAuth, setSavingAuth] = useState(false);
     const [authError, setAuthError] = useState<string | null>(null);
     const [authMessage, setAuthMessage] = useState<string | null>(null);
+
+    // User management state
+    type UserListItem = {
+        id: number;
+        plex_username: string | null;
+        plex_email: string | null;
+        plex_thumb: string | null;
+        role: string;
+        status: string;
+        created_at: string;
+        last_login_at: string | null;
+    };
+    const [users, setUsers] = useState<UserListItem[]>([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const { username: currentUsername } = useAuth();
 
     // Logs state
     const [lines, setLines] = useState<string[]>([]);
@@ -339,7 +357,7 @@ export default function SettingsPage() {
         };
     }, []);
 
-    // Fetch auth method
+    // Fetch auth settings
     useEffect(() => {
         let isMounted = true;
         fetchWithAuth("/api/admin/config/auth-method")
@@ -347,9 +365,10 @@ export default function SettingsPage() {
                 if (!r.ok) throw new Error(await r.text());
                 return r.json();
             })
-            .then((data: { method: "password" | "plex" | "both" }) => {
+            .then((data: { method: "password" | "plex" | "both"; auto_approve_users: boolean }) => {
                 if (!isMounted) return;
                 setAuthMethod(data.method);
+                setAutoApproveUsers(data.auto_approve_users);
             })
             .catch((e) => {
                 if (!isMounted) return;
@@ -362,7 +381,29 @@ export default function SettingsPage() {
         return () => { isMounted = false; };
     }, []);
 
-    async function saveAuthMethod() {
+    // Fetch users list
+    const fetchUsers = useCallback(async () => {
+        setLoadingUsers(true);
+        try {
+            const r = await fetchWithAuth("/api/auth/users");
+            if (!r.ok) throw new Error(await r.text());
+            const data = await r.json();
+            setUsers(data.users);
+        } catch {
+            // Silently fail — user list is non-critical
+        } finally {
+            setLoadingUsers(false);
+        }
+    }, []);
+
+    // Load users when auth method includes plex
+    useEffect(() => {
+        if (authMethod === "plex" || authMethod === "both") {
+            fetchUsers();
+        }
+    }, [authMethod, fetchUsers]);
+
+    async function saveAuthSettings() {
         try {
             setSavingAuth(true);
             setAuthError(null);
@@ -371,7 +412,7 @@ export default function SettingsPage() {
             const r = await fetchWithAuth("/api/admin/config/auth-method", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ method: authMethod }),
+                body: JSON.stringify({ method: authMethod, auto_approve_users: autoApproveUsers }),
             });
 
             if (!r.ok) throw new Error(await r.text());
@@ -943,9 +984,9 @@ export default function SettingsPage() {
                                 <div className="relative">
                                     <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between data-[disabled]:opacity-50">
                                         <span>
-                                            {authMethod === "password" ? "Local Username/Password" :
-                                             authMethod === "plex" ? "Plex OAuth" :
-                                             "Both"}
+                                            {authMethod === "password" ? "Password Only" :
+                                             authMethod === "plex" ? "Plex Only" :
+                                             "Password + Plex"}
                                         </span>
                                         <ChevronDown size={16} className="text-slate-400" />
                                     </Listbox.Button>
@@ -957,8 +998,8 @@ export default function SettingsPage() {
                                         >
                                             <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
                                                 <div>
-                                                    <span className="data-[selected]:font-medium">Local User</span>
-                                                    <p className="text-xs text-slate-500">Sign in with username and password.</p>
+                                                    <span className="data-[selected]:font-medium">Password Only</span>
+                                                    <p className="text-xs text-slate-500">Admin signs in with a local username and password. No multi-user support.</p>
                                                 </div>
                                                 <Check size={14} className="text-primary invisible data-[selected]:visible" />
                                             </div>
@@ -969,8 +1010,8 @@ export default function SettingsPage() {
                                         >
                                             <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
                                                 <div>
-                                                    <span className="data-[selected]:font-medium">Plex Account</span>
-                                                    <p className="text-xs text-slate-500">Sign in via your Plex account.</p>
+                                                    <span className="data-[selected]:font-medium">Plex Only</span>
+                                                    <p className="text-xs text-slate-500">All users sign in with their Plex account. Server owner is admin.</p>
                                                 </div>
                                                 <Check size={14} className="text-primary invisible data-[selected]:visible" />
                                             </div>
@@ -981,8 +1022,8 @@ export default function SettingsPage() {
                                         >
                                             <div className="flex items-center justify-between text-slate-900 dark:text-slate-100 text-sm">
                                                 <div>
-                                                    <span className="data-[selected]:font-medium">Both</span>
-                                                    <p className="text-xs text-slate-500">Sign in with either your Plex account or Local username/password.</p>
+                                                    <span className="data-[selected]:font-medium">Password + Plex</span>
+                                                    <p className="text-xs text-slate-500">Admin can use password or Plex. Shared users sign in with Plex.</p>
                                                 </div>
                                                 <Check size={14} className="text-primary invisible data-[selected]:visible" />
                                             </div>
@@ -991,6 +1032,20 @@ export default function SettingsPage() {
                                 </div>
                             </Listbox>
                         </FieldRow>
+
+                        {/* Auto-approve toggle */}
+                        <div className={authMethod === "password" ? "opacity-40 pointer-events-none" : ""}>
+                            <FieldRow label="Auto-approve Users" hint="When off, new Plex users must be approved by an admin before they can sign in.">
+                                <Switch
+                                    checked={autoApproveUsers}
+                                    onChange={setAutoApproveUsers}
+                                    disabled={authMethod === "password"}
+                                    className="group relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
+                                >
+                                    <span className="inline-block h-5 w-5 transform rounded-full bg-white transition group-data-[checked]:translate-x-5 translate-x-1" />
+                                </Switch>
+                            </FieldRow>
+                        </div>
 
                         {/* Save Button */}
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-700/50">
@@ -1004,7 +1059,7 @@ export default function SettingsPage() {
                             </div>
                             <button
                                 type="button"
-                                onClick={saveAuthMethod}
+                                onClick={saveAuthSettings}
                                 disabled={savingAuth || loadingAuth}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -1020,6 +1075,48 @@ export default function SettingsPage() {
                                     </>
                                 )}
                             </button>
+                        </div>
+
+                        {/* User list */}
+                        <div className={`mt-4 pt-4 border-t border-slate-700/50 ${authMethod === "password" ? "opacity-40 pointer-events-none" : ""}`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <Users size={15} className="text-slate-400" />
+                                    <h4 className="text-sm font-semibold text-slate-200">Users</h4>
+                                    {users.filter(u => u.status === "pending").length > 0 && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
+                                            {users.filter(u => u.status === "pending").length} pending
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={fetchUsers}
+                                    disabled={loadingUsers || authMethod === "password"}
+                                    className="text-xs text-primary hover:text-blue-400 transition disabled:opacity-50"
+                                >
+                                    {loadingUsers ? "Loading..." : "Refresh"}
+                                </button>
+                            </div>
+
+                            {authMethod === "password" ? (
+                                <p className="text-xs text-slate-500 py-3 text-center">Enable Plex authentication to manage users.</p>
+                            ) : loadingUsers && users.length === 0 ? (
+                                <p className="text-xs text-slate-500 py-3 text-center">Loading users...</p>
+                            ) : users.length === 0 ? (
+                                <p className="text-xs text-slate-500 py-3 text-center">No Plex users have signed in yet.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {users.map((u) => (
+                                        <UserRow
+                                            key={u.id}
+                                            user={u}
+                                            currentUsername={currentUsername}
+                                            onUpdate={fetchUsers}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </CollapsibleFormSection>
 

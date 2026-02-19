@@ -179,6 +179,10 @@ class AuthSettings(BaseModel):
         ge=1,
         description="Number of days before JWT tokens expire",
     )
+    auto_approve_users: bool = Field(
+        default=True,
+        description="Auto-approve new Plex users. When off, new users are pending until admin approves.",
+    )
 
 
 class TraktSource(BaseModel):

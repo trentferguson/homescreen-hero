@@ -39,6 +39,12 @@ export default function LoginPage() {
                         await new Promise((r) => setTimeout(r, 2000));
                         continue;
                     }
+                    // User is pending admin approval
+                    if (data.status === "pending_approval") {
+                        setError("Your account is pending admin approval. Please contact your server admin.");
+                        setPlexLoading(false);
+                        return;
+                    }
                     login(data.access_token, data.username, data.role, data.thumb);
                     navigate("/");
                     return;

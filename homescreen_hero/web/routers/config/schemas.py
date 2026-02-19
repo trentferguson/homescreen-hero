@@ -420,9 +420,11 @@ class BackupStatusResponse(BaseModel):
     modified_at: Optional[str] = None
 
 
-class AuthMethodResponse(BaseModel):
+class AuthSettingsResponse(BaseModel):
     method: Literal["password", "plex", "both"]
+    auto_approve_users: bool
 
 
-class AuthMethodSaveRequest(BaseModel):
+class AuthSettingsSaveRequest(BaseModel):
     method: Literal["password", "plex", "both"]
+    auto_approve_users: bool

@@ -19,9 +19,12 @@ export async function fetchWithAuth(
         headers,
     });
 
-    if (response.status === 401) {
+    // 401 = invalid/expired token, 403 = account removed or pending
+    if (response.status === 401 || response.status === 403) {
         localStorage.removeItem("auth_token");
         localStorage.removeItem("username");
+        localStorage.removeItem("role");
+        localStorage.removeItem("thumb");
         window.location.href = "/login";
     }
 

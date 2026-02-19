@@ -61,7 +61,7 @@ export default function TopNav() {
                         <Settings size={20} />
                     </IconButton>
 
-                    <IconButton label={username ?? "User"}>
+                    <div className="text-slate-400" title={username ?? "User"}>
                         {thumb ? (
                             <img
                                 src={thumb}
@@ -71,7 +71,7 @@ export default function TopNav() {
                         ) : (
                             <User size={20} />
                         )}
-                    </IconButton>
+                    </div>
 
                     {authEnabled && (
                         <IconButton label="Logout" onClick={handleLogout}>
