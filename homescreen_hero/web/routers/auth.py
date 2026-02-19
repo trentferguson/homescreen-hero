@@ -505,7 +505,7 @@ async def get_login_posters() -> PosterResponse:
                 token = config.plex.token
                 actual_url = f"{base_url}{thumb_path}?X-Plex-Token={token}"
 
-                logger.debug(f"Poster {idx}: base_url={base_url}, thumb_path={thumb_path}, final_url={actual_url}")
+                logger.debug(f"Poster {idx}: base_url={base_url}, thumb_path={thumb_path}")
 
                 # Store in a simple dict cache (this should be Redis or similar in production)
                 if not hasattr(get_login_posters, '_poster_cache'):
@@ -549,8 +549,8 @@ def proxy_poster(poster_id: int):
         )
 
     except requests.RequestException as exc:
-        logger.error(f"Failed to fetch poster {poster_id} from URL {poster_url}: {exc}")
+        logger.error(f"Failed to fetch poster {poster_id}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to fetch poster")
     except Exception as exc:
-        logger.error(f"Unexpected error fetching poster {poster_id} from URL {poster_url}: {exc}")
+        logger.error(f"Unexpected error fetching poster {poster_id}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to fetch poster")
