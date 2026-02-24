@@ -51,14 +51,14 @@ class LetterboxdScraper:
         return url
 
     # Scrape all movies from a Letterboxd list, handling pagination
-    def get_list_movies(self, list_url: str) -> List[LetterboxdMovie]:
+    def get_list_movies(self, list_url: str, max_pages: int = 500) -> List[LetterboxdMovie]:
         list_url = self.normalize_url(list_url)
         logger.info(f"Scraping Letterboxd list: {list_url}")
 
         movies = []
         page = 1
 
-        while True:
+        while page <= max_pages:
             # Construct page URL (page 1 has no /page/1/, subsequent pages do)
             if page == 1:
                 page_url = list_url
@@ -82,6 +82,9 @@ class LetterboxdScraper:
 
             page += 1
 
+        if page > max_pages:
+            logger.warning(f"Reached max page limit ({max_pages}), stopping pagination")
+
         logger.info(f"Scraped {len(movies)} total movies from list")
         return movies
 
@@ -101,8 +104,9 @@ class LetterboxdScraper:
         soup = BeautifulSoup(response.content, 'html.parser')
         movies = []
 
-        # Letterboxd uses li.posteritem for each movie in a list
-        for item in soup.select('li.posteritem'):
+        # Scope to the main list grid — sidebar sections (e.g. "Cloned from…")
+        # also contain li.posteritem which would cause infinite pagination
+        for item in soup.select('ul.js-list-entries li.posteritem'):
             movie = self._parse_movie_element(item)
             if movie:
                 movies.append(movie)
