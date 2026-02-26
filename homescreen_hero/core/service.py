@@ -18,6 +18,7 @@ from .integrations.plex_client import get_library_collections
 from .config.loader import load_config
 from .config.schema import AppConfig, RotationExecution, RotationResult
 from .rotation import run_rotation_with_history, run_auto_rotation_with_history, build_collection_visibility_map
+from .smart_groups import build_collection_metadata, resolve_smart_rules
 from .db import (
     init_db,
     get_last_rotation_collections,
@@ -46,6 +47,23 @@ def _build_collection_library_map(server, config: AppConfig) -> Dict[str, str]:
             except Exception as e:
                 logger.warning("Failed to get collections from library '%s': %s", lib_config.name, e)
     return coll_to_lib
+
+
+def _resolve_smart_groups(server, config: AppConfig) -> Dict[str, List[str]]:
+    # Resolve all smart groups into concrete collection name lists.
+    # Returns a dict mapping group name -> resolved collection names.
+    smart_groups = [g for g in config.groups if g.smart]
+    if not smart_groups:
+        return {}
+
+    logger.info("Resolving %d smart group(s)", len(smart_groups))
+    metadata = build_collection_metadata(server, config)
+    result = {}
+    for group in smart_groups:
+        resolved = resolve_smart_rules(group.rules, metadata)
+        result[group.name] = resolved
+        logger.info("Smart group '%s' resolved to %d collections", group.name, len(resolved))
+    return result
 
 
 def _run_auto_rotation(
@@ -217,6 +235,9 @@ def run_rotation_once(
     # Build collection→library map for per-library limits
     collection_library_map = _build_collection_library_map(server, config)
 
+    # Resolve smart groups into concrete collection lists
+    smart_group_collections = _resolve_smart_groups(server, config)
+
     # DISABLED: Auto-cleanup was too aggressive and deleting user's collections
     # TODO: Redesign cleanup to only delete collections that HSH created (not native Plex collections)
     # cleanup_result = cleanup_deleted_integration_sources(server, config)
@@ -271,6 +292,7 @@ def run_rotation_once(
                 last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
                 collection_library_map=collection_library_map,
+                smart_group_collections=smart_group_collections,
             )
 
         # Now sync only the selected collections
@@ -294,6 +316,7 @@ def run_rotation_once(
                 usage_map=usage_map,
                 last_rotation_collections=last_rotation_collections,
                 pinned_names=pinned_names,
+                smart_group_collections=smart_group_collections,
                 collection_library_map=collection_library_map,
             )
 
@@ -311,7 +334,7 @@ def run_rotation_once(
             for name in rotation_result.selected_collections
         }
     else:
-        collection_visibility = build_collection_visibility_map(config)
+        collection_visibility = build_collection_visibility_map(config, smart_group_collections)
 
     # Add pinned collection visibility (overrides group settings for pinned collections)
     from .db import get_pinned_visibility_map
@@ -325,6 +348,7 @@ def run_rotation_once(
         rotation_result.selected_collections,
         collection_visibility,
         dry_run=dry_run,  # controls whether Plex is actually changed
+        smart_group_collections=smart_group_collections,
     )
 
     rotation_id = record_rotation(
@@ -488,6 +512,9 @@ def apply_simulation(
     # Apply collections to Plex
     server = get_plex_server(config)
 
+    # Resolve smart groups for visibility mapping
+    smart_group_collections = _resolve_smart_groups(server, config)
+
     # Build visibility map (auto-rotate uses its own settings)
     if config.rotation.auto_rotate.enabled:
         auto_rotate = config.rotation.auto_rotate
@@ -501,7 +528,7 @@ def apply_simulation(
             for name in rotation_result.selected_collections
         }
     else:
-        collection_visibility = build_collection_visibility_map(config)
+        collection_visibility = build_collection_visibility_map(config, smart_group_collections)
 
     # Add pinned collection visibility (overrides group settings for pinned collections)
     from .db import get_pinned_visibility_map
@@ -514,6 +541,7 @@ def apply_simulation(
         rotation_result.selected_collections,
         collection_visibility,
         dry_run=False,
+        smart_group_collections=smart_group_collections,
     )
 
     # Record in db as a real rotation in history

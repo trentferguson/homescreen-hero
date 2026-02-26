@@ -1,6 +1,6 @@
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import Any, ClassVar, Dict, List, Literal, Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DateRange(BaseModel):
@@ -95,6 +95,45 @@ class RotationSettings(BaseModel):
     )
 
 
+class SmartGroupRule(BaseModel):
+    # A single filter rule for smart groups.
+    # Rules within a group are ANDed; multiple values within a rule are ORed.
+    field: Literal["label", "source", "library", "name", "item_count"] = Field(
+        ..., description="Which collection attribute to filter on"
+    )
+    operator: str = Field(
+        ...,
+        description=(
+            "Comparison operator. Varies by field: "
+            "label: includes/excludes; source/library: is/is_not; "
+            "name: contains/not_contains; item_count: gte/lte"
+        ),
+    )
+    values: List[Union[str, int]] = Field(
+        ..., description="Values to match against (ORed within this rule)"
+    )
+
+    model_config = ConfigDict(arbitrary_types_allowed=False)
+
+    VALID_OPERATORS: ClassVar[dict] = {
+        "label": {"includes", "excludes"},
+        "source": {"is", "is_not"},
+        "library": {"is", "is_not"},
+        "name": {"contains", "not_contains"},
+        "item_count": {"gte", "lte"},
+    }
+
+    @model_validator(mode="after")
+    def validate_operator(self):
+        valid = self.VALID_OPERATORS.get(self.field, set())
+        if self.operator not in valid:
+            raise ValueError(
+                f"Invalid operator '{self.operator}' for field '{self.field}'. "
+                f"Valid operators: {sorted(valid)}"
+            )
+        return self
+
+
 class CollectionGroupConfig(BaseModel):
     name: str = Field(..., description="Name of this group (e.g. 'Christmas')")
     enabled: bool = Field(default=True)
@@ -139,10 +178,24 @@ class CollectionGroupConfig(BaseModel):
         default=None,
         description="Optional yearly date window when this group is active",
     )
+    smart: bool = Field(
+        default=False,
+        description="Whether this group uses smart rules instead of a manual collection list",
+    )
+    rules: List[SmartGroupRule] = Field(
+        default_factory=list,
+        description="Smart group filter rules (only used when smart=True)",
+    )
     collections: List[str] = Field(
         default_factory=list,
-        description="List of Plex collection names belonging to this group",
+        description="List of Plex collection names belonging to this group (ignored when smart=True)",
     )
+
+    @model_validator(mode="after")
+    def validate_smart_rules(self):
+        if self.smart and not self.rules:
+            raise ValueError("Smart groups must have at least one rule")
+        return self
 
 
 class LoggingSettings(BaseModel):

@@ -165,6 +165,16 @@ def _is_blacklisted(collection_name: str, blacklist: List[str]) -> bool:
     return collection_name in blacklist
 
 
+def _get_collection_pool(
+    group: CollectionGroupConfig,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
+) -> List[str]:
+    # Return the collection pool for a group — resolved smart rules or static list.
+    if group.smart and smart_group_collections and group.name in smart_group_collections:
+        return list(smart_group_collections[group.name])
+    return list(group.collections)
+
+
 # Same as run_rotation_dry, but respects history for gap rules
 def run_rotation_with_history(
     config: AppConfig,
@@ -174,6 +184,7 @@ def run_rotation_with_history(
     last_rotation_collections: Optional[List[str]] = None,
     pinned_names: Optional[Set[str]] = None,
     collection_library_map: Optional[Dict[str, str]] = None,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
 ) -> RotationResult:
@@ -236,12 +247,14 @@ def run_rotation_with_history(
     for group in ordered_groups:
         is_active = _group_is_active(group, today)
 
+        pool = _get_collection_pool(group, smart_group_collections)
+
         result = GroupSelectionResult(
             group_name=group.name,
             active=is_active,
             min_picks=group.min_picks,
             max_picks=group.max_picks,
-            available_collections=list(group.collections),
+            available_collections=pool,
             chosen_collections=[],
             picked_count=0,
             reason_skipped=None,
@@ -260,7 +273,7 @@ def run_rotation_with_history(
             continue
 
         # Filter out collections already chosen in this rotation
-        available = [c for c in group.collections if c not in selected_set]
+        available = [c for c in pool if c not in selected_set]
 
         # Apply gap rule based on history
         available = [
@@ -532,6 +545,7 @@ def run_auto_rotation_with_history(
 def run_rotation_dry(
     config: AppConfig,
     *,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
     today: Optional[date] = None,               # Core Rotation Logic:
     rng: Optional[random.Random] = None,        # For each active group:
 ) -> RotationResult:                            #   1. Choose between min_picks and max_picks collections (if available)
@@ -562,13 +576,14 @@ def run_rotation_dry(
 
     for group in ordered_groups:
         is_active = _group_is_active(group, today)
+        pool = _get_collection_pool(group, smart_group_collections)
 
         result = GroupSelectionResult(
             group_name=group.name,
             active=is_active,
             min_picks=group.min_picks,
             max_picks=group.max_picks,
-            available_collections=list(group.collections),
+            available_collections=pool,
             chosen_collections=[],
             picked_count=0,
             reason_skipped=None,
@@ -587,7 +602,7 @@ def run_rotation_dry(
             continue
 
         # Remove any collections already chosen by earlier groups
-        available = [c for c in group.collections if c not in selected_set]
+        available = [c for c in pool if c not in selected_set]
 
         # Filter out blacklisted collections
         blacklist = config.rotation.blacklisted_collections
@@ -668,14 +683,18 @@ def run_rotation_dry(
 def select_collections_for_rotation(
     config: AppConfig,
     *,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
     today: Optional[date] = None,
     rng: Optional[random.Random] = None,
 ) -> List[str]:
-    result = run_rotation_dry(config, today=today, rng=rng)
+    result = run_rotation_dry(config, smart_group_collections=smart_group_collections, today=today, rng=rng)
     return result.selected_collections
 
 
-def build_collection_visibility_map(config: AppConfig) -> Dict[str, Dict[str, bool]]:
+def build_collection_visibility_map(
+    config: AppConfig,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
+) -> Dict[str, Dict[str, bool]]:
     """
     Build a mapping from collection name to visibility settings based on the group it belongs to.
 
@@ -688,7 +707,8 @@ def build_collection_visibility_map(config: AppConfig) -> Dict[str, Dict[str, bo
     visibility_map: Dict[str, Dict[str, bool]] = {}
 
     for group in config.groups:
-        for collection_name in group.collections:
+        pool = _get_collection_pool(group, smart_group_collections)
+        for collection_name in pool:
             # Only set visibility if this collection hasn't been seen yet
             # (first group wins if a collection is in multiple groups)
             if collection_name not in visibility_map:
@@ -703,11 +723,13 @@ def build_collection_visibility_map(config: AppConfig) -> Dict[str, Dict[str, bo
 
 def _build_collection_group_map(
     config: AppConfig,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
 ) -> Dict[str, CollectionGroupConfig]:
     # Map collection name -> its group config (first group wins for duplicates)
     coll_to_group: Dict[str, CollectionGroupConfig] = {}
     for group in config.groups:
-        for name in group.collections:
+        pool = _get_collection_pool(group, smart_group_collections)
+        for name in pool:
             if name not in coll_to_group:
                 coll_to_group[name] = group
     return coll_to_group
@@ -718,6 +740,7 @@ def order_collections_for_display(
     config: AppConfig,
     pinned_names: Optional[Set[str]] = None,
     pinned_order: Optional[Dict[str, int]] = None,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
     rng: Optional[random.Random] = None,
 ) -> List[str]:
     # Order selected collections based on group display_order and display mode.
@@ -728,7 +751,7 @@ def order_collections_for_display(
     pinned_names = pinned_names or set()
     pinned_order = pinned_order or {}
 
-    coll_to_group = _build_collection_group_map(config)
+    coll_to_group = _build_collection_group_map(config, smart_group_collections)
     mode = config.display.group_display_mode
 
     # Separate pinned and non-pinned

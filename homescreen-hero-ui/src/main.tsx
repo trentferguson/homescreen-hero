@@ -10,6 +10,7 @@ import SettingsPage from "./pages/SettingsPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
+import SmartGroupDetailPage from "./pages/SmartGroupDetailPage";
 import LoginPage from "./pages/LoginPage";
 import QuickStartPage from "./pages/QuickStartPage";
 import { ThemeProvider } from "./utils/theme";
@@ -50,6 +51,8 @@ const router = createBrowserRouter([
       { path: "/", element: <DashboardPage /> },
       { path: "/dashboard", element: <Navigate to="/" replace /> },
       { path: "/groups", element: <GroupsPage /> },
+      { path: "/groups/smart/new", element: <SmartGroupDetailPage /> },
+      { path: "/groups/smart/:groupId", element: <SmartGroupDetailPage /> },
       { path: "/groups/:groupId", element: <GroupDetailPage /> },
       { path: "/collections", element: <CollectionsPage /> },
       { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },

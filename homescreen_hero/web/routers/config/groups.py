@@ -28,6 +28,9 @@ from .schemas import (
     GroupValidationResult,
     CollectionSourcesResponse,
     GroupReorderRequest,
+    SmartGroupPreviewRequest,
+    SmartGroupPreviewResponse,
+    SmartFilterOptionsResponse,
 )
 
 router = APIRouter()
@@ -284,6 +287,44 @@ def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> Co
             mal=mal_sources,
         )
     except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# SMART GROUPS
+# ========================================================================
+
+@router.post("/groups/preview-smart", response_model=SmartGroupPreviewResponse)
+def preview_smart_group(
+    payload: SmartGroupPreviewRequest,
+    current_user: CurrentUser = Depends(require_admin),
+) -> SmartGroupPreviewResponse:
+    # Evaluate smart group rules and return matching collections (for live preview).
+    from homescreen_hero.core.smart_groups import build_collection_metadata, resolve_smart_rules
+
+    try:
+        config = load_config()
+        server = get_plex_server(config)
+        metadata = build_collection_metadata(server, config)
+        matching = resolve_smart_rules(payload.rules, metadata)
+        return SmartGroupPreviewResponse(collections=matching, count=len(matching))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/groups/smart-filter-options", response_model=SmartFilterOptionsResponse)
+def get_smart_filter_options(
+    current_user: CurrentUser = Depends(require_admin),
+) -> SmartFilterOptionsResponse:
+    # Return available values for smart group rule builder dropdowns.
+    from homescreen_hero.core.smart_groups import get_available_filter_options
+
+    try:
+        config = load_config()
+        server = get_plex_server(config)
+        options = get_available_filter_options(server, config)
+        return SmartFilterOptionsResponse(**options)
+    except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

@@ -55,6 +55,17 @@ def get_library_collections(
     return by_title
 
 
+def get_collection_labels(collection: object) -> List[str]:
+    # Extract label tags from a PlexAPI Collection object.
+    # Returns empty list if collection has no labels or labels aren't loaded.
+    return [label.tag for label in getattr(collection, "labels", [])]
+
+
+def get_collection_item_count(collection: object) -> int:
+    # Get the number of items in a collection without fetching them all.
+    return getattr(collection, "childCount", 0)
+
+
 def get_configured_collection_names(config: AppConfig) -> Set[str]:
     # Build the set of all collection names referenced in your groups and integration sources
     names: Set[str] = set()
@@ -235,6 +246,7 @@ def apply_home_screen_selection(
     collection_visibility: Dict[str, Dict[str, bool]],
     *,
     dry_run: bool = False,
+    smart_group_collections: Dict[str, List[str]] | None = None,
 ) -> List[str]:
     # Apply the chosen collections to the Plex Home screen
     #
@@ -368,6 +380,7 @@ def apply_home_screen_selection(
             config,
             pinned_names=pinned_names,
             pinned_order=pinned_order,
+            smart_group_collections=smart_group_collections,
         )
         reorder_homescreen_collections(server, config, ordered_applied)
 

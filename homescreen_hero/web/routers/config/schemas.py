@@ -21,6 +21,7 @@ from homescreen_hero.core.config.schema import (
     TautulliSettings,
     SeerrSettings,
     CollectionGroupConfig,
+    SmartGroupRule,
     DisplaySettings,
 )
 
@@ -428,3 +429,20 @@ class AuthSettingsResponse(BaseModel):
 class AuthSettingsSaveRequest(BaseModel):
     method: Literal["password", "plex", "both"]
     auto_approve_users: bool
+
+
+# Smart group preview request — evaluate rules and return matching collections.
+class SmartGroupPreviewRequest(BaseModel):
+    rules: List[SmartGroupRule]
+
+
+class SmartGroupPreviewResponse(BaseModel):
+    collections: List[str]
+    count: int
+
+
+# Available values for smart group rule builder dropdowns.
+class SmartFilterOptionsResponse(BaseModel):
+    labels: List[str]
+    sources: List[str]
+    libraries: List[str]
