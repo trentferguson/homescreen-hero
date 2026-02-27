@@ -159,6 +159,7 @@ export default function SmartGroupDetailPage() {
     const [previewExpanded, setPreviewExpanded] = useState(false);
     const previewDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [loadedPreviewPosters, setLoadedPreviewPosters] = useState<Record<string, boolean>>({});
+    const [previewRevision, setPreviewRevision] = useState(0);
 
     // Auto-save refs
     const savedFormRef = useRef<string>("");
@@ -207,6 +208,8 @@ export default function SmartGroupDetailPage() {
                 if (r.ok) {
                     const data = await r.json();
                     setPreview(data);
+                    setPreviewRevision((r) => r + 1);
+                    setLoadedPreviewPosters({});
                 }
             } catch {
                 // Preview is non-critical
@@ -748,17 +751,21 @@ export default function SmartGroupDetailPage() {
                             ))}
                         </div>
                     ) : preview.count === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-700/70 bg-slate-950/50 px-4 py-6 text-center">
+                        <div className={`rounded-xl border border-dashed border-slate-700/70 bg-slate-950/50 px-4 py-6 text-center transition-opacity duration-300 ${previewLoading ? "opacity-50" : "opacity-100"}`}>
                             <p className="text-sm text-slate-300">
                                 {hasRuleValues ? "No collections match these rules." : "Add values to your rules to see matching collections."}
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                            {visiblePreviewCollections.map((col) => {
+                        <div className={`grid grid-cols-2 gap-2.5 sm:grid-cols-4 transition-opacity duration-300 ${previewLoading ? "opacity-40" : "opacity-100"}`}>
+                            {visiblePreviewCollections.map((col, idx) => {
                                 const posterLoaded = !col.poster_url || loadedPreviewPosters[col.name];
                                 return (
-                                    <div key={col.name} className="group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+                                    <div
+                                        key={`${previewRevision}-${col.name}`}
+                                        className="preview-poster-enter group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]"
+                                        style={{ animationDelay: `${idx * 40}ms` }}
+                                    >
                                         {col.poster_url ? (
                                             <>
                                                 {!posterLoaded && (
@@ -796,7 +803,8 @@ export default function SmartGroupDetailPage() {
                                     type="button"
                                     onClick={() => setPreviewExpanded(!previewExpanded)}
                                     aria-expanded={previewExpanded}
-                                    className="group relative overflow-hidden rounded-lg border border-slate-700/50 aspect-[2/3] cursor-pointer transition-all duration-300 hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    className="preview-poster-enter group relative overflow-hidden rounded-lg border border-slate-700/50 aspect-[2/3] cursor-pointer transition-all duration-300 hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    style={{ animationDelay: `${visiblePreviewCollections.length * 40}ms` }}
                                 >
                                     {/* Layered background for depth */}
                                     <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950" />

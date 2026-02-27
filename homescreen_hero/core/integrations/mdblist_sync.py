@@ -158,11 +158,11 @@ def sync_single_mdblist_source(
         missing,
     )
 
-    # Logs missing item from MDBList Collection
+    # Log missing items (summary already logged at INFO above)
     # Future plan: automatically send requests to Sonarr/Radarr to add them
     if missing_items:
         for m in missing_items:
-            logger.info(
+            logger.debug(
                 "MDBList missing in Plex: %s (%s) imdb=%s tmdb=%s",
                 m.get("title"),
                 m.get("year"),

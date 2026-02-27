@@ -89,7 +89,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
     # Plex URL override
     plex_url = os.getenv("HSH_PLEX_URL")
     if plex_url:
-        logger.info("Using Plex URL from HSH_PLEX_URL environment variable")
+        logger.debug("Using Plex URL from HSH_PLEX_URL environment variable")
         config.plex.base_url = plex_url
     elif not config.plex.base_url:
         raise ValueError(
@@ -99,7 +99,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
     # Plex token override
     plex_token = os.getenv("HSH_PLEX_TOKEN")
     if plex_token:
-        logger.info("Using Plex token from HSH_PLEX_TOKEN environment variable")
+        logger.debug("Using Plex token from HSH_PLEX_TOKEN environment variable")
         config.plex.token = plex_token
     elif not config.plex.token:
         raise ValueError(
@@ -114,7 +114,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
         if method in ("password", "both"):
             auth_password = os.getenv("HSH_AUTH_PASSWORD")
             if auth_password:
-                logger.info("Using auth password from HSH_AUTH_PASSWORD environment variable")
+                logger.debug("Using auth password from HSH_AUTH_PASSWORD environment variable")
                 config.auth.password = auth_password
             elif not config.auth.password:
                 raise ValueError(
@@ -125,7 +125,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
         # Secret key is always required when auth is enabled (used for JWT signing)
         auth_secret = os.getenv("HSH_AUTH_SECRET_KEY")
         if auth_secret:
-            logger.info("Using auth secret key from HSH_AUTH_SECRET_KEY environment variable")
+            logger.debug("Using auth secret key from HSH_AUTH_SECRET_KEY environment variable")
             config.auth.secret_key = auth_secret
         elif not config.auth.secret_key:
             raise ValueError(
@@ -136,7 +136,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
     if config.trakt and config.trakt.enabled:
         trakt_client_id = os.getenv("HSH_TRAKT_CLIENT_ID")
         if trakt_client_id:
-            logger.info("Using Trakt client ID from HSH_TRAKT_CLIENT_ID environment variable")
+            logger.debug("Using Trakt client ID from HSH_TRAKT_CLIENT_ID environment variable")
             config.trakt.client_id = trakt_client_id
         elif not config.trakt.client_id:
             raise ValueError(
@@ -147,14 +147,14 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
     if config.mdblist and config.mdblist.enabled:
         mdblist_api_key = os.getenv("HSH_MDBLIST_API_KEY")
         if mdblist_api_key:
-            logger.info("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
+            logger.debug("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
             config.mdblist.api_key = mdblist_api_key
 
     # Tautulli API key override (if Tautulli is enabled)
     if config.tautulli and config.tautulli.enabled:
         tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
         if tautulli_api_key:
-            logger.info("Using Tautulli API key from HSH_TAUTULLI_API_KEY environment variable")
+            logger.debug("Using Tautulli API key from HSH_TAUTULLI_API_KEY environment variable")
             config.tautulli.api_key = tautulli_api_key
         elif not config.tautulli.api_key:
             raise ValueError(
@@ -165,14 +165,14 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
         # Skip placeholder value from Unraid template
         tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
         if tautulli_base_url and tautulli_base_url != "http://your-tautulli-url:8181":
-            logger.info("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
+            logger.debug("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
             config.tautulli.base_url = tautulli_base_url
 
     # MAL Client ID override (if MAL is enabled)
     if config.mal and config.mal.enabled:
         mal_client_id = os.getenv("HSH_MAL_CLIENT_ID")
         if mal_client_id:
-            logger.info("Using MAL Client ID from HSH_MAL_CLIENT_ID environment variable")
+            logger.debug("Using MAL Client ID from HSH_MAL_CLIENT_ID environment variable")
             config.mal.client_id = mal_client_id
         elif not config.mal.client_id:
             raise ValueError(
@@ -184,7 +184,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
     if config.seerr and config.seerr.enabled:
         seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
         if seerr_api_key:
-            logger.info("Using Seerr API key from HSH_SEERR_API_KEY environment variable")
+            logger.debug("Using Seerr API key from HSH_SEERR_API_KEY environment variable")
             config.seerr.api_key = seerr_api_key
         elif not config.seerr.api_key:
             raise ValueError(
@@ -195,7 +195,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
         # Skip placeholder value from Unraid template
         seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
         if seerr_base_url and seerr_base_url != "http://your-seerr-url:5055":
-            logger.info("Using Seerr base URL from HSH_SEERR_BASE_URL environment variable")
+            logger.debug("Using Seerr base URL from HSH_SEERR_BASE_URL environment variable")
             config.seerr.base_url = seerr_base_url
 
     return config
@@ -213,7 +213,7 @@ def _validate_config_dict(raw_data: dict) -> AppConfig:
     # Validate that collections in groups have corresponding sources or are manual
     _validate_collection_references(config)
 
-    logger.info("Config validation successful")
+    logger.debug("Config validation successful")
     return config
 
 
@@ -305,7 +305,7 @@ def load_config(path: Optional[Path | str] = None, force_reload: bool = False) -
         logger.debug("Using cached config")
         return _cached_config
 
-    logger.info(f"Loading config from {config_path}")
+    logger.debug(f"Loading config from {config_path}")
     raw_data = _read_raw_config(config_path)
     app_config = _validate_config_dict(raw_data)
     

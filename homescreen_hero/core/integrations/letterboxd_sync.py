@@ -187,10 +187,10 @@ def sync_single_letterboxd_source(
         missing,
     )
 
-    # Log missing items
+    # Log missing items (summary already logged at INFO above)
     if missing_items:
         for m in missing_items:
-            logger.info(
+            logger.debug(
                 "Letterboxd missing in Plex: %s (%s) slug=%s",
                 m.get("title"),
                 m.get("year"),
