@@ -20,6 +20,7 @@ from homescreen_hero.core.integrations.plex_client import (
 )
 from homescreen_hero.core.integrations.tautulli_client import get_tautulli_client
 from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
+from homescreen_hero.core.poster_proxy import create_proxy_url
 
 
 logger = logging.getLogger(__name__)
@@ -207,7 +208,7 @@ def get_recent_media(
             for item in items:
                 thumb_url = None
                 if hasattr(item, "thumb") and item.thumb:
-                    thumb_url = server.url(item.thumb, includeToken=True)
+                    thumb_url = create_proxy_url(server.url(item.thumb, includeToken=True))
 
                 added_at = getattr(item, "addedAt", None)
                 originally_available_at = getattr(item, "originallyAvailableAt", None)
@@ -277,7 +278,7 @@ def search_media(
             for item in items:
                 thumb_url = None
                 if hasattr(item, "thumb") and item.thumb:
-                    thumb_url = server.url(item.thumb, includeToken=True)
+                    thumb_url = create_proxy_url(server.url(item.thumb, includeToken=True))
 
                 # Get addedAt and originallyAvailableAt
                 added_at = getattr(item, "addedAt", None)
@@ -387,7 +388,7 @@ def search_shows(
             for show in shows:
                 thumb_url = None
                 if hasattr(show, "thumb") and show.thumb:
-                    thumb_url = server.url(show.thumb, includeToken=True)
+                    thumb_url = create_proxy_url(server.url(show.thumb, includeToken=True))
 
                 # Get episode counts
                 episodes = show.episodes()
@@ -646,7 +647,7 @@ def _get_unwatched_items(
         if is_unwatched:
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
-                thumb_url = server.url(item.thumb, includeToken=True)
+                thumb_url = create_proxy_url(server.url(item.thumb, includeToken=True))
 
             added_at = getattr(item, "addedAt", None)
             added_at_str = added_at.strftime("%Y-%m-%d") if added_at else None
