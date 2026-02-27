@@ -7,12 +7,13 @@ import {
     CalendarRange,
     Check,
     ChevronDown,
+    CircleDot,
     Compass,
     Home,
-    Lightbulb,
     Loader2,
     Minus,
     Plus,
+    Search,
     Share2,
     SlidersHorizontal,
     Sparkles,
@@ -64,8 +65,13 @@ type FilterOptions = {
     libraries: string[];
 };
 
+type PreviewCollection = {
+    name: string;
+    poster_url: string | null;
+};
+
 type PreviewResult = {
-    collections: string[];
+    collections: PreviewCollection[];
     count: number;
 };
 
@@ -104,20 +110,11 @@ const OPERATORS_BY_FIELD: Record<string, { value: string; label: string }[]> = {
 
 const SOURCE_OPTIONS = ["plex", "trakt", "letterboxd", "mdblist", "anilist", "mal"];
 
-const SOURCE_COLORS: Record<string, string> = {
-    plex: "bg-[#e5a00d]/20 text-[#e5a00d] border-[#e5a00d]/30",
-    trakt: "bg-[#af35a3]/20 text-[#af35a3] border-[#af35a3]/30",
-    letterboxd: "bg-[#00a63d]/20 text-[#00a63d] border-[#00a63d]/30",
-    mdblist: "bg-[#4284c9]/20 text-[#4284c9] border-[#4284c9]/30",
-    anilist: "bg-[#02a9ff]/20 text-[#02a9ff] border-[#02a9ff]/30",
-    mal: "bg-[#2e51a2]/20 text-[#2e51a2] border-[#2e51a2]/30",
-};
-
 const emptyForm: SmartGroupForm = {
     name: "",
     enabled: true,
     smart: true,
-    rules: [{ field: "label", operator: "includes", values: [] }],
+    rules: [{ field: "library", operator: "is", values: [] }],
     min_picks: 0,
     max_picks: 1,
     weight: 1,
@@ -138,9 +135,7 @@ export default function SmartGroupDetailPage() {
     const isNew = groupId === undefined || groupId === "new";
 
     const [form, setForm] = useState<SmartGroupForm>(emptyForm);
-    const [groups, setGroups] = useState<SmartGroupForm[]>([]);
-    const [loading, setLoading] = useState(!isNew);
-    const [saving, setSaving] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
@@ -152,12 +147,18 @@ export default function SmartGroupDetailPage() {
 
     // Filter options for rule builder dropdowns
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({ labels: [], sources: [], libraries: [] });
+    const [labelSearches, setLabelSearches] = useState<Record<number, string>>({});
+
+    // Rule card animations
+    const [animatingIn, setAnimatingIn] = useState<number | null>(null);
+    const [removingIndex, setRemovingIndex] = useState<number | null>(null);
 
     // Live preview
     const [preview, setPreview] = useState<PreviewResult | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewExpanded, setPreviewExpanded] = useState(false);
     const previewDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const [loadedPreviewPosters, setLoadedPreviewPosters] = useState<Record<string, boolean>>({});
 
     // Auto-save refs
     const savedFormRef = useRef<string>("");
@@ -175,12 +176,11 @@ export default function SmartGroupDetailPage() {
     }, []);
 
     useEffect(() => {
-        if (isNew) return;
+        if (isNew) { navigate("/groups", { replace: true }); return; }
         setLoading(true);
         fetchWithAuth("/api/admin/config/groups")
             .then((r) => r.json())
             .then((allGroups: SmartGroupForm[]) => {
-                setGroups(allGroups);
                 const idx = Number(groupId);
                 if (idx >= 0 && idx < allGroups.length) {
                     setForm(allGroups[idx]);
@@ -189,21 +189,12 @@ export default function SmartGroupDetailPage() {
             })
             .catch((e) => setError(String(e)))
             .finally(() => setLoading(false));
-    }, [groupId, isNew]);
+    }, [groupId, isNew, navigate]);
 
     // ─── Live preview ───────────────────────────────────────────
 
     useEffect(() => {
         if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
-
-        // Only preview if there are rules with values
-        const hasRules = form.rules.some((r) =>
-            r.field === "item_count" ? r.values.length > 0 : r.values.length > 0
-        );
-        if (!hasRules) {
-            setPreview(null);
-            return;
-        }
 
         previewDebounceRef.current = setTimeout(async () => {
             setPreviewLoading(true);
@@ -294,35 +285,6 @@ export default function SmartGroupDetailPage() {
 
     // ─── Actions ────────────────────────────────────────────────
 
-    const createGroup = async () => {
-        try {
-            setSaving(true);
-            setError(null);
-            const payload = {
-                ...form,
-                date_range: form.date_range?.start && form.date_range?.end ? form.date_range : null,
-            };
-            const r = await fetchWithAuth("/api/admin/config/groups", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const text = await r.text();
-            if (!r.ok) throw new Error(text || "Failed to create group");
-
-            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
-            const targetIndex = nextGroups.length - 1;
-            if (targetIndex >= 0) {
-                setMessage("Smart group created");
-                navigate(`/groups/smart/${targetIndex}`);
-            }
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const deleteGroup = async () => {
         if (selectedIndex === "new") return;
         try {
@@ -357,17 +319,24 @@ export default function SmartGroupDetailPage() {
     };
 
     const addRule = () => {
+        setAnimatingIn(form.rules.length);
         setForm((prev) => ({
             ...prev,
-            rules: [...prev.rules, { field: "label", operator: "includes", values: [] }],
+            rules: [...prev.rules, { field: "library", operator: "is", values: [] }],
         }));
+        setTimeout(() => setAnimatingIn(null), 250);
     };
 
     const removeRule = (index: number) => {
-        setForm((prev) => ({
-            ...prev,
-            rules: prev.rules.filter((_, i) => i !== index),
-        }));
+        if (removingIndex !== null) return;
+        setRemovingIndex(index);
+        setTimeout(() => {
+            setForm((prev) => ({
+                ...prev,
+                rules: prev.rules.filter((_, i) => i !== index),
+            }));
+            setRemovingIndex(null);
+        }, 200);
     };
 
     const toggleRuleValue = (ruleIndex: number, value: string) => {
@@ -435,8 +404,12 @@ export default function SmartGroupDetailPage() {
         );
     }
 
+    const hasRuleValues = form.rules.some((r) => r.values.length > 0);
+    const previewCollections = preview?.collections ?? [];
+    const visiblePreviewCollections = previewExpanded ? previewCollections : previewCollections.slice(0, 8);
+
     return (
-        <div className="mx-auto max-w-5xl space-y-6 p-6">
+        <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
             {/* Header */}
             <div className="flex flex-col gap-4">
                 <button
@@ -449,7 +422,7 @@ export default function SmartGroupDetailPage() {
 
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        {renaming && selectedIndex !== "new" ? (
+                        {renaming ? (
                             <input
                                 autoFocus
                                 value={form.name}
@@ -462,16 +435,16 @@ export default function SmartGroupDetailPage() {
                         ) : (
                             <>
                                 <span
-                                    onClick={selectedIndex !== "new" ? () => setRenaming(true) : undefined}
-                                    className={`text-3xl font-black tracking-tight text-white ${selectedIndex !== "new" ? "hover:text-slate-200 cursor-text transition-colors" : ""}`}
+                                    onClick={() => setRenaming(true)}
+                                    className="text-3xl font-black tracking-tight text-white hover:text-slate-200 cursor-text transition-colors"
                                 >
-                                    {isNew ? "Create Smart Group" : form.name || "Untitled Group"}
+                                    {form.name || "Untitled Group"}
                                 </span>
                                 <span className="shrink-0 rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1">
                                     <Sparkles className="h-3 w-3" />
                                     Smart
                                 </span>
-                                {selectedIndex !== "new" && (() => {
+                                {(() => {
                                     const status = getGroupStatus(form);
                                     const pillStyles = {
                                         active: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25",
@@ -512,44 +485,17 @@ export default function SmartGroupDetailPage() {
                             <SlidersHorizontal className="h-4 w-4 text-primary" />
                             Group Settings
                         </button>
-                        {selectedIndex !== "new" && (
-                            <button
-                                type="button"
-                                onClick={() => setShowDeleteConfirm(true)}
-                                disabled={deleting}
-                                className="flex items-center justify-center p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:border-red-500/50 hover:text-red-400 transition-all duration-200 disabled:opacity-50"
-                            >
-                                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                            </button>
-                        )}
-                        {isNew && (
-                            <button
-                                type="button"
-                                onClick={createGroup}
-                                disabled={saving || !form.name.trim() || form.rules.length === 0}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                Create Group
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={deleting}
+                            className="flex items-center justify-center p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:border-red-500/50 hover:text-red-400 transition-all duration-200 disabled:opacity-50"
+                        >
+                            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
                     </div>
                 </div>
             </div>
-
-            {/* Name input for new groups */}
-            {isNew && (
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-white">Group Name</label>
-                    <input
-                        type="text"
-                        value={form.name}
-                        onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                        placeholder="e.g. Horror Collections, Trakt Lists..."
-                        className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 text-sm"
-                    />
-                </div>
-            )}
 
             {/* Error / auto-save status */}
             {error && (
@@ -558,195 +504,307 @@ export default function SmartGroupDetailPage() {
             {autoSaveError && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-950/50 px-4 py-3 text-sm text-amber-200">Auto-save failed: {autoSaveError}</div>
             )}
-
-            {/* Rule Builder */}
-            <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-lg font-bold text-white">Rules</h2>
-                        <p className="text-xs text-slate-400 mt-0.5">Collections matching <span className="text-slate-300 font-medium">all</span> rules will be included.</p>
+            <div className="grid gap-6 xl:gap-0 xl:divide-x xl:divide-slate-800/70 xl:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+                {/* Rule Builder */}
+                <section className="space-y-4 xl:pr-6">
+                    <div className="space-y-2">
+                        <h2 className="text-lg font-bold text-slate-100">Rules</h2>
+                        <p className="text-xs text-slate-400">Collections matching <span className="text-slate-200 font-medium">all</span> rules will be included.</p>
                     </div>
-                </div>
 
-                <div className="space-y-3">
-                    {form.rules.map((rule, i) => (
-                        <div key={i} className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4 space-y-3">
-                            <div className="flex items-center gap-3">
-                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider w-16 shrink-0">
-                                    {i === 0 ? "Where" : "And"}
-                                </span>
-
-                                {/* Field selector */}
-                                <Listbox value={rule.field} onChange={(val) => updateRule(i, { field: val as SmartGroupRule["field"] })}>
-                                    <div className="relative w-36">
-                                        <Listbox.Button className="flex items-center justify-between w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white hover:bg-slate-750 focus:outline-none focus:ring-2 focus:ring-primary/70">
-                                            <span>{FIELD_OPTIONS.find((f) => f.value === rule.field)?.label}</span>
-                                            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                                        </Listbox.Button>
-                                        <Listbox.Options className="absolute z-20 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg">
-                                            {FIELD_OPTIONS.map((opt) => (
-                                                <Listbox.Option key={opt.value} value={opt.value} className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold">
-                                                    {opt.label}
-                                                </Listbox.Option>
-                                            ))}
-                                        </Listbox.Options>
+                    <div className="space-y-3">
+                        {form.rules.map((rule, i) => (
+                            <div key={i} className={`${animatingIn === i ? 'rule-card-enter' : ''} ${removingIndex === i ? 'rule-card-exit' : ''}`}>
+                                {i > 0 && (
+                                    <div className="flex items-center gap-3 pb-3 -mt-1">
+                                        <div className="flex-1 border-t border-slate-700/50" />
+                                        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">and</span>
+                                        <div className="flex-1 border-t border-slate-700/50" />
                                     </div>
-                                </Listbox>
-
-                                {/* Operator selector */}
-                                <Listbox value={rule.operator} onChange={(val) => updateRule(i, { operator: val })}>
-                                    <div className="relative w-44">
-                                        <Listbox.Button className="flex items-center justify-between w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white hover:bg-slate-750 focus:outline-none focus:ring-2 focus:ring-primary/70">
-                                            <span>{OPERATORS_BY_FIELD[rule.field]?.find((o) => o.value === rule.operator)?.label}</span>
-                                            <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                                        </Listbox.Button>
-                                        <Listbox.Options className="absolute z-20 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg">
-                                            {OPERATORS_BY_FIELD[rule.field]?.map((opt) => (
-                                                <Listbox.Option key={opt.value} value={opt.value} className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold">
-                                                    {opt.label}
-                                                </Listbox.Option>
-                                            ))}
-                                        </Listbox.Options>
-                                    </div>
-                                </Listbox>
-
-                                <div className="flex-1" />
-
-                                {/* Remove rule */}
-                                {form.rules.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeRule(i)}
-                                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
                                 )}
-                            </div>
+                            <div className="space-y-3 rounded-xl border border-blue-500/15 bg-[#0f1d35]/85 p-4 shadow-[inset_0_0_0_1px_rgba(30,64,175,0.14)]">
+                                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                                    {/* Field selector */}
+                                    <Listbox value={rule.field} onChange={(val) => updateRule(i, { field: val as SmartGroupRule["field"] })}>
+                                        <div className="relative w-full sm:w-36 shrink-0">
+                                            <Listbox.Button className="flex items-center justify-between w-full rounded-lg border border-slate-500/40 bg-slate-700/40 px-3 py-2 text-sm text-slate-100 hover:bg-slate-700/55 focus:outline-none focus:ring-2 focus:ring-slate-400/45">
+                                                <span>{FIELD_OPTIONS.find((f) => f.value === rule.field)?.label}</span>
+                                                <ChevronDown className="h-3.5 w-3.5 text-slate-300/80" />
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-20 mt-1 w-full rounded-lg border border-slate-500/40 bg-slate-800/95 py-1 shadow-lg">
+                                                {FIELD_OPTIONS.map((opt) => (
+                                                    <Listbox.Option key={opt.value} value={opt.value} className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-700/70 data-[selected]:bg-slate-600/80 data-[selected]:font-semibold">
+                                                        {opt.label}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
 
-                            {/* Value input — varies by field type */}
-                            {rule.field === "item_count" ? (
-                                <div className="flex items-center gap-2 ml-[76px]">
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        value={rule.values[0] ?? ""}
-                                        onChange={(e) => {
-                                            const v = e.target.value === "" ? [] : [Number(e.target.value)];
-                                            updateRule(i, { values: v });
-                                        }}
-                                        placeholder="10"
-                                        className="w-24 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                    <span className="text-xs text-slate-400">items</span>
-                                </div>
-                            ) : rule.field === "name" ? (
-                                <div className="ml-[76px] space-y-2">
-                                    <div className="flex flex-wrap gap-2">
-                                        {(rule.values as string[]).map((v, vi) => (
-                                            <span key={vi} className="flex items-center gap-1 rounded-full bg-primary/20 text-primary border border-primary/30 px-3 py-1 text-xs font-medium">
-                                                {v}
-                                                <button type="button" onClick={() => {
-                                                    const newVals = [...rule.values];
-                                                    newVals.splice(vi, 1);
-                                                    updateRule(i, { values: newVals });
-                                                }}>
-                                                    <X className="h-3 w-3" />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Type a keyword and press Enter"
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                                                updateRule(i, { values: [...rule.values, e.currentTarget.value.trim()] });
-                                                e.currentTarget.value = "";
-                                            }
-                                        }}
-                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="ml-[76px] flex flex-wrap gap-2">
-                                    {getValueOptions(rule.field).map((opt) => {
-                                        const isSelected = rule.values.includes(opt);
-                                        const colorClass = rule.field === "source" && SOURCE_COLORS[opt];
-                                        return (
-                                            <button
-                                                key={opt}
-                                                type="button"
-                                                onClick={() => toggleRuleValue(i, opt)}
-                                                className={`rounded-full px-3 py-1 text-xs font-medium border transition-all duration-200 ${
-                                                    isSelected
-                                                        ? colorClass || "bg-primary/20 text-primary border-primary/30"
-                                                        : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-300"
-                                                }`}
-                                            >
-                                                {opt}
-                                            </button>
-                                        );
-                                    })}
-                                    {getValueOptions(rule.field).length === 0 && (
-                                        <p className="text-xs text-slate-500 italic">No options available</p>
+                                    {/* Operator selector */}
+                                    <Listbox value={rule.operator} onChange={(val) => updateRule(i, { operator: val })}>
+                                        <div className="relative w-full sm:w-44 shrink-0">
+                                            <Listbox.Button className="flex items-center justify-between w-full rounded-lg border border-slate-500/40 bg-slate-700/40 px-3 py-2 text-sm text-slate-100 hover:bg-slate-700/55 focus:outline-none focus:ring-2 focus:ring-slate-400/45">
+                                                <span>{OPERATORS_BY_FIELD[rule.field]?.find((o) => o.value === rule.operator)?.label}</span>
+                                                <ChevronDown className="h-3.5 w-3.5 text-slate-300/80" />
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-20 mt-1 w-full rounded-lg border border-slate-500/40 bg-slate-800/95 py-1 shadow-lg">
+                                                {OPERATORS_BY_FIELD[rule.field]?.map((opt) => (
+                                                    <Listbox.Option key={opt.value} value={opt.value} className="cursor-pointer px-3 py-2 text-sm text-slate-100 hover:bg-slate-700/70 data-[selected]:bg-slate-600/80 data-[selected]:font-semibold">
+                                                        {opt.label}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+
+                                    {/* Remove rule */}
+                                    {form.rules.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeRule(i)}
+                                            className="shrink-0 sm:ml-auto rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
                                     )}
                                 </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
 
-                <button
-                    type="button"
-                    onClick={addRule}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-slate-700/50 px-4 py-2.5 text-sm text-slate-400 hover:text-primary hover:border-primary/40 transition-all duration-200"
-                >
-                    <Plus className="h-4 w-4" />
-                    Add Rule
-                </button>
-            </section>
+                                {/* Value input varies by field type */}
+                                {rule.field === "item_count" ? (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={rule.values[0] ?? ""}
+                                            onChange={(e) => {
+                                                const v = e.target.value === "" ? [] : [Number(e.target.value)];
+                                                updateRule(i, { values: v });
+                                            }}
+                                            placeholder="10"
+                                            className="w-24 rounded-lg border border-blue-400/25 bg-[#102140] px-3 py-2 text-sm text-blue-100 placeholder-blue-200/35 focus:outline-none focus:ring-2 focus:ring-blue-500/55 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        />
+                                        <span className="text-xs text-slate-400">items</span>
+                                    </div>
+                                ) : rule.field === "name" ? (
+                                    <div className="space-y-2 rounded-xl border border-blue-400/15 bg-[#0d1a31] px-3 pb-3 pt-2">
+                                        {(rule.values as string[]).length > 0 && (
+                                            <div className="flex flex-wrap gap-2.5">
+                                                {(rule.values as string[]).map((v, vi) => (
+                                                    <span key={vi} className="flex items-center gap-1.5 rounded-lg border border-blue-400/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-200">
+                                                        {v}
+                                                        <button type="button" onClick={() => {
+                                                            const newVals = [...rule.values];
+                                                            newVals.splice(vi, 1);
+                                                            updateRule(i, { values: newVals });
+                                                        }}>
+                                                            <X className="h-3 w-3" />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                                            <input
+                                                type="text"
+                                                placeholder="Type a keyword, then hit Enter"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                                        updateRule(i, { values: [...rule.values, e.currentTarget.value.trim()] });
+                                                        e.currentTarget.value = "";
+                                                    }
+                                                }}
+                                                className="w-full border-b border-blue-400/20 bg-transparent py-2 pl-9 pr-2 text-sm text-blue-100 placeholder-blue-200/35 focus:border-blue-400/50 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    (() => {
+                                        const allOptions = getValueOptions(rule.field);
+                                        const showSearch = rule.field === "label" && allOptions.length >= 6;
+                                        const searchText = (labelSearches[i] ?? "").toLowerCase();
+                                        const selected = allOptions.filter((opt) => rule.values.includes(opt));
+                                        const unselected = allOptions.filter((opt) => !rule.values.includes(opt));
+                                        const filteredUnselected = showSearch && searchText
+                                            ? unselected.filter((opt) => opt.toLowerCase().includes(searchText))
+                                            : unselected;
 
-            {/* Live Preview */}
-            <section className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-semibold text-white">Matching Collections</h3>
-                        {previewLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                        ) : preview ? (
-                            <span className="rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-bold">
-                                {preview.count}
-                            </span>
-                        ) : null}
-                    </div>
-                    {preview && preview.count > 0 && (
-                        <button
-                            type="button"
-                            onClick={() => setPreviewExpanded(!previewExpanded)}
-                            className="text-xs text-slate-400 hover:text-white transition-colors"
-                        >
-                            {previewExpanded ? "Collapse" : "Show all"}
-                        </button>
-                    )}
-                </div>
+                                        return (
+                                            <div className="space-y-2">
+                                                {/* Selected pills — always visible */}
+                                                {showSearch && selected.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selected.map((opt) => (
+                                                            <button
+                                                                key={opt}
+                                                                type="button"
+                                                                onClick={() => toggleRuleValue(i, opt)}
+                                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-blue-500/20 text-blue-100 border-blue-300/40"
+                                                            >
+                                                                {opt}
+                                                                <X className="h-3 w-3" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
 
-                {!preview || preview.count === 0 ? (
-                    <p className="text-xs text-slate-500 italic">
-                        {form.rules.some((r) => r.values.length > 0)
-                            ? "No collections match these rules."
-                            : "Add values to your rules to see matching collections."}
-                    </p>
-                ) : (
-                    <div className={`flex flex-wrap gap-2 ${!previewExpanded && preview.count > 10 ? "max-h-20 overflow-hidden" : ""}`}>
-                        {preview.collections.map((name) => (
-                            <span key={name} className="rounded-full bg-slate-800 border border-slate-700 px-3 py-1 text-xs text-slate-300">
-                                {name}
-                            </span>
+                                                {/* Search input for labels with 10+ options */}
+                                                {showSearch && (
+                                                    <div className="relative">
+                                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                                                        <input
+                                                            type="text"
+                                                            value={labelSearches[i] ?? ""}
+                                                            onChange={(e) => setLabelSearches((prev) => ({ ...prev, [i]: e.target.value }))}
+                                                            placeholder="Filter labels…"
+                                                            className="w-full rounded-lg border border-blue-400/20 bg-[#0d1a31] py-2 pl-9 pr-2 text-sm text-blue-100 placeholder-blue-200/35 focus:border-blue-400/50 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* Unselected pills (filtered when searching) */}
+                                                <div className="flex flex-wrap gap-2">
+                                                    {/* When not using search layout, show selected inline */}
+                                                    {!showSearch && selected.map((opt) => (
+                                                        <button
+                                                            key={opt}
+                                                            type="button"
+                                                            onClick={() => toggleRuleValue(i, opt)}
+                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-blue-500/20 text-blue-100 border-blue-300/40"
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                    {filteredUnselected.map((opt) => (
+                                                        <button
+                                                            key={opt}
+                                                            type="button"
+                                                            onClick={() => toggleRuleValue(i, opt)}
+                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-[#102140] text-blue-200/70 border-blue-500/20 hover:border-blue-300/35 hover:text-blue-100"
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                    {allOptions.length === 0 && (
+                                                        <p className="text-xs text-slate-500 italic">No options available</p>
+                                                    )}
+                                                    {showSearch && searchText && filteredUnselected.length === 0 && (
+                                                        <p className="text-xs text-slate-500 italic">No labels match "{labelSearches[i]}"</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()
+                                )}
+                            </div>
+                            </div>
                         ))}
                     </div>
-                )}
-            </section>
+
+                    <button
+                        type="button"
+                        onClick={addRule}
+                        className="flex w-full items-center gap-2 rounded-lg border border-blue-400/20 bg-[#0f1d35]/55 px-3 py-2.5 text-sm font-medium text-blue-200/90 transition-colors hover:bg-blue-500/10 hover:text-blue-100"
+                    >
+                        <CircleDot className="h-4 w-4" />
+                        Add Rule
+                    </button>
+                </section>
+
+                {/* Live Preview */}
+                <section className="space-y-4 xl:sticky xl:top-6 xl:pl-6 h-fit">
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-base font-semibold text-white">Live Preview</h3>
+                            {previewLoading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+                        </div>
+                        <p className="text-xs text-slate-400">
+                            {previewLoading ? (
+                                "Updating…"
+                            ) : preview ? (
+                                <>
+                                    <span className="text-primary font-bold">{preview.count}</span>
+                                    {" "}{preview.count === 1 ? "collection matches" : "collections match"} your rules
+                                </>
+                            ) : (
+                                "Configure rules to see matching collections"
+                            )}
+                        </p>
+                    </div>
+
+                    {!preview ? (
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                            {Array.from({ length: 8 }).map((_, idx) => (
+                                <div key={idx} className="relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+                                    <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800 via-slate-700/70 to-slate-800" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : preview.count === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-700/70 bg-slate-950/50 px-4 py-6 text-center">
+                            <p className="text-sm text-slate-300">
+                                {hasRuleValues ? "No collections match these rules." : "Add values to your rules to see matching collections."}
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                                {visiblePreviewCollections.map((col) => {
+                                    const posterLoaded = !col.poster_url || loadedPreviewPosters[col.name];
+                                    return (
+                                        <div key={col.name} className="group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+                                            {col.poster_url ? (
+                                                <>
+                                                    {!posterLoaded && (
+                                                        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800 via-slate-700/70 to-slate-800" />
+                                                    )}
+                                                    <img
+                                                        src={col.poster_url}
+                                                        alt={col.name}
+                                                        className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
+                                                            posterLoaded ? "opacity-100" : "opacity-0"
+                                                        }`}
+                                                        onLoad={() => {
+                                                            setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
+                                                        }}
+                                                        onError={() => {
+                                                            setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
+                                                        }}
+                                                    />
+                                                </>
+                                            ) : (
+                                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950 text-[11px] text-slate-400">
+                                                    No Poster
+                                                </div>
+                                            )}
+                                            <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                <span className="text-[11px] font-medium leading-tight text-white line-clamp-2">{col.name}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {preview.count > 8 && (
+                                <div className="flex justify-center pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewExpanded(!previewExpanded)}
+                                        aria-expanded={previewExpanded}
+                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3.5 py-2 text-sm font-medium text-slate-200 transition-all duration-200 hover:border-slate-500 hover:bg-slate-700/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    >
+                                        <ChevronDown className={`h-4 w-4 transition-transform ${previewExpanded ? "rotate-180" : ""}`} />
+                                        {previewExpanded
+                                            ? "Show fewer posters"
+                                            : `Show more posters (${preview.count - visiblePreviewCollections.length} more)`}
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </section>
+            </div>
 
             {/* Group Settings Sheet */}
             <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
@@ -896,3 +954,5 @@ export default function SmartGroupDetailPage() {
         </div>
     );
 }
+
+

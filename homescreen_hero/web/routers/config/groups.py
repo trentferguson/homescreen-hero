@@ -30,6 +30,7 @@ from .schemas import (
     GroupReorderRequest,
     SmartGroupPreviewRequest,
     SmartGroupPreviewResponse,
+    SmartGroupPreviewCollection,
     SmartFilterOptionsResponse,
 )
 
@@ -299,15 +300,25 @@ def preview_smart_group(
     payload: SmartGroupPreviewRequest,
     current_user: CurrentUser = Depends(require_admin),
 ) -> SmartGroupPreviewResponse:
-    # Evaluate smart group rules and return matching collections (for live preview).
+    # Evaluate smart group rules and return matching collections with poster URLs.
     from homescreen_hero.core.smart_groups import build_collection_metadata, resolve_smart_rules
 
     try:
         config = load_config()
         server = get_plex_server(config)
         metadata = build_collection_metadata(server, config)
-        matching = resolve_smart_rules(payload.rules, metadata)
-        return SmartGroupPreviewResponse(collections=matching, count=len(matching))
+        matching_names = resolve_smart_rules(payload.rules, metadata)
+
+        # Build name → metadata lookup for poster URLs
+        meta_by_name = {m.name: m for m in metadata}
+        collections = [
+            SmartGroupPreviewCollection(
+                name=name,
+                poster_url=meta_by_name[name].poster_url if name in meta_by_name else None,
+            )
+            for name in matching_names
+        ]
+        return SmartGroupPreviewResponse(collections=collections, count=len(collections))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 

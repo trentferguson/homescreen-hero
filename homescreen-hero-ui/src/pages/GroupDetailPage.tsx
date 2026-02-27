@@ -74,7 +74,6 @@ export default function GroupDetailPage() {
     const [selectedIndex, setSelectedIndex] = useState<number | "new">("new");
     const [form, setForm] = useState<CollectionGroup>(emptyGroup);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -104,9 +103,7 @@ export default function GroupDetailPage() {
 
     useEffect(() => {
         if (groupId === "new") {
-            setSelectedIndex("new");
-            setForm(emptyGroup);
-            savedFormRef.current = "";
+            navigate("/groups", { replace: true });
             return;
         }
 
@@ -202,11 +199,11 @@ export default function GroupDetailPage() {
         };
     }, [form, selectedIndex, autoSave]);
 
-    const resetToNew = () => {
+    const goToGroupsList = () => {
         flushAutoSave();
         setMessage(null);
         setError(null);
-        navigate("/groups/new", { replace: true });
+        navigate("/groups", { replace: true });
     };
 
     const onSelectGroup = (index: number) => {
@@ -299,45 +296,6 @@ export default function GroupDetailPage() {
         setCurrentPage(1);
     }, [sourceFilter, searchQuery]);
 
-    const createGroup = async () => {
-        try {
-            setSaving(true);
-            setError(null);
-            setMessage(null);
-
-            const payload: CollectionGroup = {
-                ...form,
-                date_range:
-                    form.date_range && form.date_range.start && form.date_range.end
-                        ? form.date_range
-                        : null,
-            };
-
-            const r = await fetchWithAuth("/api/admin/config/groups", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            const text = await r.text();
-            if (!r.ok) throw new Error(text || "Failed to create group");
-
-            const resp = JSON.parse(text) as ConfigSaveResponse;
-            setMessage(resp.message);
-
-            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
-            setGroups(nextGroups);
-            const targetIndex = nextGroups.length - 1;
-            if (targetIndex >= 0) {
-                navigate(`/groups/${targetIndex}`);
-            }
-        } catch (e) {
-            setError(String(e));
-        } finally {
-            setSaving(false);
-        }
-    };
-
     const deleteGroup = async () => {
         if (selectedIndex === "new") return;
         if (debounceRef.current) {
@@ -361,7 +319,7 @@ export default function GroupDetailPage() {
             if (nextGroups.length) {
                 navigate(`/groups/0`, { replace: true });
             } else {
-                resetToNew();
+                goToGroupsList();
             }
         } catch (e) {
             setError(String(e));
@@ -392,7 +350,7 @@ export default function GroupDetailPage() {
 
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        {renaming && selectedIndex !== "new" ? (
+                        {renaming ? (
                             <input
                                 autoFocus
                                 value={form.name}
@@ -405,17 +363,16 @@ export default function GroupDetailPage() {
                         ) : (
                             <div className="relative flex items-center gap-3">
                                 <span
-                                    onClick={selectedIndex !== "new" ? () => setRenaming(true) : undefined}
-                                    className={`text-3xl font-black tracking-tight text-white ${selectedIndex !== "new" ? "hover:text-slate-200 cursor-text transition-colors" : ""}`}
+                                    onClick={() => setRenaming(true)}
+                                    className="text-3xl font-black tracking-tight text-white hover:text-slate-200 cursor-text transition-colors"
                                 >
-                                    {selectedIndex === "new" ? "Create New Group" : form.name || "Untitled Group"}
+                                    {form.name || "Untitled Group"}
                                 </span>
                                 {groups.length > 0 && (
                                     <Listbox
                                         value={selectedIndex}
                                         onChange={(val: number | "new") => {
-                                            if (val === "new") resetToNew();
-                                            else onSelectGroup(val);
+                                            if (typeof val === "number") onSelectGroup(val);
                                         }}
                                     >
                                         <div>
@@ -451,20 +408,11 @@ export default function GroupDetailPage() {
                                                         </Listbox.Option>
                                                     );
                                                 })}
-                                                <div className="border-t border-slate-700/50 mt-1 pt-1">
-                                                    <Listbox.Option
-                                                        value="new"
-                                                        className="cursor-pointer px-4 py-2.5 hover:bg-slate-700 data-[selected]:bg-primary/15 flex items-center gap-2 text-slate-300"
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                        <span className="text-sm font-semibold">Create new group</span>
-                                                    </Listbox.Option>
-                                                </div>
                                             </Listbox.Options>
                                         </div>
                                     </Listbox>
                                 )}
-                                {selectedIndex !== "new" && (() => {
+                                {(() => {
                                     const status = getGroupStatus(form);
                                     const pillStyles = {
                                         active: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25",
@@ -494,11 +442,6 @@ export default function GroupDetailPage() {
                                 })()}
                             </div>
                         )}
-                        {selectedIndex === "new" && (
-                            <p className="text-slate-400 text-sm mt-1">
-                                Configure content sources, rotation schedules, and display rules for your homescreen.
-                            </p>
-                        )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -510,27 +453,14 @@ export default function GroupDetailPage() {
                             <SlidersHorizontal className="h-4 w-4 text-primary" />
                             Group Settings
                         </button>
-                        {selectedIndex !== "new" && (
-                            <button
-                                type="button"
-                                onClick={() => setShowDeleteConfirm(true)}
-                                disabled={deleting}
-                                className="flex items-center justify-center p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:border-red-500/50 hover:text-red-400 transition-all duration-200 disabled:opacity-50"
-                            >
-                                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                            </button>
-                        )}
-                        {selectedIndex === "new" && (
-                            <button
-                                type="button"
-                                onClick={createGroup}
-                                disabled={saving}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                Create Group
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            disabled={deleting}
+                            className="flex items-center justify-center p-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:border-red-500/50 hover:text-red-400 transition-all duration-200 disabled:opacity-50"
+                        >
+                            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -541,17 +471,6 @@ export default function GroupDetailPage() {
                     <p className="text-sm whitespace-pre-wrap">{error}</p>
                 </div>
             ) : null}
-
-            {/* Group Name (new groups only) */}
-            {selectedIndex === "new" && (
-                <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className="px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                    placeholder="Group Name (Required)"
-                />
-            )}
 
             {/* Content Sources Section */}
             <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6">

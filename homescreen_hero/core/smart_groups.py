@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from .config.schema import AppConfig, SmartGroupRule
 from .integrations.plex_client import get_collection_labels, get_collection_item_count
+from .poster_proxy import build_collection_poster_url
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class CollectionMetadata:
     library: str
     labels: list = field(default_factory=list)
     item_count: int = 0
+    poster_url: Optional[str] = None
 
 
 def build_collection_metadata(server, config: AppConfig) -> List[CollectionMetadata]:
@@ -70,6 +72,7 @@ def build_collection_metadata(server, config: AppConfig) -> List[CollectionMetad
                     library=section.title,
                     labels=get_collection_labels(coll),
                     item_count=get_collection_item_count(coll),
+                    poster_url=build_collection_poster_url(server, coll),
                 ))
         except Exception:
             logger.warning("Failed to fetch collections from library '%s'", section.title)
@@ -142,18 +145,31 @@ def _matches_rule(rule: SmartGroupRule, coll: CollectionMetadata) -> bool:
     return False
 
 
+def _rule_has_values(rule: SmartGroupRule) -> bool:
+    # Only rules with meaningful values should affect matching.
+    # Empty/incomplete rules are ignored so smart previews can start from all collections.
+    if not rule.values:
+        return False
+
+    if rule.field == "item_count":
+        return True
+
+    return any(str(v).strip() for v in rule.values)
+
+
 def resolve_smart_rules(
     rules: List[SmartGroupRule],
     metadata: List[CollectionMetadata],
 ) -> List[str]:
     # Evaluate rules against all collections. Rules are ANDed together.
     # Returns list of matching collection names.
-    if not rules:
-        return []
+    active_rules = [rule for rule in rules if _rule_has_values(rule)]
+    if not active_rules:
+        return [coll.name for coll in metadata]
 
     matching = []
     for coll in metadata:
-        if all(_matches_rule(rule, coll) for rule in rules):
+        if all(_matches_rule(rule, coll) for rule in active_rules):
             matching.append(coll.name)
 
     logger.debug("Smart rules resolved to %d collections: %s", len(matching), matching)

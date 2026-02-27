@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
-import hashlib
 import logging
 import random
 import requests
 import tempfile
 import os
-from cachetools import TTLCache
 
 from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.config.schema import HealthResponse
@@ -28,6 +26,12 @@ from homescreen_hero.core.integrations.plex_client import (
     get_plex_server,
     reorder_homescreen_collections,
     get_library_collections,
+)
+from homescreen_hero.core.poster_proxy import (
+    create_proxy_url,
+    serve_proxy_poster,
+    build_collection_poster_url,
+    invalidate_poster_caches,
 )
 
 
@@ -189,22 +193,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/collections")
 
-# TTL Cache for poster URLs: stores up to 1000 items, each expires after 1 hour (3600 seconds)
-poster_url_cache = TTLCache(maxsize=1000, ttl=3600)
-
-# TTL Cache for actual image content: stores up to 500 images, each expires after 1 hour
-# Each image can be ~200KB, so 500 images = ~100MB in memory
-poster_image_cache = TTLCache(maxsize=500, ttl=3600)
-
 # Cache version counter - increment this to invalidate client-side caches
 _cache_version = 0
-
-
-def _create_proxy_url(plex_url: str) -> str:
-    # Store a Plex URL in cache and return a proxied URL the frontend can use
-    cache_key = hashlib.md5(plex_url.encode()).hexdigest()
-    poster_url_cache[cache_key] = plex_url
-    return f"/api/collections/poster-proxy/{cache_key}"
 
 
 class CacheVersionResponse(BaseModel):
@@ -274,15 +264,7 @@ def get_active_collections(
                     promoted_recommended = getattr(hub, "promotedToRecommended", False)
 
                     if promoted_own or promoted_shared or promoted_recommended:
-                        poster_url = None
-                        if getattr(col, "thumb", None):
-                            try:
-                                full_thumb_url = server.url(col.thumb, includeToken=True)
-                                plex_url = server.transcodeImage(full_thumb_url, height=450, width=300, minSize=1)
-                            except Exception:
-                                plex_url = server.url(col.thumb, includeToken=True)
-                            poster_url = _create_proxy_url(plex_url)
-
+                        poster_url = build_collection_poster_url(server, col)
                         is_pinned = col.title in pinned_names
                         # Use Plex's actual order, fallback to 9999 for unknown
                         display_order = plex_order_map.get(col.title, 9999)
@@ -342,14 +324,7 @@ def get_all_collections(
     for section in server.library.sections():
         try:
             for col in section.collections():
-                poster_url = None
-                if getattr(col, "thumb", None):
-                    try:
-                        full_thumb_url = server.url(col.thumb, includeToken=True)
-                        plex_url = server.transcodeImage(full_thumb_url, height=450, width=300, minSize=1)
-                    except Exception:
-                        plex_url = server.url(col.thumb, includeToken=True)
-                    poster_url = _create_proxy_url(plex_url)
+                poster_url = build_collection_poster_url(server, col)
 
                 # Use metadata attribute for O(1) count instead of fetching all items
                 item_count = getattr(col, "childCount", 0)
@@ -423,7 +398,7 @@ async def get_group_posters(
         for item in sampled_items:
             if hasattr(item, 'thumb') and item.thumb:
                 plex_url = server.url(item.thumb, includeToken=True)
-                posters.append(_create_proxy_url(plex_url))
+                posters.append(create_proxy_url(plex_url))
 
         logger.info(f"Fetched {len(posters)} poster URLs for group collections: {collections_to_fetch}")
         return GroupPostersResponse(posters=posters)
@@ -435,56 +410,7 @@ async def get_group_posters(
 
 @router.get("/poster-proxy/{cache_key}")
 def proxy_poster(cache_key: str):
-    # Proxy endpoint to serve poster images from Plex, avoiding direct browser-to-Plex requests.
-    try:
-        cached_image = poster_image_cache.get(cache_key)
-        if cached_image:
-            logger.debug(f"Serving cached image for key: {cache_key}")
-            return Response(
-                content=cached_image['content'],
-                media_type=cached_image['media_type'],
-                headers={
-                    'Cache-Control': 'public, max-age=3600',  # Cache in browser for 1 hour
-                    'ETag': cache_key  # Allow browser to revalidate if needed
-                }
-            )
-
-        # Image not cached, get the URL from URL cache
-        poster_url = poster_url_cache.get(cache_key)
-        if not poster_url:
-            logger.warning(f"Poster URL not found in cache for key: {cache_key}")
-            raise HTTPException(status_code=404, detail="Poster not found or expired")
-
-        # Fetch the image from Plex
-        logger.debug(f"Fetching image from Plex for key: {cache_key}")
-        response = requests.get(poster_url, timeout=10, verify=False)
-        response.raise_for_status()
-
-        # Cache the image content
-        media_type = response.headers.get('content-type', 'image/jpeg')
-        poster_image_cache[cache_key] = {
-            'content': response.content,
-            'media_type': media_type
-        }
-
-        return Response(
-            content=response.content,
-            media_type=media_type,
-            headers={
-                'Cache-Control': 'public, max-age=3600',  # Cache in browser for 1 hour
-                'ETag': cache_key  # Allow browser to revalidate if needed
-            }
-        )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions (like 404) without wrapping them
-        raise
-    except requests.RequestException as e:
-        logger.error(f"Failed to proxy poster {cache_key}: {e}")
-        raise HTTPException(status_code=502, detail="Failed to fetch poster from Plex")
-    except Exception as e:
-        logger.error(f"Unexpected error proxying poster {cache_key}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return serve_proxy_poster(cache_key)
 
 
 @router.get("/group-poster-proxy/{cache_key}", include_in_schema=False)
@@ -578,7 +504,7 @@ def get_collection_details(
         for item in items:
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
-                thumb_url = _create_proxy_url(server.url(item.thumb, includeToken=True))
+                thumb_url = create_proxy_url(server.url(item.thumb, includeToken=True))
 
             collection_items.append(
                 CollectionItemOut(
@@ -600,7 +526,7 @@ def get_collection_details(
                 plex_url = server.transcodeImage(full_thumb_url, height=600, width=400, minSize=1)
             except Exception:
                 plex_url = server.url(collection.thumb, includeToken=True)
-            poster_url = _create_proxy_url(plex_url)
+            poster_url = create_proxy_url(plex_url)
 
         # Get additional metadata
         sort_title = getattr(collection, "titleSort", None)
@@ -686,7 +612,7 @@ def search_library_items(
         for idx, item in enumerate(items):
             thumb_url = None
             if hasattr(item, "thumb") and item.thumb:
-                thumb_url = _create_proxy_url(server.url(item.thumb, includeToken=True))
+                thumb_url = create_proxy_url(server.url(item.thumb, includeToken=True))
 
             # Log first few items to help debug
             if idx < 3:
@@ -1071,8 +997,7 @@ async def upload_collection_poster(
 
         # Invalidate caches to show the new poster
         invalidate_collections_cache()
-        poster_url_cache.clear()
-        poster_image_cache.clear()
+        invalidate_poster_caches()
 
         return {
             "success": True,
@@ -1158,8 +1083,7 @@ async def upload_item_poster(
                     logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
 
         # Invalidate caches to show the new poster
-        poster_url_cache.clear()
-        poster_image_cache.clear()
+        invalidate_poster_caches()
 
         return {
             "success": True,

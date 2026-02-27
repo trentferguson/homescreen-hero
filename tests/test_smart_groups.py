@@ -271,9 +271,38 @@ class TestAndLogic:
 
 class TestEdgeCases:
 
-    def test_empty_rules_returns_empty(self, sample_metadata):
+    def test_empty_rules_returns_all_collections(self, sample_metadata):
         result = resolve_smart_rules([], sample_metadata)
-        assert result == []
+        assert result == [
+            "Horror Classics",
+            "Marvel Collection",
+            "Anime Favorites",
+            "Stand-up Specials",
+            "DC Universe",
+        ]
+
+    def test_empty_value_rules_are_ignored(self, sample_metadata):
+        rules = [
+            _rule("label", "includes", []),
+            _rule("name", "contains", [""]),
+            _rule("source", "is", []),
+        ]
+        result = resolve_smart_rules(rules, sample_metadata)
+        assert result == [
+            "Horror Classics",
+            "Marvel Collection",
+            "Anime Favorites",
+            "Stand-up Specials",
+            "DC Universe",
+        ]
+
+    def test_only_active_rules_are_applied(self, sample_metadata):
+        rules = [
+            _rule("label", "includes", []),
+            _rule("source", "is", ["trakt"]),
+        ]
+        result = resolve_smart_rules(rules, sample_metadata)
+        assert result == ["Marvel Collection"]
 
     def test_empty_metadata_returns_empty(self):
         rule = _rule("label", "includes", ["horror"])

@@ -436,8 +436,13 @@ class SmartGroupPreviewRequest(BaseModel):
     rules: List[SmartGroupRule]
 
 
+class SmartGroupPreviewCollection(BaseModel):
+    name: str
+    poster_url: Optional[str] = None
+
+
 class SmartGroupPreviewResponse(BaseModel):
-    collections: List[str]
+    collections: List[SmartGroupPreviewCollection]
     count: int
 
 

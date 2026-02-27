@@ -303,3 +303,25 @@ select option {
 .edit-mode-widget:hover {
     animation: none;
 }
+
+/* ===== Rule Card Animations ===== */
+@keyframes rule-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rule-card-enter {
+    animation: rule-card-in 0.2s ease-out;
+}
+
+.rule-card-exit {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+    transition: all 0.2s ease-out;
+}

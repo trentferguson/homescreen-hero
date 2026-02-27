@@ -204,6 +204,10 @@ export default function GroupsPage() {
 
     // Group type picker dialog
     const [showTypePicker, setShowTypePicker] = useState(false);
+    const [newGroupType, setNewGroupType] = useState<"basic" | "smart" | null>(null);
+    const [newGroupName, setNewGroupName] = useState("");
+    const [creatingGroup, setCreatingGroup] = useState(false);
+    const [createError, setCreateError] = useState<string | null>(null);
 
     // Display settings state
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
@@ -1262,43 +1266,122 @@ export default function GroupsPage() {
             />
 
             {/* Group type picker dialog */}
-            <Dialog open={showTypePicker} onOpenChange={setShowTypePicker}>
+            <Dialog open={showTypePicker} onOpenChange={(open) => {
+                setShowTypePicker(open);
+                if (!open) { setNewGroupType(null); setNewGroupName(""); setCreateError(null); }
+            }}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <div>
-                            <DialogTitle>Create New Group</DialogTitle>
-                            <DialogDescription>Choose how this group will manage its collections.</DialogDescription>
+                            <DialogTitle>{newGroupType ? "Name Your Group" : "Create New Group"}</DialogTitle>
+                            <DialogDescription>{newGroupType ? "Give your group a name to get started." : "Choose how this group will manage its collections."}</DialogDescription>
                         </div>
                         <DialogCloseButton />
                     </DialogHeader>
-                    <div className="p-6 grid grid-cols-2 gap-4">
-                        <button
-                            type="button"
-                            onClick={() => { setShowTypePicker(false); navigate("/groups/new"); }}
-                            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-slate-700/50 bg-slate-800/30 p-6 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer"
-                        >
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-400 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
-                                <Layers className="h-6 w-6" />
+                    {!newGroupType ? (
+                        <div className="p-6 grid grid-cols-2 gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setNewGroupType("basic")}
+                                className="group flex flex-col items-center gap-3 rounded-xl border-2 border-slate-700/50 bg-slate-800/30 p-6 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer"
+                            >
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-400 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
+                                    <Layers className="h-6 w-6" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-white">Basic Group</p>
+                                    <p className="text-xs text-slate-400 mt-1">Manually select which collections to include</p>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setNewGroupType("smart")}
+                                className="group flex flex-col items-center gap-3 rounded-xl border-2 border-slate-700/50 bg-slate-800/30 p-6 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer"
+                            >
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-400 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
+                                    <Sparkles className="h-6 w-6" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-white">Smart Group</p>
+                                    <p className="text-xs text-slate-400 mt-1">Automatically include collections matching your rules</p>
+                                </div>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-center gap-2 text-sm text-slate-400">
+                                {newGroupType === "smart" ? <Sparkles className="h-4 w-4 text-primary" /> : <Layers className="h-4 w-4 text-primary" />}
+                                <span className="capitalize">{newGroupType} Group</span>
+                                <button type="button" onClick={() => { setNewGroupType(null); setNewGroupName(""); setCreateError(null); }} className="ml-auto text-xs text-slate-500 hover:text-slate-300 transition-colors">Change</button>
                             </div>
-                            <div className="text-center">
-                                <p className="text-sm font-semibold text-white">Basic Group</p>
-                                <p className="text-xs text-slate-400 mt-1">Manually select which collections to include</p>
+                            <input
+                                autoFocus
+                                type="text"
+                                value={newGroupName}
+                                onChange={(e) => { setNewGroupName(e.target.value); setCreateError(null); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && newGroupName.trim() && !creatingGroup) {
+                                        e.preventDefault();
+                                        document.getElementById("create-group-btn")?.click();
+                                    }
+                                }}
+                                placeholder="e.g. Horror Collections, Trakt Lists..."
+                                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70 text-sm"
+                            />
+                            {createError && (
+                                <p className="text-sm text-red-400">{createError}</p>
+                            )}
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowTypePicker(false); setNewGroupType(null); setNewGroupName(""); setCreateError(null); }}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    id="create-group-btn"
+                                    type="button"
+                                    disabled={!newGroupName.trim() || creatingGroup}
+                                    onClick={async () => {
+                                        try {
+                                            setCreatingGroup(true);
+                                            setCreateError(null);
+                                            const isSmart = newGroupType === "smart";
+                                            const payload = isSmart
+                                                ? { name: newGroupName.trim(), enabled: true, smart: true, rules: [{ field: "library", operator: "is", values: [] }], min_picks: 0, max_picks: 1, weight: 1, min_gap_rotations: 0, display_order: 0, visibility_home: true, visibility_shared: false, visibility_recommended: false, date_range: null, collections: [] }
+                                                : { name: newGroupName.trim(), enabled: true, min_picks: 0, max_picks: 1, weight: 1, min_gap_rotations: 0, display_order: 0, visibility_home: true, visibility_shared: false, visibility_recommended: false, date_range: null, collections: [] };
+                                            const r = await fetchWithAuth("/api/admin/config/groups", {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify(payload),
+                                            });
+                                            if (!r.ok) {
+                                                const text = await r.text();
+                                                throw new Error(text || "Failed to create group");
+                                            }
+                                            const nextGroups = await fetchWithAuth("/api/admin/config/groups").then((res) => res.json());
+                                            const targetIndex = nextGroups.length - 1;
+                                            setShowTypePicker(false);
+                                            setNewGroupType(null);
+                                            setNewGroupName("");
+                                            if (targetIndex >= 0) {
+                                                navigate(isSmart ? `/groups/smart/${targetIndex}` : `/groups/${targetIndex}`);
+                                            }
+                                        } catch (e) {
+                                            setCreateError(String(e));
+                                        } finally {
+                                            setCreatingGroup(false);
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {creatingGroup ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                    Create Group
+                                </button>
                             </div>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setShowTypePicker(false); navigate("/groups/smart/new"); }}
-                            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-slate-700/50 bg-slate-800/30 p-6 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer"
-                        >
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-400 group-hover:bg-primary/20 group-hover:text-primary transition-all duration-200">
-                                <Sparkles className="h-6 w-6" />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-sm font-semibold text-white">Smart Group</p>
-                                <p className="text-xs text-slate-400 mt-1">Automatically include collections matching your rules</p>
-                            </div>
-                        </button>
-                    </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
 
