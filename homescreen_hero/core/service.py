@@ -411,6 +411,9 @@ def simulate_rotation_once(
     server = get_plex_server(config)
     collection_library_map = _build_collection_library_map(server, config)
 
+    # Resolve smart groups into concrete collection lists
+    smart_group_collections = _resolve_smart_groups(server, config)
+
     # Check if auto-rotate mode is enabled
     if config.rotation.auto_rotate.enabled:
         rotation_result = _run_auto_rotation(
@@ -425,6 +428,7 @@ def simulate_rotation_once(
             last_rotation_collections=last_rotation_collections,
             pinned_names=pinned_names,
             collection_library_map=collection_library_map,
+            smart_group_collections=smart_group_collections,
         )
 
     simulation_id = create_simulation(rotation_result)

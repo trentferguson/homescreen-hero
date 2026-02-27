@@ -474,6 +474,30 @@ export default function GroupsPage() {
         }
     };
 
+    const toggleEnabled = async (index: number) => {
+        const target = groups[index];
+        if (!target) return;
+
+        // Optimistic update — flip locally first to avoid full re-render flash
+        setGroups((prev) => prev.map((g, i) => i === index ? { ...g, enabled: !g.enabled } : g));
+
+        try {
+            const payload = { ...target, enabled: !target.enabled };
+            const r = await fetchWithAuth(`/api/admin/config/groups/${index}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!r.ok) {
+                // Revert on failure
+                setGroups((prev) => prev.map((g, i) => i === index ? { ...g, enabled: target.enabled } : g));
+                throw new Error(await r.text() || "Failed to update group");
+            }
+        } catch (e) {
+            setError(String(e));
+        }
+    };
+
     const handleDelete = async (index: number) => {
         const target = groups[index];
         if (!target) return;
@@ -786,13 +810,17 @@ export default function GroupsPage() {
                                                         onClick={() => navigate(group.smart ? `/groups/smart/${originalIndex}` : `/groups/${originalIndex}`)}
                                                         className="group flex flex-1 items-center gap-4 rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-3 hover:border-slate-700 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer"
                                                     >
-                                                        <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusStyles[status]}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); toggleEnabled(originalIndex); }}
+                                                            disabled={processingIndex === originalIndex}
+                                                            className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 hover:brightness-125 disabled:opacity-60 ${statusStyles[status]}`}
+                                                        >
                                                             {statusLabels[status]}
-                                                        </span>
+                                                        </button>
                                                         {group.smart && (
-                                                            <span className="shrink-0 rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1">
+                                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary border border-primary/30">
                                                                 <Sparkles className="h-3 w-3" />
-                                                                Smart
                                                             </span>
                                                         )}
 
@@ -861,30 +889,36 @@ export default function GroupsPage() {
                                                 >
                                                     <div className="relative">
                                                         {renderCover(group, index)}
-                                                        {(() => {
-                                                            const status = getGroupStatus(group);
-                                                            const statusStyles = {
-                                                                active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
-                                                                scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
-                                                                disabled: 'bg-slate-500/20 text-slate-400 border border-slate-500/30 shadow-lg shadow-slate-500/20',
-                                                            };
-                                                            const statusLabels = {
-                                                                active: 'Active',
-                                                                scheduled: 'Scheduled',
-                                                                disabled: 'Disabled',
-                                                            };
-                                                            return (
-                                                                <div className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 ${statusStyles[status]}`}>
-                                                                    {statusLabels[status]}
+                                                        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+                                                            {(() => {
+                                                                const status = getGroupStatus(group);
+                                                                const statusStyles = {
+                                                                    active: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/20',
+                                                                    scheduled: 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/20',
+                                                                    disabled: 'bg-slate-500/20 text-slate-400 border border-slate-500/30 shadow-lg shadow-slate-500/20',
+                                                                };
+                                                                const statusLabels = {
+                                                                    active: 'Active',
+                                                                    scheduled: 'Scheduled',
+                                                                    disabled: 'Disabled',
+                                                                };
+                                                                return (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => { e.stopPropagation(); toggleEnabled(originalIndex); }}
+                                                                        disabled={processingIndex === originalIndex}
+                                                                        className={`rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm transition-all duration-200 hover:brightness-125 disabled:opacity-60 ${statusStyles[status]}`}
+                                                                    >
+                                                                        {statusLabels[status]}
+                                                                    </button>
+                                                                );
+                                                            })()}
+                                                            {group.smart && (
+                                                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary border border-primary/30 backdrop-blur-sm">
+                                                                    <Sparkles className="h-3 w-3" />
                                                                 </div>
-                                                            );
-                                                        })()}
-                                                        {group.smart && (
-                                                            <div className="absolute left-3 top-11 rounded-full bg-primary/20 text-primary border border-primary/30 backdrop-blur-sm px-3 py-1 text-xs font-semibold flex items-center gap-1">
-                                                                <Sparkles className="h-3 w-3" />
-                                                                Smart
-                                                            </div>
-                                                        )}
+                                                            )}
+                                                        </div>
                                                         {(group.date_range?.start || group.date_range?.end) && (
                                                             <div className="absolute right-12 top-3 rounded-full bg-slate-900/80 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-slate-100 border border-slate-700/50">
                                                                 {group.date_range?.start ? new Date(group.date_range.start).toLocaleDateString('en', { month: '2-digit', day: '2-digit' }) : '??/??'}

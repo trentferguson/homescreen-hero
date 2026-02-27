@@ -406,7 +406,14 @@ export default function SmartGroupDetailPage() {
 
     const hasRuleValues = form.rules.some((r) => r.values.length > 0);
     const previewCollections = preview?.collections ?? [];
-    const visiblePreviewCollections = previewExpanded ? previewCollections : previewCollections.slice(0, 8);
+    const PREVIEW_LIMIT = 8;
+    const hasOverflow = previewCollections.length > PREVIEW_LIMIT;
+    // When collapsed with overflow, show 7 posters + the "+N" tile to fill the grid
+    const visiblePreviewCollections = previewExpanded
+        ? previewCollections
+        : hasOverflow
+            ? previewCollections.slice(0, PREVIEW_LIMIT - 1)
+            : previewCollections;
 
     return (
         <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -440,9 +447,8 @@ export default function SmartGroupDetailPage() {
                                 >
                                     {form.name || "Untitled Group"}
                                 </span>
-                                <span className="shrink-0 rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-xs font-semibold flex items-center gap-1">
-                                    <Sparkles className="h-3 w-3" />
-                                    Smart
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary border border-primary/30">
+                                    <Sparkles className="h-3.5 w-3.5" />
                                 </span>
                                 {(() => {
                                     const status = getGroupStatus(form);
@@ -748,60 +754,84 @@ export default function SmartGroupDetailPage() {
                             </p>
                         </div>
                     ) : (
-                        <>
-                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                                {visiblePreviewCollections.map((col) => {
-                                    const posterLoaded = !col.poster_url || loadedPreviewPosters[col.name];
-                                    return (
-                                        <div key={col.name} className="group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
-                                            {col.poster_url ? (
-                                                <>
-                                                    {!posterLoaded && (
-                                                        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800 via-slate-700/70 to-slate-800" />
-                                                    )}
-                                                    <img
-                                                        src={col.poster_url}
-                                                        alt={col.name}
-                                                        className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
-                                                            posterLoaded ? "opacity-100" : "opacity-0"
-                                                        }`}
-                                                        onLoad={() => {
-                                                            setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
-                                                        }}
-                                                        onError={() => {
-                                                            setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
-                                                        }}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950 text-[11px] text-slate-400">
-                                                    No Poster
-                                                </div>
-                                            )}
-                                            <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                                <span className="text-[11px] font-medium leading-tight text-white line-clamp-2">{col.name}</span>
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                            {visiblePreviewCollections.map((col) => {
+                                const posterLoaded = !col.poster_url || loadedPreviewPosters[col.name];
+                                return (
+                                    <div key={col.name} className="group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+                                        {col.poster_url ? (
+                                            <>
+                                                {!posterLoaded && (
+                                                    <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800 via-slate-700/70 to-slate-800" />
+                                                )}
+                                                <img
+                                                    src={col.poster_url}
+                                                    alt={col.name}
+                                                    className={`h-full w-full object-cover transition-all duration-300 group-hover:scale-105 ${
+                                                        posterLoaded ? "opacity-100" : "opacity-0"
+                                                    }`}
+                                                    onLoad={() => {
+                                                        setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
+                                                    }}
+                                                    onError={() => {
+                                                        setLoadedPreviewPosters((prev) => (prev[col.name] ? prev : { ...prev, [col.name]: true }));
+                                                    }}
+                                                />
+                                            </>
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950 text-[11px] text-slate-400">
+                                                No Poster
                                             </div>
+                                        )}
+                                        <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                            <span className="text-[11px] font-medium leading-tight text-white line-clamp-2">{col.name}</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    </div>
+                                );
+                            })}
 
-                            {preview.count > 8 && (
-                                <div className="flex justify-center pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setPreviewExpanded(!previewExpanded)}
-                                        aria-expanded={previewExpanded}
-                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-3.5 py-2 text-sm font-medium text-slate-200 transition-all duration-200 hover:border-slate-500 hover:bg-slate-700/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary/40"
-                                    >
-                                        <ChevronDown className={`h-4 w-4 transition-transform ${previewExpanded ? "rotate-180" : ""}`} />
-                                        {previewExpanded
-                                            ? "Show fewer posters"
-                                            : `Show more posters (${preview.count - visiblePreviewCollections.length} more)`}
-                                    </button>
-                                </div>
+                            {/* Overflow tile: blends into the grid as the last poster slot */}
+                            {hasOverflow && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewExpanded(!previewExpanded)}
+                                    aria-expanded={previewExpanded}
+                                    className="group relative overflow-hidden rounded-lg border border-slate-700/50 aspect-[2/3] cursor-pointer transition-all duration-300 hover:border-primary/60 hover:shadow-xl hover:shadow-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                >
+                                    {/* Layered background for depth */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950" />
+                                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/[0.07] via-transparent to-transparent" />
+                                    <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ccircle cx=\'1\' cy=\'1\' r=\'0.6\' fill=\'%23fff\'/%3E%3C/svg%3E")' }} />
+
+                                    {/* Decorative border glow on hover */}
+                                    <div className="absolute inset-0 rounded-lg opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
+
+                                    <div className="relative flex h-full w-full flex-col items-center justify-center gap-2">
+                                        {previewExpanded ? (
+                                            <>
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-600/50 bg-slate-800/80 transition-all duration-300 group-hover:border-primary/40 group-hover:bg-primary/10">
+                                                    <ChevronDown className="h-4 w-4 rotate-180 text-slate-400 transition-colors group-hover:text-primary" />
+                                                </div>
+                                                <span className="text-xs font-medium text-slate-400 transition-colors group-hover:text-slate-200">
+                                                    Show less
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-600/40 bg-slate-800/60 transition-all duration-300 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:scale-110">
+                                                    <span className="text-lg font-bold text-slate-100 transition-colors group-hover:text-primary">
+                                                        +{preview.count - visiblePreviewCollections.length}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 transition-colors group-hover:text-slate-300">
+                                                    collections
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                </button>
                             )}
-                        </>
+                        </div>
                     )}
                 </section>
             </div>
