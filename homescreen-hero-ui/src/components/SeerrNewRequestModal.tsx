@@ -119,7 +119,7 @@ export default function SeerrNewRequestModal({
             }
 
             const results = await Promise.all(promises);
-            const servicesData: ServicesResponse = results[0];
+            const servicesData = results[0] as ServicesResponse;
             setServices(servicesData);
 
             // Set default service and profile
@@ -135,7 +135,7 @@ export default function SeerrNewRequestModal({
 
             // Handle seasons for TV
             if (result.mediaType === "tv" && results[1]) {
-                const seasonsData: SeasonInfo[] = results[1];
+                const seasonsData = results[1] as SeasonInfo[];
                 setSeasons(seasonsData);
                 // Pre-select all seasons
                 setSelectedSeasons(seasonsData.map((s) => s.seasonNumber));

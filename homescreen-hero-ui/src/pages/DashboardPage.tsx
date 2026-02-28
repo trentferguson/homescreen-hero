@@ -164,11 +164,12 @@ export default function Dashboard() {
     };
 
     const plex = health.plex;
+    const plexDetails = plex?.details as { server_name?: string; libraries?: unknown[]; enabled_count?: number } | undefined;
 
-    const plexServerName = plex?.details?.server_name ?? plex?.server_name ?? "Plex";
-    const plexLibraries = plex?.details?.libraries;
+    const plexServerName = plexDetails?.server_name ?? "Plex";
+    const plexLibraries = plexDetails?.libraries;
     const plexLibraryInfo = plexLibraries
-        ? `${plex?.details?.enabled_count ?? plexLibraries.length} ${plexLibraries.length === 1 ? 'library' : 'libraries'}`
+        ? `${plexDetails?.enabled_count ?? plexLibraries.length} ${plexLibraries.length === 1 ? 'library' : 'libraries'}`
         : null;
     const plexDetail = [plexServerName, plexLibraryInfo]
         .filter((value): value is string => Boolean(value))
