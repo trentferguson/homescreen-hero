@@ -60,6 +60,42 @@ function capitalize(s: string): string {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function MaxItemsStepper({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) {
+    return (
+        <div className="flex items-center rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+            <span className="pl-2.5 text-xs text-slate-500 whitespace-nowrap select-none">Max</span>
+            <button
+                type="button"
+                disabled={disabled || value <= 10}
+                onClick={() => onChange(Math.max(10, value - 10))}
+                className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                <Minus className="h-3.5 w-3.5" />
+            </button>
+            <input
+                type="number"
+                min={10}
+                max={500}
+                step={10}
+                value={value}
+                onChange={(e) => onChange(Number(e.target.value) || 0)}
+                onBlur={() => onChange(Math.max(10, Math.min(500, value || 100)))}
+                disabled={disabled}
+                className="w-10 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                title="Max items"
+            />
+            <button
+                type="button"
+                disabled={disabled || value >= 500}
+                onClick={() => onChange(Math.min(500, value + 10))}
+                className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                <Plus className="h-3.5 w-3.5" />
+            </button>
+        </div>
+    );
+}
+
 export function MALIntegration() {
     const { enabledLibraries } = usePlexLibraries();
 
@@ -204,41 +240,6 @@ export function MALIntegration() {
     }, [canAddSeasonal, season, seasonYear, seasonCollectionName, seasonPlexLibrary, seasonMaxItems, integration]);
 
     const formDisabled = integration.savingSource || integration.loadingSources;
-
-    // Reusable max items stepper
-    const MaxItemsStepper = ({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled: boolean }) => (
-        <div className="flex items-center rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
-            <span className="pl-2.5 text-xs text-slate-500 whitespace-nowrap select-none">Max</span>
-            <button
-                type="button"
-                disabled={disabled || value <= 10}
-                onClick={() => onChange(Math.max(10, value - 10))}
-                className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-                <Minus className="h-3.5 w-3.5" />
-            </button>
-            <input
-                type="number"
-                min={10}
-                max={500}
-                step={10}
-                value={value}
-                onChange={(e) => onChange(Number(e.target.value) || 0)}
-                onBlur={() => onChange(Math.max(10, Math.min(500, value || 100)))}
-                disabled={disabled}
-                className="w-10 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                title="Max items"
-            />
-            <button
-                type="button"
-                disabled={disabled || value >= 500}
-                onClick={() => onChange(Math.min(500, value + 10))}
-                className="flex items-center justify-center h-9 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-                <Plus className="h-3.5 w-3.5" />
-            </button>
-        </div>
-    );
 
     return (
         <div className="space-y-4">

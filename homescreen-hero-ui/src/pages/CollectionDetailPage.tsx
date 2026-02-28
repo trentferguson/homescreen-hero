@@ -182,7 +182,7 @@ export default function CollectionDetailPage() {
 
             // Reload collection and search results
             await Promise.all([loadCollectionDetails(), searchLibrary(searchQuery)]);
-        } catch (err) {
+        } catch {
             setToast({ message: "Failed to add items", type: "error" });
         } finally {
             setAdding(false);
@@ -214,7 +214,7 @@ export default function CollectionDetailPage() {
             setToast({ message: data.message || "Item removed successfully!", type: "success" });
 
             await loadCollectionDetails();
-        } catch (err) {
+        } catch {
             setToast({ message: "Failed to remove item", type: "error" });
         }
     };
@@ -329,7 +329,7 @@ export default function CollectionDetailPage() {
                 // Just reload to show changes
                 await loadCollectionDetails();
             }
-        } catch (err) {
+        } catch {
             setToast({ message: "Failed to update collection", type: "error" });
         } finally {
             setUpdating(false);
@@ -388,7 +388,7 @@ export default function CollectionDetailPage() {
             setToast({ message: "Poster updated successfully!", type: "success" });
             closeItemPosterModal();
             await loadCollectionDetails();
-        } catch (err) {
+        } catch {
             setToast({ message: "Failed to upload poster", type: "error" });
         } finally {
             setUploadingItemPoster(false);

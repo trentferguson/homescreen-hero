@@ -617,8 +617,8 @@ export default function SettingsPage() {
             }
 
             setLines(nextLines);
-        } catch (e: any) {
-            setLogsError(e?.message ?? "Failed to load logs");
+        } catch (e: unknown) {
+            setLogsError(e instanceof Error ? e.message : "Failed to load logs");
         } finally {
             if (showLoading) setLoadingLogs(false);
         }
@@ -663,8 +663,8 @@ export default function SettingsPage() {
             a.download = "homescreen_hero.log";
             a.click();
             URL.revokeObjectURL(url);
-        } catch (e: any) {
-            setLogsError(e?.message ?? "Failed to download logs");
+        } catch (e: unknown) {
+            setLogsError(e instanceof Error ? e.message : "Failed to download logs");
         }
     }
 
@@ -685,8 +685,8 @@ export default function SettingsPage() {
             a.click();
             URL.revokeObjectURL(url);
             setBackupToast({ message: "Configuration exported successfully.", type: "success" });
-        } catch (e: any) {
-            setBackupToast({ message: e?.message ?? "Failed to export configuration.", type: "error" });
+        } catch (e: unknown) {
+            setBackupToast({ message: e instanceof Error ? e.message : "Failed to export configuration.", type: "error" });
         } finally {
             setExporting(false);
         }
@@ -710,8 +710,8 @@ export default function SettingsPage() {
             } else {
                 setValidationResult({ ok: true, message: data.message });
             }
-        } catch (e: any) {
-            setBackupToast({ message: e?.message ?? "Validation request failed.", type: "error" });
+        } catch (e: unknown) {
+            setBackupToast({ message: e instanceof Error ? e.message : "Validation request failed.", type: "error" });
         } finally {
             setValidating(false);
         }
@@ -736,8 +736,8 @@ export default function SettingsPage() {
             setSelectedFile(null);
             setValidationResult(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
-        } catch (e: any) {
-            setBackupToast({ message: e?.message ?? "Failed to import configuration.", type: "error" });
+        } catch (e: unknown) {
+            setBackupToast({ message: e instanceof Error ? e.message : "Failed to import configuration.", type: "error" });
         } finally {
             setImporting(false);
         }
@@ -766,8 +766,8 @@ export default function SettingsPage() {
             }
             setBackupToast({ message: data.message, type: "success" });
             fetchBackupStatus();
-        } catch (e: any) {
-            setBackupToast({ message: e?.message ?? "Failed to revert configuration.", type: "error" });
+        } catch (e: unknown) {
+            setBackupToast({ message: e instanceof Error ? e.message : "Failed to revert configuration.", type: "error" });
         } finally {
             setReverting(false);
         }

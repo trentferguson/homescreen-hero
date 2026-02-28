@@ -10,7 +10,10 @@ type ToastProps = {
 
 export default function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
     const onCloseRef = useRef(onClose);
-    onCloseRef.current = onClose;
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    });
 
     useEffect(() => {
         const timer = setTimeout(() => onCloseRef.current(), duration);

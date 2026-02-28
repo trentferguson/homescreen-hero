@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { DndContext, rectIntersection, DragOverlay } from "@dnd-kit/core";
-import type { DragEndEvent, DragStartEvent, DragOverEvent } from "@dnd-kit/core";
+import type { DragStartEvent, DragOverEvent } from "@dnd-kit/core";
 import { Lock, Unlock, ChevronDown, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../utils/auth";
@@ -30,7 +30,7 @@ type RotationHistoryItem = {
     featured_collections: string[];
 };
 
-type HealthComponent = { ok: boolean; error?: string;[k: string]: any };
+type HealthComponent = { ok: boolean; error?: string;[k: string]: unknown };
 
 type RotationExecution = {
     rotation: {
@@ -159,7 +159,7 @@ export default function Dashboard() {
     };
 
     // Handle drag end - just clear the active state
-    const handleDragEnd = (_event: DragEndEvent) => {
+    const handleDragEnd = () => {
         setActiveId(null);
     };
 

@@ -1,7 +1,7 @@
 import { Link, useRouteError } from "react-router-dom";
 
 export default function NotFoundPage() {
-    const error = useRouteError() as any;
+    const error = useRouteError() as { status?: number } | null;
 
     return (
         <div style={{ padding: "2rem" }}>
