@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarRange, Check, ChevronDown, Compass, Home, Lightbulb, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Home, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2 } from "lucide-react";
 import { Listbox } from "@headlessui/react";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import {
@@ -13,6 +13,7 @@ import {
     SheetBody,
     SheetCloseButton,
 } from "../components/ui/sheet";
+import { Slider } from "../components/ui/slider";
 import { getGroupStatus } from "../utils/dates";
 
 
@@ -32,6 +33,7 @@ type CollectionGroup = {
     visibility_home: boolean;
     visibility_shared: boolean;
     visibility_recommended: boolean;
+    collection_sort?: "release" | "alpha" | null;
     date_range?: DateRange | null;
     collections: string[];
 };
@@ -63,6 +65,7 @@ const emptyGroup: CollectionGroup = {
     visibility_home: true,
     visibility_shared: false,
     visibility_recommended: false,
+    collection_sort: null,
     date_range: null,
     collections: [],
 };
@@ -223,13 +226,6 @@ export default function GroupDetailPage() {
         }
         const num = Number(value);
         setForm((prev) => ({ ...prev, [key]: Number.isNaN(num) ? 0 : num } as CollectionGroup));
-    };
-
-    const handleNumberBlur = (key: keyof CollectionGroup) => {
-        const val = form[key];
-        if (val === "" || val === undefined || val === null) {
-            setForm((prev) => ({ ...prev, [key]: 0 } as CollectionGroup));
-        }
     };
 
     const handleDateChange = (key: keyof DateRange, value: string) => {
@@ -735,69 +731,53 @@ export default function GroupDetailPage() {
                         <SheetCloseButton />
                     </SheetHeader>
                     <SheetBody>
-                        {/* Pick Limits */}
-                        <div className="space-y-3">
-                            <label className="text-sm font-medium text-white">Pick Limits</label>
-                            <p className="text-xs text-slate-400">Min and max collections to include per rotation.</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Min picks</label>
-                                    <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
-                                        <button type="button" disabled={Number(form.min_picks) <= 0} onClick={() => handleNumberChange("min_picks", String(Math.max(0, Number(form.min_picks) - 1)))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                            <Minus className="h-4 w-4" />
-                                        </button>
-                                        <input type="number" min={0} value={form.min_picks} onChange={(e) => handleNumberChange("min_picks", e.target.value)} onBlur={() => handleNumberBlur("min_picks")} className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                        <button type="button" onClick={() => handleNumberChange("min_picks", String(Number(form.min_picks) + 1))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                                            <Plus className="h-4 w-4" />
-                                        </button>
-                                    </div>
+                        {/* Rotation Rules */}
+                        <div className="space-y-4">
+                            <label className="text-sm font-medium text-white">Rotation Rules</label>
+
+                            {/* Pick range slider */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs text-slate-400">Collections to select</label>
+                                    <span className="text-xs font-medium text-slate-300 tabular-nums">
+                                        Min: {form.min_picks} / Max: {form.max_picks}
+                                    </span>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Max picks</label>
-                                    <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
-                                        <button type="button" disabled={Number(form.max_picks) <= 0} onClick={() => handleNumberChange("max_picks", String(Math.max(0, Number(form.max_picks) - 1)))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                            <Minus className="h-4 w-4" />
-                                        </button>
-                                        <input type="number" min={0} value={form.max_picks} onChange={(e) => handleNumberChange("max_picks", e.target.value)} onBlur={() => handleNumberBlur("max_picks")} className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                        <button type="button" onClick={() => handleNumberChange("max_picks", String(Number(form.max_picks) + 1))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                                            <Plus className="h-4 w-4" />
-                                        </button>
-                                    </div>
+                                <Slider
+                                    min={0}
+                                    max={10}
+                                    step={1}
+                                    value={[Number(form.min_picks), Number(form.max_picks)]}
+                                    onValueChange={([min, max]) => {
+                                        setForm((p) => ({ ...p, min_picks: min, max_picks: max }));
+                                    }}
+                                />
+                                <div className="flex justify-between text-[10px] text-slate-600">
+                                    <span>0</span>
+                                    <span>5</span>
+                                    <span>10</span>
                                 </div>
                             </div>
-                        </div>
 
-                        <hr className="border-slate-700/50" />
-
-                        {/* Priority & Spacing */}
-                        <div className="space-y-3">
-                            <label className="text-sm font-medium text-white">Priority & Spacing</label>
-                            <p className="text-xs text-slate-400">Higher weights are picked more often. Min gap prevents repeats.</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Weight</label>
-                                    <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
-                                        <button type="button" disabled={Number(form.weight) <= 1} onClick={() => handleNumberChange("weight", String(Math.max(1, Number(form.weight) - 1)))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                            <Minus className="h-4 w-4" />
-                                        </button>
-                                        <input type="number" min={1} value={form.weight} onChange={(e) => handleNumberChange("weight", e.target.value)} onBlur={() => handleNumberBlur("weight")} className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                        <button type="button" onClick={() => handleNumberChange("weight", String(Number(form.weight) + 1))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                                            <Plus className="h-4 w-4" />
-                                        </button>
+                            {/* Weight & Min gap */}
+                            <div className="flex items-end justify-between">
+                                {([
+                                    { key: "weight" as const, label: "Weight", min: 1 },
+                                    { key: "min_gap_rotations" as const, label: "Min gap", min: 0 },
+                                ]).map(({ key, label, min }) => (
+                                    <div key={key} className="flex items-center gap-2">
+                                        <label className="text-xs text-slate-400 whitespace-nowrap">{label}</label>
+                                        <div className="flex items-center rounded-md border border-slate-700 bg-slate-900 overflow-hidden">
+                                            <button type="button" disabled={Number(form[key]) <= min} onClick={() => handleNumberChange(key, String(Math.max(min, Number(form[key]) - 1)))} className="flex items-center justify-center h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                                                <Minus className="h-3 w-3" />
+                                            </button>
+                                            <span className="w-6 text-center text-xs font-semibold text-white tabular-nums">{form[key]}</span>
+                                            <button type="button" onClick={() => handleNumberChange(key, String(Number(form[key]) + 1))} className="flex items-center justify-center h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+                                                <Plus className="h-3 w-3" />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Min gap (rotations)</label>
-                                    <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
-                                        <button type="button" disabled={Number(form.min_gap_rotations) <= 0} onClick={() => handleNumberChange("min_gap_rotations", String(Math.max(0, Number(form.min_gap_rotations) - 1)))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                            <Minus className="h-4 w-4" />
-                                        </button>
-                                        <input type="number" min={0} value={form.min_gap_rotations} onChange={(e) => handleNumberChange("min_gap_rotations", e.target.value)} onBlur={() => handleNumberBlur("min_gap_rotations")} className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                        <button type="button" onClick={() => handleNumberChange("min_gap_rotations", String(Number(form.min_gap_rotations) + 1))} className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                                            <Plus className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </div>
 
@@ -807,11 +787,11 @@ export default function GroupDetailPage() {
                         <div className="space-y-3">
                             <label className="text-sm font-medium text-white">Visibility</label>
                             <p className="text-xs text-slate-400">Control where collections from this group appear on Plex.</p>
-                            <div className="grid gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 {([
                                     { key: "visibility_home" as const, label: "Home", icon: Home },
                                     { key: "visibility_shared" as const, label: "Shared", icon: Share2 },
-                                    { key: "visibility_recommended" as const, label: "Recommended", icon: Compass },
+                                    { key: "visibility_recommended" as const, label: "Library", icon: Compass },
                                 ]).map(({ key, label, icon: Icon }) => {
                                     const isSelected = form[key];
                                     return (
@@ -819,75 +799,69 @@ export default function GroupDetailPage() {
                                             key={key}
                                             type="button"
                                             onClick={() => setForm((p) => ({ ...p, [key]: !p[key] }))}
-                                            className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 transition-all duration-200 ${
+                                            className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
                                                 isSelected
                                                     ? "border-primary bg-primary/15"
                                                     : "border-slate-700 bg-slate-900 hover:border-slate-600"
                                             }`}
                                         >
-                                            <Icon className={`h-4 w-4 shrink-0 ${isSelected ? "text-primary" : "text-slate-500"}`} />
+                                            <Icon className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-primary" : "text-slate-500"}`} />
                                             <span className={`text-sm font-medium ${isSelected ? "text-white" : "text-slate-300"}`}>{label}</span>
-                                            <div className={`h-4 w-4 shrink-0 rounded-full border-2 transition-all duration-200 ml-auto ${
-                                                isSelected
-                                                    ? "border-primary bg-primary"
-                                                    : "border-slate-600 bg-transparent"
-                                            }`} />
                                         </button>
                                     );
                                 })}
                             </div>
-                            {(() => {
-                                const active = [
-                                    form.visibility_home && "your homescreen",
-                                    form.visibility_shared && "shared users' homescreens",
-                                    form.visibility_recommended && "the Library Recommended section",
-                                ].filter(Boolean) as string[];
-                                const joined = active.length <= 2
-                                    ? active.join(" and ")
-                                    : `${active.slice(0, -1).join(", ")}, and ${active[active.length - 1]}`;
-                                return (
-                                    <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
-                                        <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
-                                        <p className="text-xs text-blue-200">
-                                            {active.length === 0
-                                                ? "No visibility options selected. Collections in this group won't appear on any homescreen."
-                                                : `Collections will appear on ${joined}.`}
-                                        </p>
-                                    </div>
-                                );
-                            })()}
+                            <div className="flex items-center gap-2 pt-1">
+                                <label className="text-xs text-slate-400 whitespace-nowrap">Active <span className="text-slate-600">(optional)</span></label>
+                                <input
+                                    type="text"
+                                    value={form.date_range?.start ?? ""}
+                                    onChange={(e) => handleDateChange("start", e.target.value)}
+                                    placeholder="MM-DD"
+                                    className="w-20 px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                />
+                                <span className="text-xs text-slate-500">–</span>
+                                <input
+                                    type="text"
+                                    value={form.date_range?.end ?? ""}
+                                    onChange={(e) => handleDateChange("end", e.target.value)}
+                                    placeholder="MM-DD"
+                                    className="w-20 px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-center text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                />
+                            </div>
                         </div>
 
                         <hr className="border-slate-700/50" />
 
-                        {/* Date Range */}
+                        {/* Collection Sort */}
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <CalendarRange className="h-4 w-4 text-primary" />
-                                <label className="text-sm font-medium text-white">Date Range</label>
+                                <ArrowUpDown className="h-4 w-4 text-primary" />
+                                <label className="text-sm font-medium text-white">Collection Sort</label>
                             </div>
-                            <p className="text-xs text-slate-400">Optional activation window (MM-DD). Leave empty for year-round.</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">Start</label>
-                                    <input
-                                        type="text"
-                                        value={form.date_range?.start ?? ""}
-                                        onChange={(e) => handleDateChange("start", e.target.value)}
-                                        placeholder="11-20"
-                                        className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs text-slate-400">End</label>
-                                    <input
-                                        type="text"
-                                        value={form.date_range?.end ?? ""}
-                                        onChange={(e) => handleDateChange("end", e.target.value)}
-                                        placeholder="12-26"
-                                        className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
-                                    />
-                                </div>
+                            <p className="text-xs text-slate-400">Sort order for items within a collection when gets selected.</p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {([
+                                    { value: null, label: "Default" },
+                                    { value: "release" as const, label: "Release" },
+                                    { value: "alpha" as const, label: "Alpha" },
+                                ]).map(({ value, label }) => {
+                                    const isSelected = form.collection_sort === value;
+                                    return (
+                                        <button
+                                            key={label}
+                                            type="button"
+                                            onClick={() => setForm((p) => ({ ...p, collection_sort: value }))}
+                                            className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
+                                                isSelected
+                                                    ? "border-primary bg-primary/15"
+                                                    : "border-slate-700 bg-slate-900 hover:border-slate-600"
+                                            }`}
+                                        >
+                                            <span className={`text-sm font-medium ${isSelected ? "text-white" : "text-slate-300"}`}>{label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </SheetBody>

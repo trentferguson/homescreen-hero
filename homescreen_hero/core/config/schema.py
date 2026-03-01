@@ -175,6 +175,10 @@ class CollectionGroupConfig(BaseModel):
         default=False,
         description="Promote collections to Library Recommended section",
     )
+    collection_sort: Optional[Literal["release", "alpha"]] = Field(
+        default=None,
+        description="Sort order for items within collections in this group. None = don't change.",
+    )
     date_range: Optional[DateRange] = Field(
         default=None,
         description="Optional yearly date window when this group is active",

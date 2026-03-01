@@ -721,6 +721,26 @@ def build_collection_visibility_map(
     return visibility_map
 
 
+def build_collection_sort_map(
+    config: AppConfig,
+    smart_group_collections: Optional[Dict[str, List[str]]] = None,
+) -> Dict[str, str]:
+    # Build a mapping from collection name to sort order based on its group.
+    # Only includes collections whose group has a collection_sort set.
+    # First group wins if a collection is in multiple groups.
+    sort_map: Dict[str, str] = {}
+
+    for group in config.groups:
+        if not group.collection_sort:
+            continue
+        pool = _get_collection_pool(group, smart_group_collections)
+        for collection_name in pool:
+            if collection_name not in sort_map:
+                sort_map[collection_name] = group.collection_sort
+
+    return sort_map
+
+
 def _build_collection_group_map(
     config: AppConfig,
     smart_group_collections: Optional[Dict[str, List[str]]] = None,

@@ -247,6 +247,7 @@ def apply_home_screen_selection(
     *,
     dry_run: bool = False,
     smart_group_collections: Dict[str, List[str]] | None = None,
+    collection_sort: Dict[str, str] | None = None,
 ) -> List[str]:
     # Apply the chosen collections to the Plex Home screen
     #
@@ -354,6 +355,13 @@ def apply_home_screen_selection(
                     shared=visibility.get("shared", False),
                     recommended=visibility.get("recommended", False)
                 )
+                # Apply collection sort if configured for this collection's group
+                if collection_sort and name in collection_sort:
+                    try:
+                        coll.sortUpdate(sort=collection_sort[name])
+                        logger.debug("Set sort order for '%s' to '%s'", name, collection_sort[name])
+                    except Exception:
+                        logger.warning("Failed to update sort for '%s' (may be a smart collection)", name)
         else:
             # Collection is either configured but not selected, or was previously rotated but removed from config
             if name in previously_rotated_names and name not in configured_names:
