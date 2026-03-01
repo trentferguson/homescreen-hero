@@ -18,6 +18,7 @@ class CollectionMetadata:
     library: str
     labels: list = field(default_factory=list)
     item_count: int = 0
+    sort_title: str = ""
     poster_url: Optional[str] = None
 
 
@@ -72,6 +73,7 @@ def build_collection_metadata(server, config: AppConfig) -> List[CollectionMetad
                     library=section.title,
                     labels=get_collection_labels(coll),
                     item_count=get_collection_item_count(coll),
+                    sort_title=getattr(coll, "titleSort", "") or "",
                     poster_url=build_collection_poster_url(server, coll),
                 ))
         except Exception:
@@ -132,6 +134,14 @@ def _matches_rule(rule: SmartGroupRule, coll: CollectionMetadata) -> bool:
         elif op == "not_contains":
             # Collection name contains none of the specified strings
             return not any(s in coll_name_lower for s in rule_strs)
+
+    elif f == "sort_title":
+        sort_title_lower = coll.sort_title.lower()
+        rule_strs = [str(v).lower() for v in vals]
+        if op == "contains":
+            return any(s in sort_title_lower for s in rule_strs)
+        elif op == "not_contains":
+            return not any(s in sort_title_lower for s in rule_strs)
 
     elif f == "item_count":
         threshold = int(vals[0]) if vals else 0

@@ -98,7 +98,7 @@ class RotationSettings(BaseModel):
 class SmartGroupRule(BaseModel):
     # A single filter rule for smart groups.
     # Rules within a group are ANDed; multiple values within a rule are ORed.
-    field: Literal["label", "source", "library", "name", "item_count"] = Field(
+    field: Literal["label", "source", "library", "name", "sort_title", "item_count"] = Field(
         ..., description="Which collection attribute to filter on"
     )
     operator: str = Field(
@@ -120,6 +120,7 @@ class SmartGroupRule(BaseModel):
         "source": {"is", "is_not"},
         "library": {"is", "is_not"},
         "name": {"contains", "not_contains"},
+        "sort_title": {"contains", "not_contains"},
         "item_count": {"gte", "lte"},
     }
 

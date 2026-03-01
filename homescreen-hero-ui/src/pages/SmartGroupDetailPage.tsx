@@ -37,7 +37,7 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog";
 type DateRange = { start: string; end: string };
 
 type SmartGroupRule = {
-    field: "label" | "source" | "library" | "name" | "item_count";
+    field: "label" | "source" | "library" | "name" | "sort_title" | "item_count";
     operator: string;
     values: (string | number)[];
 };
@@ -82,6 +82,7 @@ const FIELD_OPTIONS: { value: SmartGroupRule["field"]; label: string }[] = [
     { value: "source", label: "Source" },
     { value: "library", label: "Library" },
     { value: "name", label: "Name" },
+    { value: "sort_title", label: "Sort Title" },
     { value: "item_count", label: "Item Count" },
 ];
 
@@ -99,6 +100,10 @@ const OPERATORS_BY_FIELD: Record<string, { value: string; label: string }[]> = {
         { value: "is_not", label: "is not" },
     ],
     name: [
+        { value: "contains", label: "contains" },
+        { value: "not_contains", label: "does not contain" },
+    ],
+    sort_title: [
         { value: "contains", label: "contains" },
         { value: "not_contains", label: "does not contain" },
     ],
@@ -409,9 +414,9 @@ export default function SmartGroupDetailPage() {
 
     const hasRuleValues = form.rules.some((r) => r.values.length > 0);
     const previewCollections = preview?.collections ?? [];
-    const PREVIEW_LIMIT = 8;
+    const PREVIEW_LIMIT = 15;
     const hasOverflow = previewCollections.length > PREVIEW_LIMIT;
-    // When collapsed with overflow, show 7 posters + the "+N" tile to fill the grid
+    // When collapsed with overflow, show 14 posters + the "+N" tile to fill the grid
     const visiblePreviewCollections = previewExpanded
         ? previewCollections
         : hasOverflow
@@ -595,7 +600,7 @@ export default function SmartGroupDetailPage() {
                                         />
                                         <span className="text-xs text-slate-400">items</span>
                                     </div>
-                                ) : rule.field === "name" ? (
+                                ) : rule.field === "name" || rule.field === "sort_title" ? (
                                     <div className="space-y-2 rounded-xl border border-blue-400/15 bg-[#0d1a31] px-3 pb-3 pt-2">
                                         {(rule.values as string[]).length > 0 && (
                                             <div className="flex flex-wrap gap-2.5">
@@ -743,8 +748,8 @@ export default function SmartGroupDetailPage() {
                     </div>
 
                     {!preview ? (
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                            {Array.from({ length: 8 }).map((_, idx) => (
+                        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+                            {Array.from({ length: 15 }).map((_, idx) => (
                                 <div key={idx} className="relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
                                     <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-slate-800 via-slate-700/70 to-slate-800" />
                                 </div>
@@ -757,7 +762,7 @@ export default function SmartGroupDetailPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className={`grid grid-cols-2 gap-2.5 sm:grid-cols-4 transition-opacity duration-300 ${previewLoading ? "opacity-40" : "opacity-100"}`}>
+                        <div className={`grid grid-cols-3 gap-2.5 sm:grid-cols-5 transition-opacity duration-300 ${previewLoading ? "opacity-40" : "opacity-100"}`}>
                             {visiblePreviewCollections.map((col, idx) => {
                                 const posterLoaded = !col.poster_url || loadedPreviewPosters[col.name];
                                 return (
