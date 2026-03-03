@@ -13,7 +13,6 @@ import {
     Lightbulb,
     List,
     Loader2,
-    Minus,
     Pencil,
     Plus,
     RefreshCw,
@@ -24,6 +23,7 @@ import {
     Trash2,
 } from "lucide-react";
 import { Listbox, Switch } from "@headlessui/react";
+import { Slider } from "../components/ui/slider";
 import {
     DndContext,
     closestCenter,
@@ -1116,54 +1116,30 @@ export default function GroupsPage() {
                         <hr className="border-slate-700/50" />
 
                         {/* Max Collections */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-white">Max Collections</label>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-white">Max Collections</label>
+                                <span className="text-xs font-medium text-slate-300 tabular-nums">
+                                    {rotationSettings?.max_collections ?? 1}
+                                </span>
+                            </div>
                             <p className="text-xs text-slate-400">
                                 Limit the number of collections displayed.
                             </p>
-                            <div className="flex items-center gap-3 mt-2">
-                                <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
-                                    <button
-                                        type="button"
-                                        disabled={!rotationSettings || rotationSettings.max_collections <= 1}
-                                        onClick={() => {
-                                            setMaxCollectionsInput((prev) => String(Math.max(1, Number(prev) - 1)));
-                                            saveRotationField({ max_collections: (rotationSettings?.max_collections ?? 1) - 1 });
-                                        }}
-                                        className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <Minus className="h-4 w-4" />
-                                    </button>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={maxCollectionsInput}
-                                        onChange={(e) => setMaxCollectionsInput(e.target.value)}
-                                        onBlur={() => {
-                                            const val = parseInt(maxCollectionsInput, 10);
-                                            if (!Number.isNaN(val) && val >= 1 && rotationSettings) {
-                                                setMaxCollectionsInput(String(val));
-                                                saveRotationField({ max_collections: val });
-                                            } else {
-                                                // Revert to current value
-                                                setMaxCollectionsInput(String(rotationSettings?.max_collections ?? ""));
-                                            }
-                                        }}
-                                        className="w-12 text-center text-sm font-semibold text-white tabular-nums bg-transparent border-none outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                    />
-                                    <button
-                                        type="button"
-                                        disabled={!rotationSettings}
-                                        onClick={() => {
-                                            setMaxCollectionsInput((prev) => String(Number(prev) + 1));
-                                            saveRotationField({ max_collections: (rotationSettings?.max_collections ?? 0) + 1 });
-                                        }}
-                                        className="flex items-center justify-center h-10 w-10 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <span className="text-sm text-slate-400">items visible</span>
+                            <Slider
+                                min={1}
+                                max={20}
+                                step={1}
+                                value={[rotationSettings?.max_collections ?? 1]}
+                                onValueChange={([val]) => {
+                                    setMaxCollectionsInput(String(val));
+                                    saveRotationField({ max_collections: val });
+                                }}
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-600">
+                                <span>1</span>
+                                <span>10</span>
+                                <span>20</span>
                             </div>
                         </div>
 

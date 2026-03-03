@@ -9,6 +9,7 @@ import {
     ChevronDown,
     CircleDot,
     Compass,
+    Eye,
     Home,
     Loader2,
     Minus,
@@ -863,7 +864,10 @@ export default function SmartGroupDetailPage() {
                     <SheetBody>
                         {/* Rotation Rules */}
                         <div className="space-y-4">
-                            <label className="text-sm font-medium text-white">Rotation Rules</label>
+                            <div className="flex items-center gap-2">
+                                <SlidersHorizontal className="h-4 w-4 text-primary" />
+                                <label className="text-base font-medium text-white">Rotation Rules</label>
+                            </div>
 
                             {/* Pick range slider */}
                             <div className="space-y-3">
@@ -915,7 +919,10 @@ export default function SmartGroupDetailPage() {
 
                         {/* Visibility */}
                         <div className="space-y-3">
-                            <label className="text-sm font-medium text-white">Visibility</label>
+                            <div className="flex items-center gap-2">
+                                <Eye className="h-4 w-4 text-primary" />
+                                <label className="text-base font-medium text-white">Visibility</label>
+                            </div>
                             <p className="text-xs text-slate-400">Control where collections from this group appear on Plex.</p>
                             <div className="grid grid-cols-3 gap-2">
                                 {([
@@ -965,7 +972,7 @@ export default function SmartGroupDetailPage() {
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                 <ArrowUpDown className="h-4 w-4 text-primary" />
-                                <label className="text-sm font-medium text-white">Collection Sort</label>
+                                <label className="text-base font-medium text-white">Collection Sort</label>
                             </div>
                             <p className="text-xs text-slate-400">Sort order for items within a collection when gets selected.</p>
                             <div className="grid grid-cols-3 gap-2">
