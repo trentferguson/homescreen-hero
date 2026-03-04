@@ -223,8 +223,8 @@ class TestIsBlacklisted:
 class TestGetOrderedGroups:
     """Tests for _get_ordered_groups function"""
 
-    def test_random_strategy_sorts_by_display_order(self):
-        """Random strategy should sort groups by display_order"""
+    def test_display_order_sorts_by_display_order(self):
+        """display_order group_order should sort groups by display_order"""
         groups = [
             CollectionGroupConfig(
                 name="Group A",
@@ -249,7 +249,7 @@ class TestGetOrderedGroups:
             ),
         ]
         rng = random.Random(42)
-        ordered = _get_ordered_groups(groups, "random", rng)
+        ordered = _get_ordered_groups(groups, "display_order", rng)
 
         # Should be sorted by display_order, not config order or weight
         assert ordered[0].name == "Group B"
@@ -439,7 +439,7 @@ def _make_test_config(
     groups: list,
     max_collections: int = 10,
     per_library_limits: dict = None,
-    strategy: str = "random",
+    group_order: str = "display_order",
     allow_repeats: bool = True,
     blacklisted_collections: list = None,
 ) -> AppConfig:
@@ -456,7 +456,7 @@ def _make_test_config(
         rotation=RotationSettings(
             enabled=True,
             max_collections=max_collections,
-            strategy=strategy,
+            group_order=group_order,
             allow_repeats=allow_repeats,
             blacklisted_collections=blacklisted_collections or [],
             per_library_limits=per_library_limits or {},
@@ -739,7 +739,7 @@ class TestAutoRotationPerLibraryLimits:
         result = run_auto_rotation_with_history(
             all_collections,
             max_collections=5,
-            strategy="random",
+            collection_selection="random",
             blacklisted_collections=[],
             allow_repeats=True,
             last_rotation_collections=[],
@@ -763,7 +763,7 @@ class TestAutoRotationPerLibraryLimits:
         result = run_auto_rotation_with_history(
             all_collections,
             max_collections=5,
-            strategy="random",
+            collection_selection="random",
             blacklisted_collections=[],
             allow_repeats=True,
             last_rotation_collections=[],
@@ -787,7 +787,7 @@ class TestAutoRotationPerLibraryLimits:
         result = run_auto_rotation_with_history(
             all_collections,
             max_collections=4,
-            strategy="random",
+            collection_selection="random",
             blacklisted_collections=[],
             allow_repeats=True,
             last_rotation_collections=[],
@@ -811,7 +811,7 @@ class TestAutoRotationPerLibraryLimits:
         result = run_auto_rotation_with_history(
             all_collections,
             max_collections=3,
-            strategy="random",
+            collection_selection="random",
             blacklisted_collections=[],
             allow_repeats=True,
             last_rotation_collections=[],

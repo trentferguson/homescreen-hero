@@ -21,71 +21,44 @@ logger = logging.getLogger(__name__)
 
 def _get_ordered_groups(
     groups: List[CollectionGroupConfig],
-    strategy: str,
+    group_order: str,
     rng: random.Random,
-    randomize: bool = False,
 ) -> List[CollectionGroupConfig]:
-    """
-    Order groups based on the selection strategy.
-
-    Args:
-        groups: List of all groups from config
-        strategy: Selection strategy ('random', 'weighted', or 'lru')
-        rng: Random number generator for reproducibility
-        randomize: Shuffle group order each rotation
-
-    Returns:
-        Ordered list of groups to process
-    """
-    if randomize:
+    # Order groups based on the group_order setting.
+    if group_order == "random":
         logger.debug("Randomizing group processing order")
         shuffled = list(groups)
         rng.shuffle(shuffled)
         return shuffled
 
-    if strategy == "weighted":
+    if group_order == "weighted":
         # Sort groups by weight (descending), then by config order for ties
         # Higher weight = processed first = higher priority
-        logger.debug("Using weighted strategy: sorting groups by weight")
+        logger.debug("Using weighted group order: sorting groups by weight")
         return sorted(groups, key=lambda g: (-g.weight, groups.index(g)))
     else:
-        # Default 'random' and 'lru' strategies: sort by display_order so
-        # drag-reordering in the UI controls processing priority too
-        logger.debug(f"Using {strategy} strategy: sorting by display_order")
+        # Default 'display_order': sort by display_order so
+        # drag-reordering in the UI controls processing priority
+        logger.debug("Using display_order group order")
         return sorted(groups, key=lambda g: g.display_order)
 
 
 def _select_collections_from_group(
     available: List[str],
     k: int,
-    strategy: str,
+    collection_selection: str,
     usage_map: Dict[str, CollectionUsage],
     rng: random.Random,
 ) -> List[str]:
-    """
-    Select k collections from the available list based on strategy.
-
-    Args:
-        available: List of collection names to choose from
-        k: Number of collections to select
-        strategy: Selection strategy ('random', 'weighted', or 'lru')
-        usage_map: Mapping of collection names to usage data
-        rng: Random number generator for reproducibility
-
-    Returns:
-        List of selected collection names
-    """
-    if strategy == "lru":
+    # Select k collections from the available list based on collection_selection method.
+    if collection_selection == "lru":
         # Sort by last_rotation_id (ascending), prioritizing least recently used
         # Collections never used (None) are sorted first
         def sort_key(collection_name: str) -> Tuple[int, int]:
             usage = usage_map.get(collection_name)
             if usage is None or usage.last_rotation_id is None:
-                # Never used - highest priority (sort first)
                 return (0, 0)
             else:
-                # Used before - sort by rotation ID (older = higher priority)
-                # Secondary sort by times_used (less used = higher priority)
                 return (1, usage.last_rotation_id)
 
         sorted_collections = sorted(available, key=sort_key)
@@ -238,10 +211,9 @@ def run_rotation_with_history(
         "Starting rotation with history: %d max rotations observed", max_rotation_id
     )
 
-    # Order groups based on strategy
+    # Order groups based on group_order setting
     ordered_groups = _get_ordered_groups(
-        config.groups, config.rotation.strategy, rng,
-        randomize=config.rotation.randomize_group_order,
+        config.groups, config.rotation.group_order, rng,
     )
 
     for group in ordered_groups:
@@ -327,7 +299,10 @@ def run_rotation_with_history(
             group_results.append(result)
             continue
 
-        # Select collections based on strategy
+        # Resolve per-group collection selection
+        group_selection = group.collection_selection
+
+        # Select collections based on collection_selection method
         # When per-library limits are set, use iterative selection to respect limits
         if per_library_limits:
             chosen = []
@@ -338,7 +313,7 @@ def run_rotation_with_history(
                 if not eligible:
                     break
                 pick = _select_collections_from_group(
-                    eligible, 1, config.rotation.strategy, usage_map, rng
+                    eligible, 1, group_selection, usage_map, rng
                 )
                 if not pick:
                     break
@@ -350,7 +325,7 @@ def run_rotation_with_history(
                     library_counts[lib] += 1
         else:
             chosen = _select_collections_from_group(
-                available, k, config.rotation.strategy, usage_map, rng
+                available, k, group_selection, usage_map, rng
             )
             # Update library counts for selected collections
             for coll in chosen:
@@ -398,7 +373,7 @@ def run_auto_rotation_with_history(
     all_collections: List[str],
     *,
     max_collections: int,
-    strategy: str,
+    collection_selection: str,
     blacklisted_collections: List[str],
     allow_repeats: bool,
     last_rotation_collections: List[str],
@@ -485,7 +460,7 @@ def run_auto_rotation_with_history(
             if not eligible:
                 break
             # Select one collection
-            chosen = _select_collections_from_group(eligible, 1, strategy, usage_map, rng)
+            chosen = _select_collections_from_group(eligible, 1, collection_selection, usage_map, rng)
             if not chosen:
                 break
             coll = chosen[0]
@@ -500,7 +475,7 @@ def run_auto_rotation_with_history(
         k = min(max_collections, len(available))
         if k > 0:
             selected = _select_collections_from_group(
-                available, k, strategy, usage_map, rng
+                available, k, collection_selection, usage_map, rng
             )
             # Track library counts for the result
             for coll in selected:
@@ -562,13 +537,11 @@ def run_rotation_dry(
     selected_set: Set[str] = set()
     group_results: List[GroupSelectionResult] = []
 
-    # Groups are ordered based on strategy (weighted or random/config order)
     logger.info("Starting dry rotation for %d groups", len(config.groups))
 
-    # Order groups based on strategy
+    # Order groups based on group_order setting
     ordered_groups = _get_ordered_groups(
-        config.groups, config.rotation.strategy, rng,
-        randomize=config.rotation.randomize_group_order,
+        config.groups, config.rotation.group_order, rng,
     )
 
     # For dry run, we don't have usage history, so use empty map
@@ -644,9 +617,11 @@ def run_rotation_dry(
             group_results.append(result)
             continue
 
-        # Select collections based on strategy
+        # Resolve per-group collection selection
+        group_selection = group.collection_selection
+
         chosen = _select_collections_from_group(
-            available, k, config.rotation.strategy, usage_map, rng
+            available, k, group_selection, usage_map, rng
         )
 
         selected.extend(chosen)
@@ -804,9 +779,15 @@ def order_collections_for_display(
         ),
     )
 
-    # Shuffle within each group bucket
-    for bucket in group_buckets.values():
-        rng.shuffle(bucket)
+    # Order collections within each group bucket based on collection_order
+    for gn in sorted_group_names:
+        bucket = group_buckets[gn]
+        group_cfg = next((g for g in config.groups if g.name == gn), None)
+        coll_order = group_cfg.collection_order if group_cfg else None
+        if coll_order == "alpha":
+            bucket.sort()
+        else:
+            rng.shuffle(bucket)
 
     if mode == "merged":
         # Round-robin across groups

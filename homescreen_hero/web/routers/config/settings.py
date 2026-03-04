@@ -559,14 +559,18 @@ def save_rotation_settings(
             enabled=payload.enabled,
             interval_hours=payload.interval_hours,
             max_collections=payload.max_collections,
-            strategy=payload.strategy,
+            group_order=payload.group_order,
             allow_repeats=payload.allow_repeats,
             sync_all_on_rotation=payload.sync_all_on_rotation,
             blacklisted_collections=payload.blacklisted_collections,
             auto_rotate=payload.auto_rotate.model_dump(),
-            randomize_group_order=payload.randomize_group_order,
             per_library_limits=payload.per_library_limits,
         )
+
+        # Clean up legacy/deprecated fields from YAML
+        rotation_section.pop("strategy", None)
+        rotation_section.pop("randomize_group_order", None)
+        rotation_section.pop("collection_selection", None)
 
         data["rotation"] = rotation_section
         save_config_mapping(data)

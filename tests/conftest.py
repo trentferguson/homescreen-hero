@@ -28,7 +28,6 @@ def sample_config():
             enabled=True,
             interval_hours=12,
             max_collections=5,
-            strategy="random",
             allow_repeats=False,
         ),
         groups=[

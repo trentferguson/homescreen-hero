@@ -103,12 +103,11 @@ type RotationSettings = {
     enabled: boolean;
     interval_hours: number;
     max_collections: number;
-    strategy: string;
+    group_order: string;
     allow_repeats: boolean;
     sync_all_on_rotation: boolean;
     blacklisted_collections: string[];
     auto_rotate: AutoRotateSettings;
-    randomize_group_order: boolean;
 };
 
 const defaultAutoRotate: AutoRotateSettings = {
@@ -213,7 +212,7 @@ export default function GroupsPage() {
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
     const [layoutModalOpen, setLayoutModalOpen] = useState(false);
     const [savingDisplay, setSavingDisplay] = useState(false);
-    const [maxCollectionsInput, setMaxCollectionsInput] = useState("");
+    const [_maxCollectionsInput, setMaxCollectionsInput] = useState("");
 
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode);
@@ -1145,34 +1144,34 @@ export default function GroupsPage() {
 
                         <hr className="border-slate-700/50" />
 
-                        {/* Selection Strategy */}
+                        {/* Group Order */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-white">Selection Strategy</label>
+                            <label className="text-sm font-medium text-white">Group Order</label>
                             <p className="text-xs text-slate-400">
-                                Determine how groups are ordered and how collections are picked within each group.
+                                How groups are ordered for processing during rotation.
                             </p>
                             <Listbox
-                                value={rotationSettings?.strategy ?? "random"}
-                                onChange={(val) => saveRotationField({ strategy: val })}
+                                value={rotationSettings?.group_order ?? "display_order"}
+                                onChange={(val) => saveRotationField({ group_order: val })}
                                 disabled={!rotationSettings}
                             >
                                 <div className="relative mt-2">
                                     <Listbox.Button className="flex items-center gap-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/70 transition-colors">
                                         <span className="flex-1 text-left">
-                                            {rotationSettings?.strategy === "weighted" ? "Weighted" :
-                                             rotationSettings?.strategy === "lru" ? "Least Recently Used" :
-                                             "Random"}
+                                            {rotationSettings?.group_order === "weighted" ? "Weighted" :
+                                             rotationSettings?.group_order === "random" ? "Random" :
+                                             "Display Order"}
                                         </span>
                                         <ChevronDown className="h-4 w-4 text-slate-400" />
                                     </Listbox.Button>
                                     <Listbox.Options className="absolute left-0 z-10 mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 py-1 shadow-lg focus:outline-none">
                                         <Listbox.Option
-                                            value="random"
+                                            value="display_order"
                                             className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
                                         >
                                             {({ selected }) => (
                                                 <>
-                                                    <span>Random</span>
+                                                    <span>Display Order</span>
                                                     {selected && <Check className="h-4 w-4 text-white" />}
                                                 </>
                                             )}
@@ -1189,12 +1188,12 @@ export default function GroupsPage() {
                                             )}
                                         </Listbox.Option>
                                         <Listbox.Option
-                                            value="lru"
+                                            value="random"
                                             className="cursor-pointer px-3 py-2 text-sm text-white hover:bg-slate-700 data-[selected]:bg-primary data-[selected]:font-semibold flex items-center justify-between"
                                         >
                                             {({ selected }) => (
                                                 <>
-                                                    <span>Least Recently Used</span>
+                                                    <span>Random</span>
                                                     {selected && <Check className="h-4 w-4 text-white" />}
                                                 </>
                                             )}
@@ -1202,59 +1201,26 @@ export default function GroupsPage() {
                                     </Listbox.Options>
                                 </div>
                             </Listbox>
-                            {rotationSettings?.strategy === "random" && (
+                            {rotationSettings?.group_order === "display_order" && (
                                 <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
                                     <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
-                                    <p className="text-xs text-blue-200">Groups are processed in display order. Collections are picked randomly within each group.</p>
+                                    <p className="text-xs text-blue-200">Groups are processed in the order shown on this page. Drag to reorder.</p>
                                 </div>
                             )}
-                            {rotationSettings?.strategy === "weighted" && (
+                            {rotationSettings?.group_order === "weighted" && (
                                 <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
                                     <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
-                                    <p className="text-xs text-blue-200">Groups with higher weight are prioritized first. Collections are picked randomly within each group.</p>
+                                    <p className="text-xs text-blue-200">Groups with higher weight are prioritized first.</p>
                                 </div>
                             )}
-                            {rotationSettings?.strategy === "lru" && (
-                                <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
-                                    <Lightbulb className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
-                                    <p className="text-xs text-blue-200">Groups are processed in display order. Collections that haven't been featured recently are picked first.</p>
-                                </div>
-                            )}
-                        </div>
-
-                        <hr className="border-slate-700/50" />
-
-                        {/* Randomize Group Order */}
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium text-white">Randomize Group Order</label>
-                                    <p className="text-xs text-slate-400">
-                                        Shuffle which groups get priority each rotation so no single group always dominates.
-                                    </p>
-                                </div>
-                                <Switch
-                                    checked={rotationSettings?.randomize_group_order ?? false}
-                                    onChange={(val) => saveRotationField({ randomize_group_order: val })}
-                                    disabled={!rotationSettings}
-                                    className={`${
-                                        rotationSettings?.randomize_group_order ? "bg-primary" : "bg-slate-700"
-                                    } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/70 disabled:opacity-60 shrink-0 ml-4`}
-                                >
-                                    <span
-                                        className={`${
-                                            rotationSettings?.randomize_group_order ? "translate-x-6" : "translate-x-1"
-                                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                                    />
-                                </Switch>
-                            </div>
-                            {rotationSettings?.randomize_group_order && (
+                            {rotationSettings?.group_order === "random" && (
                                 <div className="flex items-center gap-2.5 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2.5">
                                     <Shuffle className="h-4 w-4 text-slate-300 shrink-0" strokeWidth={1.5} />
-                                    <p className="text-xs text-blue-200">Group processing order will be shuffled each rotation, overriding display order and weight-based sorting.</p>
+                                    <p className="text-xs text-blue-200">Group processing order is shuffled each rotation so no single group always dominates.</p>
                                 </div>
                             )}
                         </div>
+
                     </SheetBody>
                 </SheetContent>
             </Sheet>

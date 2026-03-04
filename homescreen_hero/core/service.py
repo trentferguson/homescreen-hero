@@ -115,7 +115,8 @@ def _run_auto_rotation(
     return run_auto_rotation_with_history(
         all_collection_names,
         max_collections=config.rotation.max_collections,
-        strategy=config.rotation.strategy,
+        # Auto-rotate has no groups, so collection selection is always random.
+        collection_selection="random",
         blacklisted_collections=config.rotation.blacklisted_collections,
         allow_repeats=config.rotation.allow_repeats,
         last_rotation_collections=last_rotation_collections,

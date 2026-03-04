@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2 } from "lucide-react";
+import { InfoTooltip } from "../components/ui/info-tooltip";
 import { Listbox } from "@headlessui/react";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import {
@@ -33,6 +34,8 @@ type CollectionGroup = {
     visibility_home: boolean;
     visibility_shared: boolean;
     visibility_recommended: boolean;
+    collection_selection?: "random" | "lru";
+    collection_order?: "random" | "alpha" | null;
     collection_sort?: "release" | "alpha" | null;
     date_range?: DateRange | null;
     collections: string[];
@@ -65,6 +68,8 @@ const emptyGroup: CollectionGroup = {
     visibility_home: true,
     visibility_shared: false,
     visibility_recommended: false,
+    collection_selection: "random",
+    collection_order: null,
     collection_sort: null,
     date_range: null,
     collections: [],
@@ -114,11 +119,11 @@ export default function GroupDetailPage() {
 
         if (!Number.isNaN(parsedIndex) && groups[parsedIndex]) {
             setSelectedIndex(parsedIndex);
-            setForm(groups[parsedIndex]);
+            setForm({ ...groups[parsedIndex] });
             savedFormRef.current = JSON.stringify(groups[parsedIndex]);
         } else if (groups.length) {
             setSelectedIndex(0);
-            setForm(groups[0]);
+            setForm({ ...groups[0] });
             savedFormRef.current = JSON.stringify(groups[0]);
         } else {
             setSelectedIndex("new");
@@ -839,35 +844,104 @@ export default function GroupDetailPage() {
 
                         <hr className="border-slate-700/50" />
 
-                        {/* Collection Sort */}
-                        <div className="space-y-3">
+                        {/* Collection Settings */}
+                        <div className="space-y-4">
                             <div className="flex items-center gap-2">
                                 <ArrowUpDown className="h-4 w-4 text-primary" />
-                                <label className="text-base font-medium text-white">Collection Sort</label>
+                                <label className="text-base font-medium text-white">Collection Settings</label>
                             </div>
-                            <p className="text-xs text-slate-400">Sort order for items within a collection when gets selected.</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                {([
-                                    { value: null, label: "Default" },
-                                    { value: "release" as const, label: "Release" },
-                                    { value: "alpha" as const, label: "Alpha" },
-                                ]).map(({ value, label }) => {
-                                    const isSelected = form.collection_sort === value;
-                                    return (
-                                        <button
-                                            key={label}
-                                            type="button"
-                                            onClick={() => setForm((p) => ({ ...p, collection_sort: value }))}
-                                            className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 transition-all duration-200 ${
-                                                isSelected
-                                                    ? "border-primary bg-primary/15"
-                                                    : "border-slate-700 bg-slate-900 hover:border-slate-600"
-                                            }`}
-                                        >
-                                            <span className={`text-sm font-medium ${isSelected ? "text-white" : "text-slate-300"}`}>{label}</span>
-                                        </button>
-                                    );
-                                })}
+
+                            <div className="space-y-3">
+                                {/* Selection */}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-sm text-slate-300">Selection</span>
+                                        <InfoTooltip text="How collections are picked from this group during rotation." />
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        {([
+                                            { value: "random" as const, label: "Random" },
+                                            { value: "lru" as const, label: "LRU" },
+                                        ]).map(({ value, label }) => {
+                                            const isSelected = form.collection_selection === value;
+                                            return (
+                                                <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => setForm((p) => ({ ...p, collection_selection: value }))}
+                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/15 text-white"
+                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Order */}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-sm text-slate-300">Order</span>
+                                        <InfoTooltip text="Display order of picked collections on the homescreen within this group." />
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        {([
+                                            { value: null, label: "Random" },
+                                            { value: "alpha" as const, label: "Alpha" },
+                                        ]).map(({ value, label }) => {
+                                            const isSelected = form.collection_order === value;
+                                            return (
+                                                <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => setForm((p) => ({ ...p, collection_order: value }))}
+                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/15 text-white"
+                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Sort */}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-sm text-slate-300">Sort</span>
+                                        <InfoTooltip text="Sort order for items within a collection when it gets selected." />
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                        {([
+                                            { value: null, label: "Default" },
+                                            { value: "release" as const, label: "Release" },
+                                            { value: "alpha" as const, label: "Alpha" },
+                                        ]).map(({ value, label }) => {
+                                            const isSelected = form.collection_sort === value;
+                                            return (
+                                                <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => setForm((p) => ({ ...p, collection_sort: value }))}
+                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                        isSelected
+                                                            ? "border-primary bg-primary/15 text-white"
+                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </SheetBody>

@@ -31,7 +31,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=3,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -66,7 +65,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=3,  # Global max
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -106,7 +104,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=2,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -145,7 +142,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=5,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -193,7 +189,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=5,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -234,7 +229,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=10,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -267,7 +261,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=5,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -300,7 +293,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=10,
-                strategy="random"
             ),
             groups=[
                 CollectionGroupConfig(
@@ -339,7 +331,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=5,
-                strategy="random",
                 blacklisted_collections=["Blocked Movie", "Another Blocked"]
             ),
             groups=[
@@ -376,7 +367,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=5,
-                strategy="random",
                 blacklisted_collections=["Movie 1", "Movie 2"]
             ),
             groups=[
@@ -410,7 +400,6 @@ class TestRunRotationWithHistory:
             rotation=RotationSettings(
                 enabled=True,
                 max_collections=10,
-                strategy="random",
                 blacklisted_collections=["Blocked Everywhere"]
             ),
             groups=[

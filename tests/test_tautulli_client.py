@@ -337,7 +337,6 @@ def _make_config(tautulli=None):
             enabled=True,
             interval_hours=12,
             max_collections=5,
-            strategy="random",
         ),
         groups=[
             CollectionGroupConfig(

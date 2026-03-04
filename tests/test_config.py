@@ -73,7 +73,7 @@ class TestRotationSettings:
         assert rotation.enabled is True
         assert rotation.interval_hours == 12
         assert rotation.max_collections == 5
-        assert rotation.strategy == "random"
+        assert rotation.group_order == "display_order"
         assert rotation.allow_repeats is False
         assert rotation.sync_all_on_rotation is True
 
@@ -82,14 +82,14 @@ class TestRotationSettings:
             enabled=False,
             interval_hours=24,
             max_collections=10,
-            strategy="weighted",
+            group_order="weighted",
             allow_repeats=True,
             sync_all_on_rotation=False
         )
         assert rotation.enabled is False
         assert rotation.interval_hours == 24
         assert rotation.max_collections == 10
-        assert rotation.strategy == "weighted"
+        assert rotation.group_order == "weighted"
         assert rotation.allow_repeats is True
         assert rotation.sync_all_on_rotation is False
 
@@ -100,6 +100,14 @@ class TestRotationSettings:
     def test_max_collections_minimum(self):
         with pytest.raises(ValidationError):
             RotationSettings(max_collections=0)
+
+    def test_migrates_legacy_strategy_weighted(self):
+        rotation = RotationSettings.model_validate({"strategy": "weighted"})
+        assert rotation.group_order == "weighted"
+
+    def test_migrates_legacy_strategy_lru_to_display_order(self):
+        rotation = RotationSettings.model_validate({"strategy": "lru"})
+        assert rotation.group_order == "display_order"
 
 
 class TestCollectionGroupConfig:
@@ -142,6 +150,14 @@ class TestCollectionGroupConfig:
         )
         assert group.date_range is not None
         assert group.date_range.start == "12-01"
+
+    def test_collection_selection_defaults_to_random(self):
+        group = CollectionGroupConfig(name="Test", collections=["Test Collection"])
+        assert group.collection_selection == "random"
+
+    def test_collection_selection_null_migrates_to_random(self):
+        group = CollectionGroupConfig(name="Test", collection_selection=None, collections=["Test Collection"])
+        assert group.collection_selection == "random"
 
     def test_requires_name(self):
         with pytest.raises(ValidationError):
