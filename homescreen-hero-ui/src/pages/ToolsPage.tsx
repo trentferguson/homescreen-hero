@@ -42,7 +42,7 @@ const tools: Tool[] = [
     {
         id: "collection-import-export",
         title: "Collection Import / Export",
-        description: "Share or back up collection contents via file or share code",
+        description: "Share collection contents via JSON file or share code",
         icon: ArrowLeftRight,
     },
 ];

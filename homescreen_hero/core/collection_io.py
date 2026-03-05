@@ -210,6 +210,8 @@ def preview_import(
 
         # Check for name conflict
         final_name = _resolve_collection_name(col_name, existing_collections)
+        # Track resolved names so subsequent preview entries mirror apply behavior
+        existing_collections.add(final_name)
 
         matched = 0
         missing = 0

@@ -1152,7 +1152,7 @@ export default function CollectionDetailPage() {
                     open={showExportDialog}
                     onClose={() => setShowExportDialog(false)}
                     library={library}
-                    collectionTitle={decodeURIComponent(collectionTitle)}
+                    collectionTitle={collectionTitle}
                     isSmart={collection?.smart ?? false}
                 />
             )}
