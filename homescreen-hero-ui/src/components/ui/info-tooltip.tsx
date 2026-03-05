@@ -9,8 +9,8 @@ export function InfoTooltip({ text }: { text: string }) {
                     <Info className="h-3.5 w-3.5" />
                 </button>
             </PopoverTrigger>
-            <PopoverContent side="top" className="w-auto max-w-56 px-3 py-2">
-                <p className="text-xs text-slate-300">{text}</p>
+            <PopoverContent side="top" className="w-auto max-w-56 border-slate-600 bg-slate-800 px-3 py-2">
+                <p className="text-xs text-slate-200">{text}</p>
             </PopoverContent>
         </Popover>
     );

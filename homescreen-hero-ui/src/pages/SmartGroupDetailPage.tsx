@@ -987,21 +987,23 @@ export default function SmartGroupDetailPage() {
                                         <span className="text-sm text-slate-300">Selection</span>
                                         <InfoTooltip text="How collections are picked from this group during rotation." />
                                     </div>
-                                    <div className="flex gap-1.5">
+                                    <div className="inline-flex w-56 rounded-lg border border-slate-700 overflow-hidden">
                                         {([
                                             { value: "random" as const, label: "Random" },
-                                            { value: "lru" as const, label: "LRU" },
-                                        ]).map(({ value, label }) => {
+                                            { value: "lru" as const, label: "Least Recent" },
+                                        ]).map(({ value, label }, i, arr) => {
                                             const isSelected = form.collection_selection === value;
                                             return (
                                                 <button
                                                     key={label}
                                                     type="button"
                                                     onClick={() => setForm((p) => ({ ...p, collection_selection: value }))}
-                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                    className={`flex-1 px-3 py-1.5 text-xs font-medium text-center transition-all duration-200 ${
+                                                        i < arr.length - 1 ? "border-r border-slate-700" : ""
+                                                    } ${
                                                         isSelected
-                                                            ? "border-primary bg-primary/15 text-white"
-                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                            ? "bg-primary/15 text-white"
+                                                            : "bg-slate-900 text-slate-400 hover:bg-slate-800"
                                                     }`}
                                                 >
                                                     {label}
@@ -1017,21 +1019,23 @@ export default function SmartGroupDetailPage() {
                                         <span className="text-sm text-slate-300">Order</span>
                                         <InfoTooltip text="Display order of picked collections on the homescreen within this group." />
                                     </div>
-                                    <div className="flex gap-1.5">
+                                    <div className="inline-flex w-56 rounded-lg border border-slate-700 overflow-hidden">
                                         {([
                                             { value: null, label: "Random" },
                                             { value: "alpha" as const, label: "Alpha" },
-                                        ]).map(({ value, label }) => {
+                                        ]).map(({ value, label }, i, arr) => {
                                             const isSelected = form.collection_order === value;
                                             return (
                                                 <button
                                                     key={label}
                                                     type="button"
                                                     onClick={() => setForm((p) => ({ ...p, collection_order: value }))}
-                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                    className={`flex-1 px-3 py-1.5 text-xs font-medium text-center transition-all duration-200 ${
+                                                        i < arr.length - 1 ? "border-r border-slate-700" : ""
+                                                    } ${
                                                         isSelected
-                                                            ? "border-primary bg-primary/15 text-white"
-                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                            ? "bg-primary/15 text-white"
+                                                            : "bg-slate-900 text-slate-400 hover:bg-slate-800"
                                                     }`}
                                                 >
                                                     {label}
@@ -1044,25 +1048,27 @@ export default function SmartGroupDetailPage() {
                                 {/* Sort */}
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-sm text-slate-300">Sort</span>
+                                        <span className="text-sm text-slate-300">Item Sort</span>
                                         <InfoTooltip text="Sort order for items within a collection when it gets selected." />
                                     </div>
-                                    <div className="flex gap-1.5">
+                                    <div className="inline-flex w-56 rounded-lg border border-slate-700 overflow-hidden">
                                         {([
                                             { value: null, label: "Default" },
                                             { value: "release" as const, label: "Release" },
                                             { value: "alpha" as const, label: "Alpha" },
-                                        ]).map(({ value, label }) => {
+                                        ]).map(({ value, label }, i, arr) => {
                                             const isSelected = form.collection_sort === value;
                                             return (
                                                 <button
                                                     key={label}
                                                     type="button"
                                                     onClick={() => setForm((p) => ({ ...p, collection_sort: value }))}
-                                                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                                    className={`flex-1 px-3 py-1.5 text-xs font-medium text-center transition-all duration-200 ${
+                                                        i < arr.length - 1 ? "border-r border-slate-700" : ""
+                                                    } ${
                                                         isSelected
-                                                            ? "border-primary bg-primary/15 text-white"
-                                                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
+                                                            ? "bg-primary/15 text-white"
+                                                            : "bg-slate-900 text-slate-400 hover:bg-slate-800"
                                                     }`}
                                                 >
                                                     {label}
