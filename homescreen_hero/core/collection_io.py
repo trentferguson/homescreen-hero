@@ -247,6 +247,7 @@ def apply_import(
     import_data: dict[str, Any],
     target_library: str,
     import_name: Optional[str] = None,
+    selected_collections: Optional[list[str]] = None,
 ) -> dict[str, Any]:
     # Import collections into Plex, creating them and adding matched items
     section = server.library.section(target_library)
@@ -265,6 +266,10 @@ def apply_import(
         final_name = _resolve_collection_name(col_name, existing_collections)
         # Track so subsequent collections don't conflict
         existing_collections.add(final_name)
+
+        # Skip unselected collections but keep name resolution consistent
+        if selected_collections is not None and col_name not in selected_collections:
+            continue
 
         matched = 0
         missing = 0

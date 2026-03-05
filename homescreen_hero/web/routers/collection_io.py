@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from homescreen_hero.core.auth import CurrentUser, require_admin
@@ -49,6 +49,7 @@ class ImportApplyShareCodeRequest(BaseModel):
     share_code: str
     target_library: str
     import_name: Optional[str] = None
+    selected_collections: Optional[List[str]] = None
 
 
 class CollectionImportResult(BaseModel):
@@ -186,6 +187,7 @@ def import_preview_share_code(
 async def import_apply_file(
     target_library: str,
     import_name: Optional[str] = None,
+    selected_collections: Optional[List[str]] = Query(None),
     file: UploadFile = File(...),
     _current_user: CurrentUser = Depends(require_admin),
 ) -> ImportApplyResponse:
@@ -202,7 +204,11 @@ async def import_apply_file(
     server = get_plex_server(config)
 
     try:
-        result = apply_import(server, import_data, target_library, import_name=import_name)
+        result = apply_import(
+            server, import_data, target_library,
+            import_name=import_name,
+            selected_collections=selected_collections,
+        )
     except Exception as e:
         logger.error("Import apply failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
@@ -230,6 +236,7 @@ def import_apply_share_code(
         result = apply_import(
             server, import_data, request.target_library,
             import_name=request.import_name,
+            selected_collections=request.selected_collections,
         )
     except Exception as e:
         logger.error("Import apply failed: %s", e)

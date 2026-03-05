@@ -72,53 +72,55 @@ export default function CollectionImportExport({ onClose }: CollectionImportExpo
     }, []);
 
     return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-xl">
-                <DialogHeader>
-                    <div>
-                        <DialogTitle>Collection Import / Export</DialogTitle>
-                        <DialogDescription>Share collections with others or import from a file or share code</DialogDescription>
+        <>
+            <Dialog open onOpenChange={(open) => !open && onClose()}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <div>
+                            <DialogTitle>Collection Import / Export</DialogTitle>
+                            <DialogDescription>Share collections with others or import from a file or share code</DialogDescription>
+                        </div>
+                        <DialogCloseButton />
+                    </DialogHeader>
+
+                    {/* Tabs */}
+                    <div className="flex border-b border-slate-800/80">
+                        <button
+                            onClick={() => setActiveTab("export")}
+                            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                activeTab === "export"
+                                    ? "text-primary border-b-2 border-primary"
+                                    : "text-slate-400 hover:text-slate-200"
+                            }`}
+                        >
+                            Export
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("import")}
+                            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                                activeTab === "import"
+                                    ? "text-primary border-b-2 border-primary"
+                                    : "text-slate-400 hover:text-slate-200"
+                            }`}
+                        >
+                            Import
+                        </button>
                     </div>
-                    <DialogCloseButton />
-                </DialogHeader>
 
-                {/* Tabs */}
-                <div className="flex border-b border-slate-800/80">
-                    <button
-                        onClick={() => setActiveTab("export")}
-                        className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                            activeTab === "export"
-                                ? "text-primary border-b-2 border-primary"
-                                : "text-slate-400 hover:text-slate-200"
-                        }`}
-                    >
-                        Export
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("import")}
-                        className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                            activeTab === "import"
-                                ? "text-primary border-b-2 border-primary"
-                                : "text-slate-400 hover:text-slate-200"
-                        }`}
-                    >
-                        Import
-                    </button>
-                </div>
+                    <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin">
+                        {activeTab === "export" ? (
+                            <ExportTab libraries={libraries} setToast={setToast} />
+                        ) : (
+                            <ImportTab libraries={libraries} setToast={setToast} />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
-                <div className="p-6 overflow-y-auto max-h-[60vh] scrollbar-thin">
-                    {activeTab === "export" ? (
-                        <ExportTab libraries={libraries} setToast={setToast} />
-                    ) : (
-                        <ImportTab libraries={libraries} setToast={setToast} />
-                    )}
-                </div>
-
-                {toast && (
-                    <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-                )}
-            </DialogContent>
-        </Dialog>
+            {toast && (
+                <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+            )}
+        </>
     );
 }
 
@@ -408,6 +410,7 @@ function ImportTab({
 
     const [previewing, setPreviewing] = useState(false);
     const [previewResults, setPreviewResults] = useState<PreviewResult[] | null>(null);
+    const [selectedForImport, setSelectedForImport] = useState<Set<string>>(new Set());
     const [importing, setImporting] = useState(false);
     const [importResults, setImportResults] = useState<ImportResult[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -444,7 +447,12 @@ function ImportTab({
 
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
-            setPreviewResults(data.collections);
+            const collections = data.collections as PreviewResult[];
+            setPreviewResults(collections);
+            // Default-select collections that have at least one match
+            setSelectedForImport(
+                new Set(collections.filter((c) => c.matched > 0).map((c) => c.original_name))
+            );
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : "Preview failed");
         } finally {
@@ -457,15 +465,18 @@ function ImportTab({
         setImporting(true);
         setError(null);
 
+        const selected = selectedForImport.size > 0 ? Array.from(selectedForImport) : undefined;
+
         try {
             let res: Response;
             if (importMode === "file" && selectedFile) {
                 const formData = new FormData();
                 formData.append("file", selectedFile);
-                res = await fetchWithAuth(
-                    `/api/collections/io/import/apply?target_library=${encodeURIComponent(selectedLibrary)}`,
-                    { method: "POST", body: formData }
-                );
+                let url = `/api/collections/io/import/apply?target_library=${encodeURIComponent(selectedLibrary)}`;
+                if (selected) {
+                    url += selected.map((n) => `&selected_collections=${encodeURIComponent(n)}`).join("");
+                }
+                res = await fetchWithAuth(url, { method: "POST", body: formData });
             } else {
                 res = await fetchWithAuth("/api/collections/io/import/apply/share-code", {
                     method: "POST",
@@ -473,6 +484,7 @@ function ImportTab({
                     body: JSON.stringify({
                         share_code: shareCode.trim(),
                         target_library: selectedLibrary,
+                        selected_collections: selected,
                     }),
                 });
             }
@@ -596,37 +608,83 @@ function ImportTab({
             {/* Preview results */}
             {previewResults && (
                 <div className="space-y-3">
-                    <h4 className="text-sm font-medium text-slate-300">Preview</h4>
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-slate-300">
+                            Preview ({selectedForImport.size} of {previewResults.length} selected)
+                        </h4>
+                        <button
+                            onClick={() => {
+                                if (selectedForImport.size === previewResults.length) {
+                                    setSelectedForImport(new Set());
+                                } else {
+                                    setSelectedForImport(new Set(previewResults.map((c) => c.original_name)));
+                                }
+                            }}
+                            className="text-xs text-primary hover:text-blue-400 transition-colors"
+                        >
+                            {selectedForImport.size === previewResults.length ? "Deselect All" : "Select All"}
+                        </button>
+                    </div>
                     <div className="rounded-lg border border-slate-700 bg-slate-800/30 divide-y divide-slate-800">
-                        {previewResults.map((col) => (
-                            <div key={col.original_name} className="px-4 py-3">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className="text-sm text-slate-200 font-medium">
-                                            {col.name_changed ? col.final_name : col.original_name}
-                                        </span>
-                                        {col.name_changed && (
-                                            <span className="ml-2 text-xs text-amber-400">(renamed)</span>
+                        {previewResults.map((col) => {
+                            const isSelected = selectedForImport.has(col.original_name);
+                            return (
+                                <label
+                                    key={col.original_name}
+                                    className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-800/50 transition-colors"
+                                >
+                                    <div
+                                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${
+                                            isSelected
+                                                ? "bg-primary border-primary"
+                                                : "border-slate-600"
+                                        }`}
+                                    >
+                                        {isSelected && <Check size={12} className="text-white" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <span className={`text-sm font-medium ${isSelected ? "text-slate-200" : "text-slate-500"}`}>
+                                                    {col.name_changed ? col.final_name : col.original_name}
+                                                </span>
+                                                {col.name_changed && (
+                                                    <span className="ml-2 text-xs text-amber-400">(renamed)</span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3 text-xs">
+                                                <span className="text-green-400">{col.matched} matched</span>
+                                                {col.missing > 0 && (
+                                                    <span className="text-amber-400">{col.missing} missing</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {col.missing_items && col.missing_items.length > 0 && (
+                                            <div className="mt-2 space-y-1">
+                                                {col.missing_items.map((item, i) => (
+                                                    <p key={i} className="text-xs text-slate-500">
+                                                        {item.title} {item.year ? `(${item.year})` : ""}
+                                                    </p>
+                                                ))}
+                                            </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-3 text-xs">
-                                        <span className="text-green-400">{col.matched} matched</span>
-                                        {col.missing > 0 && (
-                                            <span className="text-amber-400">{col.missing} missing</span>
-                                        )}
-                                    </div>
-                                </div>
-                                {col.missing_items && col.missing_items.length > 0 && (
-                                    <div className="mt-2 space-y-1">
-                                        {col.missing_items.map((item, i) => (
-                                            <p key={i} className="text-xs text-slate-500">
-                                                {item.title} {item.year ? `(${item.year})` : ""}
-                                            </p>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={isSelected}
+                                        onChange={() => {
+                                            setSelectedForImport((prev) => {
+                                                const next = new Set(prev);
+                                                if (next.has(col.original_name)) next.delete(col.original_name);
+                                                else next.add(col.original_name);
+                                                return next;
+                                            });
+                                        }}
+                                    />
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -667,11 +725,11 @@ function ImportTab({
                     </button>
                     <button
                         onClick={handleImport}
-                        disabled={!canPreview || importing}
+                        disabled={!canPreview || importing || (previewResults !== null && selectedForImport.size === 0)}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                        Import
+                        Import{previewResults && selectedForImport.size > 0 ? ` (${selectedForImport.size})` : ""}
                     </button>
                 </div>
             )}
