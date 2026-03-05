@@ -96,6 +96,7 @@ class CollectionOut(BaseModel):
     poster_url: Optional[str] = None
     item_count: int = 0
     is_active: bool = False
+    smart: bool = False
 
 
 class AllCollectionsResponse(BaseModel):
@@ -147,6 +148,7 @@ class CollectionDetailResponse(BaseModel):
     labels: List[str] = []
     collection_mode: Optional[str] = None
     collection_order: Optional[str] = None
+    smart: bool = False
     item_count: int
     items: List[CollectionItemOut]
 
@@ -339,6 +341,7 @@ def get_all_collections(
                         poster_url=poster_url,
                         item_count=item_count,
                         is_active=(col.title in active_names),
+                        smart=bool(getattr(col, "smart", False)),
                     )
                 )
         except Exception as e:
@@ -561,6 +564,7 @@ def get_collection_details(
             labels=labels,
             collection_mode=collection_mode,
             collection_order=collection_order,
+            smart=bool(getattr(collection, "smart", False)),
             item_count=len(collection_items),
             items=collection_items,
         )

@@ -22,6 +22,7 @@ from homescreen_hero.web.routers import (
     logs_router,
     rotation_router,
     collections_router,
+    collection_io_router,
     auth_router,
     analytics_router,
     integrations_router,
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(history_router, prefix="/api")
     app.include_router(logs_router, prefix="/api")
     app.include_router(collections_router, prefix="/api")
+    app.include_router(collection_io_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
     app.include_router(analytics_router, prefix="/api")
     app.include_router(integrations_router, prefix="/api")

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Calendar, Wrench, History, FileSearch, Users } from "lucide-react";
+import { Calendar, Wrench, History, FileSearch, Users, ArrowLeftRight } from "lucide-react";
 import ToolCard from "../components/tools/ToolCard";
 import DateAddedEditor from "../components/tools/DateAddedEditor";
 import WatchHistoryCleaner from "../components/tools/WatchHistoryCleaner";
 import UnwatchedReport from "../components/tools/UnwatchedReport";
 import CopyWatchHistory from "../components/tools/CopyWatchHistory";
+import CollectionImportExport from "../components/tools/CollectionImportExport";
 
 type Tool = {
     id: string;
@@ -37,6 +38,12 @@ const tools: Tool[] = [
         title: "Copy Watch History",
         description: "Copy watched status between Plex Home users",
         icon: Users,
+    },
+    {
+        id: "collection-import-export",
+        title: "Collection Import / Export",
+        description: "Share or back up collection contents via file or share code",
+        icon: ArrowLeftRight,
     },
 ];
 
@@ -86,6 +93,9 @@ export default function ToolsPage() {
             )}
             {activeTool === "copy-watch-history" && (
                 <CopyWatchHistory onClose={() => setActiveTool(null)} />
+            )}
+            {activeTool === "collection-import-export" && (
+                <CollectionImportExport onClose={() => setActiveTool(null)} />
             )}
         </div>
     );

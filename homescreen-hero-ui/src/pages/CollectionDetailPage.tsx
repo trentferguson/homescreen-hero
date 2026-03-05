@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { ArrowLeft, Plus, Trash2, Search, Image, Edit, ChevronDown, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, Image, Edit, ChevronDown, Check, Share2 } from "lucide-react";
+import ExportCollectionDialog from "../components/ExportCollectionDialog";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -34,6 +35,7 @@ type CollectionDetail = {
     labels: string[];
     collection_mode: string | null;
     collection_order: string | null;
+    smart: boolean;
     item_count: number;
     items: CollectionItem[];
 };
@@ -87,6 +89,9 @@ export default function CollectionDetailPage() {
     const [itemPosterUrl, setItemPosterUrl] = useState("");
     const [itemPosterMode, setItemPosterMode] = useState<"upload" | "url">("upload");
     const [uploadingItemPoster, setUploadingItemPoster] = useState(false);
+
+    // Export dialog
+    const [showExportDialog, setShowExportDialog] = useState(false);
 
     useEffect(() => {
         if (library && collectionTitle) {
@@ -441,6 +446,13 @@ export default function CollectionDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setShowExportDialog(true)}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95"
+                        >
+                            <Share2 size={18} />
+                            Export
+                        </button>
                         <button
                             onClick={openEditModal}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-sm font-medium hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95"
@@ -1133,6 +1145,17 @@ export default function CollectionDetailPage() {
                 variant="danger"
                 onConfirm={confirmRemoveItem}
             />
+
+            {/* Export Dialog */}
+            {library && collectionTitle && (
+                <ExportCollectionDialog
+                    open={showExportDialog}
+                    onClose={() => setShowExportDialog(false)}
+                    library={library}
+                    collectionTitle={decodeURIComponent(collectionTitle)}
+                    isSmart={collection?.smart ?? false}
+                />
+            )}
 
             {/* Toast Notification */}
             {toast && (

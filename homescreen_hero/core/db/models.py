@@ -230,6 +230,43 @@ class MALMissingItem(Base):
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class ImportMissingItem(Base):
+    __tablename__ = "import_missing_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Which import this came from
+    import_name: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Where we tried to find it in Plex
+    plex_library: Mapped[str] = mapped_column(String, nullable=False)
+    plex_collection: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Item identity
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    type: Mapped[str] = mapped_column(String, nullable=False, default="movie")
+
+    # External IDs
+    imdb_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tvdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # TV episode/season specifics
+    parent_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    season_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    episode_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Tracking
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
 class CollectionAnalytics(Base):
     # Analytics snapshots for collection watch statistics from Tautulli
     __tablename__ = "collection_analytics"
