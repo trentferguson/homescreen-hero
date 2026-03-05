@@ -212,7 +212,7 @@ export default function GroupsPage() {
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
     const [layoutModalOpen, setLayoutModalOpen] = useState(false);
     const [savingDisplay, setSavingDisplay] = useState(false);
-    const [_maxCollectionsInput, setMaxCollectionsInput] = useState("");
+    const [, setMaxCollectionsInput] = useState("");
 
     const handleViewModeChange = (mode: ViewMode) => {
         setViewMode(mode);
