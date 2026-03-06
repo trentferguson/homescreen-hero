@@ -379,9 +379,10 @@ class SeerrAutoRequest(Base):
     source_name: Mapped[str] = mapped_column(String, nullable=False)
 
     # Result
-    status: Mapped[str] = mapped_column(String, nullable=False)  # "requested", "already_exists", "failed"
+    status: Mapped[str] = mapped_column(String, nullable=False)  # "requested", "already_exists", "failed", "downloaded"
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
 
     requested_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
+    downloaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

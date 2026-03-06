@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Set
 
 import logging
 
@@ -130,6 +130,37 @@ def process_auto_requests_for_source(
         session.commit()
 
     return result
+
+
+def mark_auto_requests_downloaded(tmdb_ids: Set[int], media_type: str) -> int:
+    # Mark previously-requested items as downloaded when they appear in Plex.
+    # Returns the number of rows updated.
+    if not tmdb_ids:
+        return 0
+
+    from homescreen_hero.core.db import get_session
+
+    with get_session() as session:
+        rows = (
+            session.query(SeerrAutoRequest)
+            .filter(
+                SeerrAutoRequest.tmdb_id.in_(tmdb_ids),
+                SeerrAutoRequest.media_type == media_type,
+                SeerrAutoRequest.status == "requested",
+            )
+            .all()
+        )
+
+        for row in rows:
+            row.status = "downloaded"
+            row.downloaded_at = datetime.utcnow()
+            logger.info(
+                "Marked auto-request as downloaded: '%s' (%s) [tmdb:%d]",
+                row.title, row.year, row.tmdb_id,
+            )
+
+        session.commit()
+        return len(rows)
 
 
 def process_all_auto_requests(config: AppConfig) -> dict[str, AutoRequestResult]:

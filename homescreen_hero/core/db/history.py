@@ -24,6 +24,7 @@ def init_db() -> None:
     _migrate_collection_analytics(engine)
     _migrate_pinned_collections_visibility(engine)
     _migrate_users_status(engine)
+    _migrate_seerr_auto_requests_downloaded_at(engine)
 
 
 def _migrate_collection_analytics(engine) -> None:
@@ -95,6 +96,25 @@ def _migrate_users_status(engine) -> None:
     logger.info("Migrating users: adding status column")
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR NOT NULL DEFAULT 'approved'"))
+        conn.commit()
+
+
+def _migrate_seerr_auto_requests_downloaded_at(engine) -> None:
+    # Add downloaded_at column to seerr_auto_requests if it doesn't exist
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    if "seerr_auto_requests" not in inspector.get_table_names():
+        return
+
+    columns = [col["name"] for col in inspector.get_columns("seerr_auto_requests")]
+    if "downloaded_at" in columns:
+        return
+
+    logger.info("Migrating seerr_auto_requests: adding downloaded_at column")
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE seerr_auto_requests ADD COLUMN downloaded_at DATETIME"))
         conn.commit()
 
 

@@ -339,7 +339,7 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
                         {showAutoRequest && (
                             <div className="flex items-center gap-2 mt-1">
                                 <Send size={12} className="text-slate-500" />
-                                <span className="text-xs text-slate-400">Auto-request via Seerr</span>
+                                <span className="text-xs text-slate-400">Auto-request missing items via Seerr</span>
                                 <Switch
                                     checked={source.auto_request ?? false}
                                     onChange={() => {

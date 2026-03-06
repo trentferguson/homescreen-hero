@@ -80,6 +80,7 @@ def sync_single_trakt_source(
     existing_ids = {item.ratingKey for item in existing_collection_items}
 
     matched_items = []
+    matched_tmdb_ids: set[int] = set()
     missing_items: List[Dict[str, Any]] = []
 
     for item in items:
@@ -102,6 +103,8 @@ def sync_single_trakt_source(
 
         if plex_item is not None:
             matched_items.append(plex_item)
+            if ids.get("tmdb"):
+                matched_tmdb_ids.add(ids["tmdb"])
         else:
             missing_items.append(
                 {
@@ -183,6 +186,17 @@ def sync_single_trakt_source(
             )
         except Exception as e:
             logger.error("Seerr auto-request failed for '%s': %s", source.name, e)
+
+    # Mark previously-requested items as downloaded if they now exist in Plex
+    if source.auto_request and matched_tmdb_ids:
+        try:
+            from .seerr_auto_request import mark_auto_requests_downloaded
+            media_type = "movie" if library.type == "movie" else "tv"
+            downloaded = mark_auto_requests_downloaded(matched_tmdb_ids, media_type)
+            if downloaded:
+                logger.info("Marked %d auto-requested items as downloaded for '%s'", downloaded, source.name)
+        except Exception as e:
+            logger.error("Failed to mark downloaded items for '%s': %s", source.name, e)
 
     return total, matched
 
