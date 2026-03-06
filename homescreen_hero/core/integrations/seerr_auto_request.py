@@ -7,7 +7,7 @@ from typing import Optional, Set
 import logging
 
 from homescreen_hero.core.config.schema import AppConfig
-from homescreen_hero.core.db.models import SeerrAutoRequest, TraktMissingItem, MDBListMissingItem
+from homescreen_hero.core.db.models import SeerrAutoRequest, TraktMissingItem, MDBListMissingItem, LetterboxdMissingItem
 from homescreen_hero.core.integrations.seerr_client import get_seerr_client
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ class AutoRequestResult:
 _MISSING_ITEM_MODELS = {
     "trakt": TraktMissingItem,
     "mdblist": MDBListMissingItem,
+    "letterboxd": LetterboxdMissingItem,
 }
 
 
@@ -212,5 +213,27 @@ def process_all_auto_requests(config: AppConfig) -> dict[str, AutoRequestResult]
             except Exception as e:
                 logger.error("Auto-request failed for MDBList source '%s': %s", source.name, e)
                 results[f"mdblist:{source.name}"] = AutoRequestResult(failed=-1)
+
+    # Letterboxd sources
+    if config.letterboxd and config.letterboxd.sources:
+        for source in config.letterboxd.sources:
+            if not source.auto_request:
+                continue
+            try:
+                library = server.library.section(source.plex_library)
+                # Resolve TMDb IDs via Seerr search before requesting
+                from homescreen_hero.core.integrations.seerr_resolve import resolve_letterboxd_tmdb_ids
+                resolve_letterboxd_tmdb_ids(config, source.name)
+
+                result = process_auto_requests_for_source(
+                    config=config,
+                    integration_type="letterboxd",
+                    source_name=source.name,
+                    library_type=library.type,
+                )
+                results[f"letterboxd:{source.name}"] = result
+            except Exception as e:
+                logger.error("Auto-request failed for Letterboxd source '%s': %s", source.name, e)
+                results[f"letterboxd:{source.name}"] = AutoRequestResult(failed=-1)
 
     return results

@@ -104,6 +104,8 @@ export function LetterboxdIntegration() {
                                     statuses={integration.statuses}
                                     onSyncSource={integration.syncSource}
                                     onRemoveSource={integration.removeSource}
+                                    onUpdateSource={integration.updateSource}
+                                    showAutoRequest
                                     loadingSources={integration.loadingSources}
                                     syncingSource={integration.syncingSource}
                                     deletingSource={integration.deletingSource}

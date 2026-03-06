@@ -113,6 +113,9 @@ class LetterboxdMissingItem(Base):
     slug: Mapped[str] = mapped_column(String, nullable=False)
     letterboxd_url: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # TMDb ID resolved via Seerr search (for auto-request)
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # Tracking
     first_seen: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow

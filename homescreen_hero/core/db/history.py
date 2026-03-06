@@ -25,6 +25,7 @@ def init_db() -> None:
     _migrate_pinned_collections_visibility(engine)
     _migrate_users_status(engine)
     _migrate_seerr_auto_requests_downloaded_at(engine)
+    _migrate_letterboxd_missing_items_tmdb_id(engine)
 
 
 def _migrate_collection_analytics(engine) -> None:
@@ -115,6 +116,25 @@ def _migrate_seerr_auto_requests_downloaded_at(engine) -> None:
     logger.info("Migrating seerr_auto_requests: adding downloaded_at column")
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE seerr_auto_requests ADD COLUMN downloaded_at DATETIME"))
+        conn.commit()
+
+
+def _migrate_letterboxd_missing_items_tmdb_id(engine) -> None:
+    # Add tmdb_id column to letterboxd_missing_items if it doesn't exist
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(engine)
+
+    if "letterboxd_missing_items" not in inspector.get_table_names():
+        return
+
+    columns = [col["name"] for col in inspector.get_columns("letterboxd_missing_items")]
+    if "tmdb_id" in columns:
+        return
+
+    logger.info("Migrating letterboxd_missing_items: adding tmdb_id column")
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE letterboxd_missing_items ADD COLUMN tmdb_id INTEGER"))
         conn.commit()
 
 

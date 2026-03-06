@@ -315,6 +315,10 @@ class LetterboxdSource(BaseModel):
     name: str = Field(..., description="Display name for this list")
     url: str = Field(..., description="Full or short Letterboxd list URL")
     plex_library: str = Field(..., description="Target Plex library name")
+    auto_request: bool = Field(
+        default=False,
+        description="Automatically request missing items via Seerr after sync",
+    )
 
 
 class LetterboxdSettings(BaseModel):
