@@ -240,13 +240,13 @@ def record_missing_items_in_db(
     source: TraktSource,
     missing_items: list[dict[str, any]],
 ) -> None:
-    # Store/update records for Trakt titles that weren't found in Plex library
-    if not missing_items:
-        return
-
+    # Store/update records for Trakt titles that weren't found in Plex library,
+    # and remove any previously-missing items that are now matched.
     from homescreen_hero.core.db import get_session
 
     with get_session() as session:
+        now = datetime.utcnow()
+
         for m in missing_items:
             ids = m.get("ids") or {}
             trakt_id = ids.get("trakt")
@@ -269,7 +269,7 @@ def record_missing_items_in_db(
             existing = query.first()
 
             if existing:
-                existing.last_seen = datetime.utcnow()
+                existing.last_seen = now
                 existing.times_seen += 1
             else:
                 row = TraktMissingItem(
@@ -283,10 +283,17 @@ def record_missing_items_in_db(
                     slug=slug,
                     imdb_id=imdb_id,
                     tmdb_id=tmdb_id,
-                    first_seen=datetime.utcnow(),
-                    last_seen=datetime.utcnow(),
+                    first_seen=now,
+                    last_seen=now,
                     times_seen=1,
                 )
                 session.add(row)
+
+        # Remove items no longer missing (not seen in this sync)
+        session.query(TraktMissingItem).filter(
+            TraktMissingItem.source_name == source.name,
+            TraktMissingItem.source_url == source.url,
+            TraktMissingItem.last_seen < now,
+        ).delete()
 
         session.commit()

@@ -311,4 +311,11 @@ def record_missing_items_in_db(
                 )
                 session.add(new_item)
 
+        # Remove items no longer missing (not seen in this sync)
+        session.query(LetterboxdMissingItem).filter(
+            LetterboxdMissingItem.source_name == source.name,
+            LetterboxdMissingItem.source_url == source.url,
+            LetterboxdMissingItem.last_seen < now,
+        ).delete()
+
         session.commit()

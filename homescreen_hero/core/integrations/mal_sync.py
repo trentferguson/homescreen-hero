@@ -291,12 +291,11 @@ def record_missing_items_in_db(
     source: MALSource,
     missing_items: List[Dict[str, Any]],
 ) -> None:
-    if not missing_items:
-        return
-
     from homescreen_hero.core.db import get_session
 
     with get_session() as session:
+        now = datetime.utcnow()
+
         for m in missing_items:
             mal_id = m.get("mal_id")
             title = m.get("title")
@@ -311,7 +310,7 @@ def record_missing_items_in_db(
             ).first()
 
             if existing:
-                existing.last_seen = datetime.utcnow()
+                existing.last_seen = now
                 existing.times_seen += 1
             else:
                 row = MALMissingItem(
@@ -327,10 +326,17 @@ def record_missing_items_in_db(
                     tmdb_id=m.get("tmdb_id"),
                     imdb_id=m.get("imdb_id"),
                     tvdb_id=m.get("tvdb_id"),
-                    first_seen=datetime.utcnow(),
-                    last_seen=datetime.utcnow(),
+                    first_seen=now,
+                    last_seen=now,
                     times_seen=1,
                 )
                 session.add(row)
+
+        # Remove items no longer missing (not seen in this sync)
+        session.query(MALMissingItem).filter(
+            MALMissingItem.source_name == source.name,
+            MALMissingItem.source_url == source.url,
+            MALMissingItem.last_seen < now,
+        ).delete()
 
         session.commit()

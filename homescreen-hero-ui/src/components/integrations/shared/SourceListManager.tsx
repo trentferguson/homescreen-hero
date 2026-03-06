@@ -1,9 +1,12 @@
-import type { ReactNode } from "react";
-import { RefreshCw, ChevronRight, ChevronLeft, ListPlus, Send } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
+import { RefreshCw, ChevronRight, ChevronLeft, ListPlus, Trash2 } from "lucide-react";
 import { Switch } from "@headlessui/react";
 import type { Source, SourceStatus, BaseMissingItem, PlexLibraryConfig } from "../../../types/integrations";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { LibrarySelect } from "./LibrarySelect";
+
+// Grid column template shared by header and rows
+const TABLE_GRID = "md:grid md:grid-cols-[minmax(0,2fr)_140px_150px_180px_80px] md:gap-x-4 md:items-center";
 
 // ─── SourceList (reusable source list without the add form) ─────────────────
 
@@ -56,29 +59,19 @@ export function SourceList<TMissing extends BaseMissingItem>(
 
     if (sources.length === 0) {
         return (
-            <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/30 px-4 py-6 flex items-center gap-4">
-                <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                        <div className="h-4 w-32 rounded bg-slate-800" />
-                        <div className="h-4 w-16 rounded-full bg-slate-800/60" />
-                    </div>
-                    <div className="h-3 w-56 rounded bg-slate-800/40" />
-                    <div className="h-3 w-28 rounded bg-slate-800/40" />
-                </div>
-                <div className="flex flex-col items-center gap-1.5 px-4">
-                    <ListPlus className="h-7 w-7 text-slate-700" />
-                    <p className="text-sm text-slate-400 whitespace-nowrap">No lists added yet</p>
-                </div>
-                <div className="flex gap-2 flex-1 justify-end">
-                    <div className="h-7 w-20 rounded-lg bg-slate-800/40" />
-                    <div className="h-7 w-16 rounded-lg bg-slate-800/40" />
+            <div className="rounded-lg border border-slate-800/60 overflow-hidden">
+                <SourceTableHeader showAutoRequest={showAutoRequest} />
+                <div className="px-4 py-6 flex items-center justify-center gap-3">
+                    <ListPlus className="h-6 w-6 text-slate-700" />
+                    <p className="text-sm text-slate-400">No lists added yet</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-3">
+        <div className="rounded-lg border border-slate-800/60 overflow-hidden">
+            <SourceTableHeader showAutoRequest={showAutoRequest} />
             {sources.map((source, idx) => {
                 const status = statuses.get(idx);
                 const missing = missingItems.get(idx);
@@ -87,25 +80,31 @@ export function SourceList<TMissing extends BaseMissingItem>(
                 const currentPage = missingPages.get(idx) || 0;
 
                 return (
-                    <SourceCard
-                        key={`${source.name}-${idx}`}
-                        source={source}
-                        status={status}
-                        onSync={() => onSyncSource(idx)}
-                        onRemove={() => onRemoveSource(idx)}
-                        onUpdate={onUpdateSource ? (s) => onUpdateSource(idx, s) : undefined}
-                        isSyncing={syncingSource === idx}
-                        isDeleting={deletingSource === idx}
-                        missingItems={missing}
-                        isExpanded={isExpanded}
-                        isLoadingMissing={isLoadingMissing}
-                        currentPage={currentPage}
-                        itemsPerPage={itemsPerPage}
-                        onToggleMissing={() => onToggleMissing(idx)}
-                        onSetPage={(page) => onSetMissingPage(idx, page)}
-                        renderMissingItem={renderMissingItem}
-                        showAutoRequest={showAutoRequest}
-                    />
+                    <Fragment key={`${source.name}-${idx}`}>
+                        <SourceTableRow
+                            source={source}
+                            status={status}
+                            onSync={() => onSyncSource(idx)}
+                            onRemove={() => onRemoveSource(idx)}
+                            onUpdate={onUpdateSource ? (s) => onUpdateSource(idx, s) : undefined}
+                            isSyncing={syncingSource === idx}
+                            isDeleting={deletingSource === idx}
+                            isExpanded={isExpanded}
+                            isLoadingMissing={isLoadingMissing}
+                            onToggleMissing={() => onToggleMissing(idx)}
+                            showAutoRequest={showAutoRequest}
+                        />
+                        {isExpanded && (
+                            <ExpandedDetailRow
+                                missingItems={missing}
+                                isLoadingMissing={isLoadingMissing}
+                                currentPage={currentPage}
+                                itemsPerPage={itemsPerPage}
+                                onSetPage={(page) => onSetMissingPage(idx, page)}
+                                renderMissingItem={renderMissingItem}
+                            />
+                        )}
+                    </Fragment>
                 );
             })}
         </div>
@@ -265,9 +264,23 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
     );
 }
 
-// ─── SourceCard (internal) ──────────────────────────────────────────────────
+// ─── Table Header ───────────────────────────────────────────────────────────
 
-interface SourceCardProps<TMissing> {
+function SourceTableHeader({ showAutoRequest }: { showAutoRequest: boolean }) {
+    return (
+        <div className={`hidden ${TABLE_GRID} px-4 py-2.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider border-b border-slate-800/60 bg-slate-900/30`}>
+            <span>List Name & URL</span>
+            <span>Plex Library</span>
+            <span>Last Synced</span>
+            <span>{showAutoRequest ? "Auto-Request" : "Matched"}</span>
+            <span className="text-right">Actions</span>
+        </div>
+    );
+}
+
+// ─── Table Row ──────────────────────────────────────────────────────────────
+
+interface SourceTableRowProps {
     source: Source;
     status: SourceStatus | undefined;
     onSync: () => void;
@@ -275,25 +288,13 @@ interface SourceCardProps<TMissing> {
     onUpdate?: (source: Source) => void;
     isSyncing: boolean;
     isDeleting: boolean;
-    missingItems: TMissing[] | undefined;
     isExpanded: boolean;
     isLoadingMissing: boolean;
-    currentPage: number;
-    itemsPerPage: number;
     onToggleMissing: () => void;
-    onSetPage: (page: number) => void;
-    renderMissingItem: (item: TMissing, index: number) => ReactNode;
-    showAutoRequest?: boolean;
+    showAutoRequest: boolean;
 }
 
-function formatDate(dateString: string | null): string {
-    if (!dateString) return "Never";
-    // Backend stores UTC but without a timezone suffix, so append Z
-    const utcString = dateString.endsWith("Z") ? dateString : dateString + "Z";
-    return new Date(utcString).toLocaleString();
-}
-
-function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMissing>) {
+function SourceTableRow(props: SourceTableRowProps) {
     const {
         source,
         status,
@@ -302,157 +303,280 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
         onUpdate,
         isSyncing,
         isDeleting,
-        missingItems,
         isExpanded,
         isLoadingMissing,
-        currentPage,
-        itemsPerPage,
         onToggleMissing,
-        onSetPage,
-        renderMissingItem,
-        showAutoRequest = false,
+        showAutoRequest,
     } = props;
+
+    return (
+        <>
+            {/* Desktop row */}
+            <div className={`hidden ${TABLE_GRID} px-4 py-3 border-b border-slate-800/40 hover:bg-slate-900/30 transition-colors`}>
+                {/* List Name & URL */}
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-100 truncate">{source.name}</p>
+                        {status && <SyncStatusBadge status={status.sync_status} />}
+                    </div>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{source.url}</p>
+                </div>
+
+                {/* Plex Library */}
+                <span className="text-xs text-slate-300 truncate">{source.plex_library || "(none)"}</span>
+
+                {/* Last Synced */}
+                <span className="text-xs text-slate-400">{formatDate(status?.last_sync_time ?? null)}</span>
+
+                {/* Auto-Request / Matched */}
+                <AutoRequestCell
+                    source={source}
+                    status={status}
+                    showAutoRequest={showAutoRequest}
+                    onUpdate={onUpdate}
+                    isExpanded={isExpanded}
+                    isLoadingMissing={isLoadingMissing}
+                    onToggleMissing={onToggleMissing}
+                />
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-1">
+                    <button
+                        type="button"
+                        onClick={onSync}
+                        disabled={isSyncing}
+                        title="Sync now"
+                        className="p-1.5 rounded-md text-slate-400 hover:text-primary hover:bg-primary/10 transition disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onRemove}
+                        disabled={isDeleting}
+                        title="Remove list"
+                        className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition disabled:opacity-50"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile row */}
+            <div className="md:hidden px-4 py-3 border-b border-slate-800/40 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <p className="text-sm font-semibold text-slate-100 truncate">{source.name}</p>
+                        {status && <SyncStatusBadge status={status.sync_status} />}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            type="button"
+                            onClick={onSync}
+                            disabled={isSyncing}
+                            title="Sync now"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-primary hover:bg-primary/10 transition disabled:opacity-50"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onRemove}
+                            disabled={isDeleting}
+                            title="Remove list"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition disabled:opacity-50"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+                <p className="text-xs text-slate-500 truncate">{source.url}</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-xs text-slate-400">{source.plex_library || "(none)"}</span>
+                    <span className="text-xs text-slate-500">
+                        Synced: {formatDate(status?.last_sync_time ?? null)}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <AutoRequestCell
+                        source={source}
+                        status={status}
+                        showAutoRequest={showAutoRequest}
+                        onUpdate={onUpdate}
+                        isExpanded={isExpanded}
+                        isLoadingMissing={isLoadingMissing}
+                        onToggleMissing={onToggleMissing}
+                    />
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ─── Auto-Request Cell ──────────────────────────────────────────────────────
+
+interface AutoRequestCellProps {
+    source: Source;
+    status: SourceStatus | undefined;
+    showAutoRequest: boolean;
+    onUpdate?: (source: Source) => void;
+    isExpanded: boolean;
+    isLoadingMissing: boolean;
+    onToggleMissing: () => void;
+}
+
+function AutoRequestCell(props: AutoRequestCellProps) {
+    const { source, status, showAutoRequest, onUpdate, isExpanded, isLoadingMissing, onToggleMissing } = props;
+
+    if (!showAutoRequest) {
+        // No auto-request: just show the matched chip
+        return (
+            <MatchedChip
+                status={status}
+                isExpanded={isExpanded}
+                isLoading={isLoadingMissing}
+                onClick={onToggleMissing}
+            />
+        );
+    }
+
+    // Auto-request enabled: show toggle + matched chip or "Disabled"
+    return (
+        <div className="flex items-center gap-2">
+            <Switch
+                checked={source.auto_request ?? false}
+                onChange={() => {
+                    if (onUpdate) {
+                        onUpdate({ ...source, auto_request: !source.auto_request });
+                    }
+                }}
+                disabled={!onUpdate}
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                    source.auto_request ? "bg-primary" : "bg-slate-600"
+                } ${!onUpdate ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+            >
+                <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                        source.auto_request ? "translate-x-[18px]" : "translate-x-0.5"
+                    }`}
+                />
+            </Switch>
+            <MatchedChip
+                status={status}
+                isExpanded={isExpanded}
+                isLoading={isLoadingMissing}
+                onClick={onToggleMissing}
+            />
+        </div>
+    );
+}
+
+// ─── Matched Chip ───────────────────────────────────────────────────────────
+
+interface MatchedChipProps {
+    status: SourceStatus | undefined;
+    isExpanded: boolean;
+    isLoading: boolean;
+    onClick: () => void;
+}
+
+function MatchedChip({ status, isExpanded, isLoading, onClick }: MatchedChipProps) {
+    if (!status || status.sync_status === "never_synced") {
+        return <span className="text-xs text-slate-600">-</span>;
+    }
+
+    const allMatched = status.items_matched === status.items_total;
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={isLoading}
+            className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition cursor-pointer ${
+                allMatched
+                    ? "bg-emerald-900/40 text-emerald-300 border border-emerald-800/50 hover:bg-emerald-900/60"
+                    : "bg-amber-900/30 text-amber-300 border border-amber-800/40 hover:bg-amber-900/50"
+            } disabled:opacity-50`}
+        >
+            <ChevronRight
+                className={`h-3 w-3 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
+            />
+            {status.items_matched}/{status.items_total} matched
+        </button>
+    );
+}
+
+// ─── Expanded Detail Row ────────────────────────────────────────────────────
+
+interface ExpandedDetailRowProps<TMissing> {
+    missingItems: TMissing[] | undefined;
+    isLoadingMissing: boolean;
+    currentPage: number;
+    itemsPerPage: number;
+    onSetPage: (page: number) => void;
+    renderMissingItem: (item: TMissing, index: number) => ReactNode;
+}
+
+function ExpandedDetailRow<TMissing extends BaseMissingItem>(
+    props: ExpandedDetailRowProps<TMissing>
+) {
+    const { missingItems, isLoadingMissing, currentPage, itemsPerPage, onSetPage, renderMissingItem } = props;
 
     const totalPages = missingItems ? Math.ceil(missingItems.length / itemsPerPage) : 0;
     const paginatedItems =
         missingItems?.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage) || [];
 
     return (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/50 overflow-hidden">
-            <div className="p-4 space-y-3">
-                {/* Source info and actions */}
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-slate-100">{source.name}</p>
-                            {status && <SyncStatusBadge status={status.sync_status} />}
-                        </div>
-                        <p className="text-xs text-slate-400 break-all">{source.url}</p>
-                        <p className="text-xs text-slate-500">
-                            Plex library: {source.plex_library || "(none)"}
-                        </p>
-                        {status?.last_sync_time && (
-                            <p className="text-xs text-slate-500">
-                                Last synced: {formatDate(status.last_sync_time)}
-                            </p>
-                        )}
-                        {showAutoRequest && (
-                            <div className="flex items-center gap-2 mt-1">
-                                <Send size={12} className="text-slate-500" />
-                                <span className="text-xs text-slate-400">Auto-request missing items via Seerr</span>
-                                <Switch
-                                    checked={source.auto_request ?? false}
-                                    onChange={() => {
-                                        if (onUpdate) {
-                                            onUpdate({ ...source, auto_request: !source.auto_request });
-                                        }
-                                    }}
-                                    disabled={!onUpdate}
-                                    className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors duration-200 ${
-                                        source.auto_request ? "bg-primary" : "bg-slate-600"
-                                    } ${!onUpdate ? "opacity-50 cursor-not-allowed" : ""}`}
-                                >
-                                    <span
-                                        className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                                            source.auto_request ? "translate-x-4" : "translate-x-0.5"
-                                        }`}
-                                    />
-                                </Switch>
-                            </div>
-                        )}
+        <div className="border-b border-slate-800/40 bg-slate-900/20 px-4 py-3">
+            {isLoadingMissing ? (
+                <p className="text-xs text-slate-400">Loading missing items…</p>
+            ) : missingItems && missingItems.length > 0 ? (
+                <div className="space-y-2">
+                    <p className="text-xs text-slate-400 mb-2">
+                        {missingItems.length} {missingItems.length === 1 ? "item" : "items"} not found
+                        in Plex
+                    </p>
+                    <div className="space-y-1.5">
+                        {paginatedItems.map((item, i) => renderMissingItem(item, i))}
                     </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                        <button
-                            type="button"
-                            onClick={onSync}
-                            disabled={isSyncing}
-                            className="rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-60 flex items-center gap-1"
-                        >
-                            <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
-                            {isSyncing ? "Syncing…" : "Sync Now"}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onRemove}
-                            disabled={isDeleting}
-                            className="rounded-lg border border-rose-800 px-3 py-1.5 text-xs font-semibold text-rose-100 transition hover:bg-rose-900/40 disabled:opacity-60"
-                        >
-                            {isDeleting ? "Removing…" : "Remove"}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Missing items section */}
-                <div className="pt-3 border-t border-slate-800">
-                    <button
-                        type="button"
-                        onClick={onToggleMissing}
-                        disabled={isLoadingMissing}
-                        className="flex items-center gap-2 text-xs font-medium text-slate-300 hover:text-slate-100 transition disabled:opacity-50"
-                    >
-                        <ChevronRight
-                            className={`h-4 w-4 transition-transform duration-200 ${
-                                isExpanded ? "rotate-90" : ""
-                            }`}
-                        />
-                        Missing items
-                        {status && status.sync_status !== "never_synced" && (
-                            <span className="text-slate-500 font-normal">
-                                · {status.items_matched}/{status.items_total} matched
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => onSetPage(Math.max(0, currentPage - 1))}
+                                disabled={currentPage === 0}
+                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                aria-label="Previous page"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-xs text-slate-400">
+                                Page {currentPage + 1} of {totalPages}
                             </span>
-                        )}
-                    </button>
-
-                    {isExpanded && (
-                        <div className="mt-2 rounded-lg border border-slate-800/60 bg-slate-900/30 p-3">
-                            {isLoadingMissing ? (
-                                <p className="text-xs text-slate-400">Loading missing items…</p>
-                            ) : missingItems && missingItems.length > 0 ? (
-                                <div className="space-y-2">
-                                    <p className="text-xs text-slate-400 mb-2">
-                                        {missingItems.length}{" "}
-                                        {missingItems.length === 1 ? "item" : "items"} not found in
-                                        Plex
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {paginatedItems.map((item, i) => renderMissingItem(item, i))}
-                                    </div>
-                                    {totalPages > 1 && (
-                                        <div className="flex items-center justify-center gap-3 pt-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => onSetPage(Math.max(0, currentPage - 1))}
-                                                disabled={currentPage === 0}
-                                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                                aria-label="Previous page"
-                                            >
-                                                <ChevronLeft size={16} />
-                                            </button>
-                                            <span className="text-xs text-slate-400">
-                                                Page {currentPage + 1} of {totalPages}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    onSetPage(Math.min(totalPages - 1, currentPage + 1))
-                                                }
-                                                disabled={currentPage >= totalPages - 1}
-                                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
-                                                aria-label="Next page"
-                                            >
-                                                <ChevronRight size={16} />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-xs text-emerald-400">All items found in Plex!</p>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => onSetPage(Math.min(totalPages - 1, currentPage + 1))}
+                                disabled={currentPage >= totalPages - 1}
+                                className="p-1 text-slate-300 hover:text-slate-100 hover:bg-slate-800 rounded disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                aria-label="Next page"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
                         </div>
                     )}
                 </div>
-            </div>
+            ) : (
+                <p className="text-xs text-emerald-400">All items found in Plex!</p>
+            )}
         </div>
     );
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function formatDate(dateString: string | null): string {
+    if (!dateString) return "Never";
+    // Backend stores UTC but without a timezone suffix, so append Z
+    const utcString = dateString.endsWith("Z") ? dateString : dateString + "Z";
+    return new Date(utcString).toLocaleString();
 }

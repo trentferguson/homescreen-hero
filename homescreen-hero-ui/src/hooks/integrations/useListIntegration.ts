@@ -385,24 +385,20 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         [basePath]
     );
 
-    // Toggle missing items (load if needed, then expand/collapse)
+    // Toggle missing items (always re-fetch when expanding to avoid stale data)
     const toggleMissingItems = useCallback(
         async (index: number) => {
-            // If already loaded, just toggle visibility
-            if (missingItems.has(index)) {
+            // If expanded, just collapse
+            if (expandedMissing.has(index)) {
                 setExpandedMissing((prev) => {
                     const newSet = new Set(prev);
-                    if (newSet.has(index)) {
-                        newSet.delete(index);
-                    } else {
-                        newSet.add(index);
-                    }
+                    newSet.delete(index);
                     return newSet;
                 });
                 return;
             }
 
-            // Load missing items
+            // Fetch fresh missing items and expand
             try {
                 setLoadingMissing((prev) => new Set(prev).add(index));
 
@@ -422,7 +418,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 });
             }
         },
-        [basePath, missingItems]
+        [basePath, expandedMissing]
     );
 
     // Set missing items page
