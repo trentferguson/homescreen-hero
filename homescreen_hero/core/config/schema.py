@@ -288,6 +288,10 @@ class TraktSource(BaseModel):
     name: str
     url: str
     plex_library: str
+    auto_request: bool = Field(
+        default=False,
+        description="Automatically request missing items via Seerr after sync",
+    )
 
 
 class TraktSettings(BaseModel):
@@ -322,6 +326,10 @@ class MDBListSource(BaseModel):
     name: str = Field(..., description="Display name for this list")
     url: str = Field(..., description="MDBList URL (e.g., https://mdblist.com/lists/username/listname)")
     plex_library: str = Field(..., description="Target Plex library name")
+    auto_request: bool = Field(
+        default=False,
+        description="Automatically request missing items via Seerr after sync",
+    )
 
 
 class MDBListSettings(BaseModel):

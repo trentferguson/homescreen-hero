@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from ...core.auth import CurrentUser, get_current_user, require_admin
@@ -231,3 +231,113 @@ def get_integrations_health(
         overall_status=overall_status,
         integrations=integrations,
     )
+
+
+# ========================================================================
+# AUTO-REQUEST VIA SEERR
+# ========================================================================
+
+class AutoRequestSourceResult(BaseModel):
+    requested: int = 0
+    skipped: int = 0
+    already_exists: int = 0
+    failed: int = 0
+    no_tmdb_id: int = 0
+
+
+class AutoRequestResponse(BaseModel):
+    ok: bool
+    message: str
+    results: Dict[str, AutoRequestSourceResult] = {}
+
+
+class AutoRequestHistoryItem(BaseModel):
+    id: int
+    tmdb_id: int
+    media_type: str
+    title: str
+    year: Optional[int] = None
+    integration_type: str
+    source_name: str
+    status: str
+    error_message: Optional[str] = None
+    requested_at: datetime
+
+
+@router.post("/auto-request", response_model=AutoRequestResponse)
+def trigger_auto_requests(
+    current_user: CurrentUser = Depends(require_admin),
+) -> AutoRequestResponse:
+    # Manually trigger auto-requests for all sources with auto_request enabled
+    from ...core.config.loader import load_config
+    from ...core.integrations.seerr_auto_request import process_all_auto_requests
+
+    try:
+        config = load_config()
+    except Exception as exc:
+        return AutoRequestResponse(ok=False, message=f"Config load failed: {exc}")
+
+    try:
+        raw_results = process_all_auto_requests(config)
+    except Exception as exc:
+        logger.error("Auto-request processing failed: %s", exc, exc_info=True)
+        return AutoRequestResponse(ok=False, message=f"Auto-request failed: {exc}")
+
+    results = {
+        key: AutoRequestSourceResult(
+            requested=r.requested,
+            skipped=r.skipped,
+            already_exists=r.already_exists,
+            failed=r.failed,
+            no_tmdb_id=r.no_tmdb_id,
+        )
+        for key, r in raw_results.items()
+    }
+
+    total_requested = sum(r.requested for r in raw_results.values())
+    total_failed = sum(r.failed for r in raw_results.values())
+
+    if not raw_results:
+        message = "No sources have auto-request enabled"
+    elif total_failed and not total_requested:
+        message = f"All requests failed ({total_failed} failures)"
+    else:
+        message = f"Requested {total_requested} items via Seerr"
+        if total_failed:
+            message += f" ({total_failed} failures)"
+
+    return AutoRequestResponse(ok=True, message=message, results=results)
+
+
+@router.get("/auto-request/history", response_model=List[AutoRequestHistoryItem])
+def get_auto_request_history(
+    limit: int = Query(default=50, ge=1, le=200),
+    current_user: CurrentUser = Depends(require_admin),
+) -> List[AutoRequestHistoryItem]:
+    # Get recent auto-request records
+    from ...core.db import get_session
+    from ...core.db.models import SeerrAutoRequest
+
+    with get_session() as session:
+        records = (
+            session.query(SeerrAutoRequest)
+            .order_by(SeerrAutoRequest.requested_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            AutoRequestHistoryItem(
+                id=r.id,
+                tmdb_id=r.tmdb_id,
+                media_type=r.media_type,
+                title=r.title,
+                year=r.year,
+                integration_type=r.integration_type,
+                source_name=r.source_name,
+                status=r.status,
+                error_message=r.error_message,
+                requested_at=r.requested_at,
+            )
+            for r in records
+        ]

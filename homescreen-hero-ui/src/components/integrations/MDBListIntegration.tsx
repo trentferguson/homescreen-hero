@@ -163,6 +163,8 @@ export function MDBListIntegration() {
                 onAddSource={() => integration.addSource()}
                 onSyncSource={integration.syncSource}
                 onRemoveSource={integration.removeSource}
+                onUpdateSource={integration.updateSource}
+                showAutoRequest
                 loadingSources={integration.loadingSources}
                 savingSource={integration.savingSource}
                 syncingSource={integration.syncingSource}

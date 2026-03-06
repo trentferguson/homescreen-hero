@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { RefreshCw, ChevronRight, ChevronLeft, ListPlus } from "lucide-react";
+import { RefreshCw, ChevronRight, ChevronLeft, ListPlus, Send } from "lucide-react";
+import { Switch } from "@headlessui/react";
 import type { Source, SourceStatus, BaseMissingItem, PlexLibraryConfig } from "../../../types/integrations";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 import { LibrarySelect } from "./LibrarySelect";
@@ -11,6 +12,7 @@ export interface SourceListProps<TMissing extends BaseMissingItem> {
     statuses: Map<number, SourceStatus>;
     onSyncSource: (index: number) => void;
     onRemoveSource: (index: number) => void;
+    onUpdateSource?: (index: number, source: Source) => void;
     loadingSources: boolean;
     syncingSource: number | null;
     deletingSource: number | null;
@@ -22,6 +24,7 @@ export interface SourceListProps<TMissing extends BaseMissingItem> {
     onSetMissingPage: (index: number, page: number) => void;
     renderMissingItem: (item: TMissing, index: number) => ReactNode;
     itemsPerPage?: number;
+    showAutoRequest?: boolean;
 }
 
 export function SourceList<TMissing extends BaseMissingItem>(
@@ -32,6 +35,7 @@ export function SourceList<TMissing extends BaseMissingItem>(
         statuses,
         onSyncSource,
         onRemoveSource,
+        onUpdateSource,
         loadingSources,
         syncingSource,
         deletingSource,
@@ -43,6 +47,7 @@ export function SourceList<TMissing extends BaseMissingItem>(
         onSetMissingPage,
         renderMissingItem,
         itemsPerPage = 10,
+        showAutoRequest = false,
     } = props;
 
     if (loadingSources) {
@@ -88,6 +93,7 @@ export function SourceList<TMissing extends BaseMissingItem>(
                         status={status}
                         onSync={() => onSyncSource(idx)}
                         onRemove={() => onRemoveSource(idx)}
+                        onUpdate={onUpdateSource ? (s) => onUpdateSource(idx, s) : undefined}
                         isSyncing={syncingSource === idx}
                         isDeleting={deletingSource === idx}
                         missingItems={missing}
@@ -98,6 +104,7 @@ export function SourceList<TMissing extends BaseMissingItem>(
                         onToggleMissing={() => onToggleMissing(idx)}
                         onSetPage={(page) => onSetMissingPage(idx, page)}
                         renderMissingItem={renderMissingItem}
+                        showAutoRequest={showAutoRequest}
                     />
                 );
             })}
@@ -126,6 +133,7 @@ interface SourceListManagerProps<TMissing extends BaseMissingItem> {
     // Actions
     onSyncSource: (index: number) => void;
     onRemoveSource: (index: number) => void;
+    onUpdateSource?: (index: number, source: Source) => void;
 
     // Loading states
     loadingSources: boolean;
@@ -147,6 +155,9 @@ interface SourceListManagerProps<TMissing extends BaseMissingItem> {
 
     // Optional note (like Letterboxd's scraping disclaimer)
     note?: ReactNode;
+
+    // Auto-request feature (Seerr)
+    showAutoRequest?: boolean;
 }
 
 export function SourceListManager<TMissing extends BaseMissingItem>(
@@ -164,6 +175,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
         onAddSource,
         onSyncSource,
         onRemoveSource,
+        onUpdateSource,
         loadingSources,
         savingSource,
         syncingSource,
@@ -177,6 +189,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
         renderMissingItem,
         itemsPerPage = 10,
         note,
+        showAutoRequest = false,
     } = props;
 
     const canAdd = newSource.name && newSource.url && newSource.plex_library;
@@ -234,6 +247,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
                 statuses={statuses}
                 onSyncSource={onSyncSource}
                 onRemoveSource={onRemoveSource}
+                onUpdateSource={onUpdateSource}
                 loadingSources={loadingSources}
                 syncingSource={syncingSource}
                 deletingSource={deletingSource}
@@ -245,6 +259,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
                 onSetMissingPage={onSetMissingPage}
                 renderMissingItem={renderMissingItem}
                 itemsPerPage={itemsPerPage}
+                showAutoRequest={showAutoRequest}
             />
         </div>
     );
@@ -257,6 +272,7 @@ interface SourceCardProps<TMissing> {
     status: SourceStatus | undefined;
     onSync: () => void;
     onRemove: () => void;
+    onUpdate?: (source: Source) => void;
     isSyncing: boolean;
     isDeleting: boolean;
     missingItems: TMissing[] | undefined;
@@ -267,6 +283,7 @@ interface SourceCardProps<TMissing> {
     onToggleMissing: () => void;
     onSetPage: (page: number) => void;
     renderMissingItem: (item: TMissing, index: number) => ReactNode;
+    showAutoRequest?: boolean;
 }
 
 function formatDate(dateString: string | null): string {
@@ -282,6 +299,7 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
         status,
         onSync,
         onRemove,
+        onUpdate,
         isSyncing,
         isDeleting,
         missingItems,
@@ -292,6 +310,7 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
         onToggleMissing,
         onSetPage,
         renderMissingItem,
+        showAutoRequest = false,
     } = props;
 
     const totalPages = missingItems ? Math.ceil(missingItems.length / itemsPerPage) : 0;
@@ -316,6 +335,30 @@ function SourceCard<TMissing extends BaseMissingItem>(props: SourceCardProps<TMi
                             <p className="text-xs text-slate-500">
                                 Last synced: {formatDate(status.last_sync_time)}
                             </p>
+                        )}
+                        {showAutoRequest && (
+                            <div className="flex items-center gap-2 mt-1">
+                                <Send size={12} className="text-slate-500" />
+                                <span className="text-xs text-slate-400">Auto-request via Seerr</span>
+                                <Switch
+                                    checked={source.auto_request ?? false}
+                                    onChange={() => {
+                                        if (onUpdate) {
+                                            onUpdate({ ...source, auto_request: !source.auto_request });
+                                        }
+                                    }}
+                                    disabled={!onUpdate}
+                                    className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors duration-200 ${
+                                        source.auto_request ? "bg-primary" : "bg-slate-600"
+                                    } ${!onUpdate ? "opacity-50 cursor-not-allowed" : ""}`}
+                                >
+                                    <span
+                                        className={`inline-block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                                            source.auto_request ? "translate-x-4" : "translate-x-0.5"
+                                        }`}
+                                    />
+                                </Switch>
+                            </div>
                         )}
                     </div>
 

@@ -9,6 +9,7 @@ export interface Source {
     url: string;
     plex_library: string;
     max_items?: number;
+    auto_request?: boolean;
 }
 
 // Generic source status (identical for all list-based integrations)
