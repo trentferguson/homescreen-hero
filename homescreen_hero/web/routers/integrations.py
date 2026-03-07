@@ -262,6 +262,19 @@ class AutoRequestHistoryItem(BaseModel):
     status: str
     error_message: Optional[str] = None
     requested_at: datetime
+    downloaded_at: Optional[datetime] = None
+
+
+class AutoRequestSummary(BaseModel):
+    requested: int = 0
+    downloaded: int = 0
+    failed: int = 0
+    already_exists: int = 0
+
+
+class AutoRequestHistoryResponse(BaseModel):
+    items: List[AutoRequestHistoryItem]
+    summary: AutoRequestSummary
 
 
 @router.post("/auto-request", response_model=AutoRequestResponse)
@@ -309,16 +322,32 @@ def trigger_auto_requests(
     return AutoRequestResponse(ok=True, message=message, results=results)
 
 
-@router.get("/auto-request/history", response_model=List[AutoRequestHistoryItem])
+@router.get("/auto-request/history", response_model=AutoRequestHistoryResponse)
 def get_auto_request_history(
     limit: int = Query(default=50, ge=1, le=200),
     current_user: CurrentUser = Depends(require_admin),
-) -> List[AutoRequestHistoryItem]:
-    # Get recent auto-request records
+) -> AutoRequestHistoryResponse:
+    # Get recent auto-request records with summary stats
     from ...core.db import get_session
     from ...core.db.models import SeerrAutoRequest
+    from sqlalchemy import func
 
     with get_session() as session:
+        # Summary counts across all records
+        counts = (
+            session.query(SeerrAutoRequest.status, func.count(SeerrAutoRequest.id))
+            .group_by(SeerrAutoRequest.status)
+            .all()
+        )
+        count_map = dict(counts)
+        summary = AutoRequestSummary(
+            requested=count_map.get("requested", 0),
+            downloaded=count_map.get("downloaded", 0),
+            failed=count_map.get("failed", 0),
+            already_exists=count_map.get("already_exists", 0),
+        )
+
+        # Recent items
         records = (
             session.query(SeerrAutoRequest)
             .order_by(SeerrAutoRequest.requested_at.desc())
@@ -326,7 +355,7 @@ def get_auto_request_history(
             .all()
         )
 
-        return [
+        items = [
             AutoRequestHistoryItem(
                 id=r.id,
                 tmdb_id=r.tmdb_id,
@@ -338,6 +367,9 @@ def get_auto_request_history(
                 status=r.status,
                 error_message=r.error_message,
                 requested_at=r.requested_at,
+                downloaded_at=r.downloaded_at,
             )
             for r in records
         ]
+
+    return AutoRequestHistoryResponse(items=items, summary=summary)

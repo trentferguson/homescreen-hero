@@ -94,6 +94,15 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         requiresIntegration: "seerr",
         colSpan: 2,
     },
+    "auto-request-activity": {
+        id: "auto-request-activity",
+        name: "Auto-Request Activity",
+        description: "Recent items automatically requested via Seerr",
+        category: "integrations",
+        section: "main",
+        requiresIntegration: "seerr",
+        colSpan: 2,
+    },
 };
 
 // Section configuration
