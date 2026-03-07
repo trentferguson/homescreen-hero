@@ -20,122 +20,46 @@ def init_db() -> None:
     logger.debug("Ensuring database schema is initialized")
     Base.metadata.create_all(bind=engine)
 
-    # Run schema migrations for existing tables
-    _migrate_collection_analytics(engine)
-    _migrate_pinned_collections_visibility(engine)
-    _migrate_users_status(engine)
-    _migrate_seerr_auto_requests_downloaded_at(engine)
-    _migrate_letterboxd_missing_items_tmdb_id(engine)
+    # Auto-add any new columns defined in models but missing from existing tables
+    _auto_migrate_columns(engine, Base)
 
 
-def _migrate_collection_analytics(engine) -> None:
-    # Add media_type column to collection_analytics if it doesn't exist
-    # This handles the case where the table was created before the column was added
-    from sqlalchemy import text, inspect
+def _auto_migrate_columns(engine, Base) -> None:
+    # Compare SQLAlchemy model columns against actual DB and add any missing ones.
+    # create_all() handles new tables; this handles new columns on existing tables.
+    from sqlalchemy import text, inspect as sa_inspect
 
-    inspector = inspect(engine)
+    inspector = sa_inspect(engine)
+    existing_tables = set(inspector.get_table_names())
 
-    # Check if table exists
-    if "collection_analytics" not in inspector.get_table_names():
-        return
+    for table in Base.metadata.sorted_tables:
+        if table.name not in existing_tables:
+            continue
 
-    # Check if column already exists
-    columns = [col["name"] for col in inspector.get_columns("collection_analytics")]
-    if "media_type" in columns:
-        return
+        existing_cols = {col["name"] for col in inspector.get_columns(table.name)}
 
-    logger.info("Migrating collection_analytics: adding media_type column")
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE collection_analytics ADD COLUMN media_type VARCHAR"))
-        conn.commit()
+        for column in table.columns:
+            if column.name in existing_cols:
+                continue
 
+            col_type = column.type.compile(dialect=engine.dialect)
+            sql = f"ALTER TABLE {table.name} ADD COLUMN {column.name} {col_type}"
 
-def _migrate_pinned_collections_visibility(engine) -> None:
-    # Add visibility columns to pinned_collections if they don't exist
-    from sqlalchemy import text, inspect
+            # NOT NULL columns need a DEFAULT for SQLite ALTER TABLE
+            if not column.nullable and column.default is not None:
+                default_val = column.default.arg
+                if not callable(default_val):
+                    if isinstance(default_val, bool):
+                        sql += f" NOT NULL DEFAULT {1 if default_val else 0}"
+                    elif isinstance(default_val, str):
+                        sql += f" NOT NULL DEFAULT '{default_val}'"
+                    elif isinstance(default_val, (int, float)):
+                        sql += f" NOT NULL DEFAULT {default_val}"
 
-    inspector = inspect(engine)
-
-    # Check if table exists
-    if "pinned_collections" not in inspector.get_table_names():
-        return
-
-    # Check which columns need to be added
-    columns = [col["name"] for col in inspector.get_columns("pinned_collections")]
-    columns_to_add = []
-
-    if "visibility_home" not in columns:
-        columns_to_add.append(("visibility_home", "BOOLEAN", "1"))  # default True
-    if "visibility_shared" not in columns:
-        columns_to_add.append(("visibility_shared", "BOOLEAN", "0"))  # default False
-    if "visibility_recommended" not in columns:
-        columns_to_add.append(("visibility_recommended", "BOOLEAN", "0"))  # default False
-
-    if not columns_to_add:
-        return
-
-    logger.info("Migrating pinned_collections: adding visibility columns")
-    with engine.connect() as conn:
-        for col_name, col_type, default_val in columns_to_add:
-            conn.execute(text(f"ALTER TABLE pinned_collections ADD COLUMN {col_name} {col_type} NOT NULL DEFAULT {default_val}"))
-        conn.commit()
-
-
-def _migrate_users_status(engine) -> None:
-    # Add status column to users table if it doesn't exist
-    from sqlalchemy import text, inspect
-
-    inspector = inspect(engine)
-
-    if "users" not in inspector.get_table_names():
-        return
-
-    columns = [col["name"] for col in inspector.get_columns("users")]
-    if "status" in columns:
-        return
-
-    logger.info("Migrating users: adding status column")
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR NOT NULL DEFAULT 'approved'"))
-        conn.commit()
-
-
-def _migrate_seerr_auto_requests_downloaded_at(engine) -> None:
-    # Add downloaded_at column to seerr_auto_requests if it doesn't exist
-    from sqlalchemy import text, inspect
-
-    inspector = inspect(engine)
-
-    if "seerr_auto_requests" not in inspector.get_table_names():
-        return
-
-    columns = [col["name"] for col in inspector.get_columns("seerr_auto_requests")]
-    if "downloaded_at" in columns:
-        return
-
-    logger.info("Migrating seerr_auto_requests: adding downloaded_at column")
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE seerr_auto_requests ADD COLUMN downloaded_at DATETIME"))
-        conn.commit()
-
-
-def _migrate_letterboxd_missing_items_tmdb_id(engine) -> None:
-    # Add tmdb_id column to letterboxd_missing_items if it doesn't exist
-    from sqlalchemy import text, inspect
-
-    inspector = inspect(engine)
-
-    if "letterboxd_missing_items" not in inspector.get_table_names():
-        return
-
-    columns = [col["name"] for col in inspector.get_columns("letterboxd_missing_items")]
-    if "tmdb_id" in columns:
-        return
-
-    logger.info("Migrating letterboxd_missing_items: adding tmdb_id column")
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE letterboxd_missing_items ADD COLUMN tmdb_id INTEGER"))
-        conn.commit()
+            logger.info("Auto-migrate: %s.%s (%s)", table.name, column.name, col_type)
+            with engine.connect() as conn:
+                conn.execute(text(sql))
+                conn.commit()
 
 
 def record_rotation(
