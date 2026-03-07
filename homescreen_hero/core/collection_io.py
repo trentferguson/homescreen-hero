@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from homescreen_hero.core.db.base import get_session
-from homescreen_hero.core.db.models import ImportMissingItem
+from homescreen_hero.core.db.models import ImportMissingItem, SeerrAutoRequest
 from homescreen_hero.core.integrations.plex_match import (
     build_guid_map,
     find_movie,
@@ -248,6 +248,8 @@ def apply_import(
     target_library: str,
     import_name: Optional[str] = None,
     selected_collections: Optional[list[str]] = None,
+    auto_request: bool = False,
+    config: Optional[Any] = None,
 ) -> dict[str, Any]:
     # Import collections into Plex, creating them and adding matched items
     section = server.library.section(target_library)
@@ -326,7 +328,15 @@ def apply_import(
     # Persist missing items
     _record_import_missing_items(import_name, all_missing)
 
-    return {"collections": results, "import_name": import_name}
+    # Auto-request missing items via Seerr if enabled
+    ar_stats = None
+    if auto_request and all_missing and config:
+        ar_stats = _auto_request_missing_items(config, all_missing, section.type, import_name)
+
+    result = {"collections": results, "import_name": import_name}
+    if ar_stats:
+        result["auto_request"] = ar_stats
+    return result
 
 
 # ------------------------------------------------------------------
@@ -468,6 +478,89 @@ def _record_import_missing_items(
                 session.add(row)
 
         session.commit()
+
+
+def _auto_request_missing_items(
+    config: Any,
+    missing_items: list[dict[str, Any]],
+    library_type: str,
+    import_name: str,
+) -> dict[str, int]:
+    # Request missing import items via Seerr. Returns stats dict.
+    from homescreen_hero.core.integrations.seerr_client import get_seerr_client
+
+    seerr_client = get_seerr_client(config)
+    if seerr_client is None:
+        logger.debug("Seerr not configured; skipping auto-request for import")
+        return {"requested": 0, "skipped": 0, "already_exists": 0, "failed": 0}
+
+    stats = {"requested": 0, "skipped": 0, "already_exists": 0, "failed": 0}
+
+    with get_session() as session:
+        for item in missing_items:
+            tmdb_id = item.get("tmdb_id")
+            if not tmdb_id:
+                continue
+
+            item_type = item.get("type", "movie")
+            media_type = "movie" if item_type == "movie" else "tv"
+
+            # Check if already requested
+            existing = (
+                session.query(SeerrAutoRequest)
+                .filter(
+                    SeerrAutoRequest.tmdb_id == tmdb_id,
+                    SeerrAutoRequest.media_type == media_type,
+                )
+                .first()
+            )
+            if existing:
+                stats["skipped"] += 1
+                continue
+
+            success, error_msg, _response = seerr_client.create_request(
+                media_type=media_type,
+                media_id=tmdb_id,
+            )
+
+            if success:
+                status = "requested"
+                stats["requested"] += 1
+                logger.info(
+                    "Requested %s '%s' (%s) via Seerr [tmdb:%d]",
+                    media_type, item["title"], item.get("year"), tmdb_id,
+                )
+            elif error_msg and "already requested" in error_msg.lower():
+                status = "already_exists"
+                stats["already_exists"] += 1
+            else:
+                status = "failed"
+                stats["failed"] += 1
+                logger.warning(
+                    "Failed to request '%s' (%s) via Seerr: %s",
+                    item["title"], item.get("year"), error_msg,
+                )
+
+            record = SeerrAutoRequest(
+                tmdb_id=tmdb_id,
+                media_type=media_type,
+                title=item["title"],
+                year=item.get("year"),
+                integration_type="import",
+                source_name=import_name,
+                status=status,
+                error_message=error_msg if status == "failed" else None,
+                requested_at=datetime.utcnow(),
+            )
+            session.add(record)
+
+        session.commit()
+
+    logger.info(
+        "Import auto-request: %d requested, %d skipped, %d already exist, %d failed",
+        stats["requested"], stats["skipped"], stats["already_exists"], stats["failed"],
+    )
+    return stats
 
 
 def get_import_missing_items(import_name: Optional[str] = None) -> list[dict[str, Any]]:

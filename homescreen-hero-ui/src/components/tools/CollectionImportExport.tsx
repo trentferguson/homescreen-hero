@@ -413,7 +413,9 @@ function ImportTab({
     const [selectedForImport, setSelectedForImport] = useState<Set<string>>(new Set());
     const [importing, setImporting] = useState(false);
     const [importResults, setImportResults] = useState<ImportResult[] | null>(null);
+    const [autoRequestResults, setAutoRequestResults] = useState<{ requested: number; skipped: number; already_exists: number; failed: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [autoRequest, setAutoRequest] = useState(false);
 
     const hasInput = importMode === "file" ? selectedFile !== null : shareCode.trim().length > 0;
     const canPreview = hasInput && selectedLibrary;
@@ -476,6 +478,9 @@ function ImportTab({
                 if (selected) {
                     url += selected.map((n) => `&selected_collections=${encodeURIComponent(n)}`).join("");
                 }
+                if (autoRequest) {
+                    url += "&auto_request=true";
+                }
                 res = await fetchWithAuth(url, { method: "POST", body: formData });
             } else {
                 res = await fetchWithAuth("/api/collections/io/import/apply/share-code", {
@@ -485,6 +490,7 @@ function ImportTab({
                         share_code: shareCode.trim(),
                         target_library: selectedLibrary,
                         selected_collections: selected,
+                        auto_request: autoRequest,
                     }),
                 });
             }
@@ -492,12 +498,17 @@ function ImportTab({
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             setImportResults(data.collections);
+            setAutoRequestResults(data.auto_request || null);
             setPreviewResults(null);
 
             const totalMatched = data.collections.reduce((s: number, c: ImportResult) => s + c.matched, 0);
             const totalMissing = data.collections.reduce((s: number, c: ImportResult) => s + c.missing, 0);
+            let message = `Imported ${data.collections.length} collection(s): ${totalMatched} items matched, ${totalMissing} missing`;
+            if (data.auto_request?.requested > 0) {
+                message += `, ${data.auto_request.requested} requested via Seerr`;
+            }
             setToast({
-                message: `Imported ${data.collections.length} collection(s): ${totalMatched} items matched, ${totalMissing} missing`,
+                message,
                 type: totalMissing > 0 ? "error" : "success",
             });
         } catch (e: unknown) {
@@ -689,6 +700,31 @@ function ImportTab({
                 </div>
             )}
 
+            {/* Auto-request toggle (shown when preview has missing items) */}
+            {previewResults && previewResults.some((c) => c.missing > 0) && (
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <div
+                        className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                            autoRequest
+                                ? "bg-primary border-primary"
+                                : "border-slate-600 group-hover:border-slate-500"
+                        }`}
+                    >
+                        {autoRequest && <Check size={14} className="text-white" />}
+                    </div>
+                    <div>
+                        <span className="text-sm text-slate-200">Auto-request missing items</span>
+                        <p className="text-xs text-slate-500">Request missing items via Seerr after import</p>
+                    </div>
+                    <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={autoRequest}
+                        onChange={(e) => setAutoRequest(e.target.checked)}
+                    />
+                </label>
+            )}
+
             {/* Import results */}
             {importResults && (
                 <div className="space-y-3">
@@ -709,6 +745,11 @@ function ImportTab({
                             </div>
                         ))}
                     </div>
+                    {autoRequestResults && autoRequestResults.requested > 0 && (
+                        <p className="text-xs text-primary">
+                            {autoRequestResults.requested} item{autoRequestResults.requested !== 1 ? "s" : ""} requested via Seerr
+                        </p>
+                    )}
                 </div>
             )}
 

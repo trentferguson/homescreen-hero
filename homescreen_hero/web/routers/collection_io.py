@@ -50,6 +50,7 @@ class ImportApplyShareCodeRequest(BaseModel):
     target_library: str
     import_name: Optional[str] = None
     selected_collections: Optional[List[str]] = None
+    auto_request: bool = False
 
 
 class CollectionImportResult(BaseModel):
@@ -68,6 +69,7 @@ class ImportPreviewResponse(BaseModel):
 class ImportApplyResponse(BaseModel):
     collections: List[CollectionImportResult]
     import_name: str
+    auto_request: Optional[dict] = None
 
 
 class MissingItemsResponse(BaseModel):
@@ -188,6 +190,7 @@ async def import_apply_file(
     target_library: str,
     import_name: Optional[str] = None,
     selected_collections: Optional[List[str]] = Query(None),
+    auto_request: bool = False,
     file: UploadFile = File(...),
     _current_user: CurrentUser = Depends(require_admin),
 ) -> ImportApplyResponse:
@@ -208,6 +211,8 @@ async def import_apply_file(
             server, import_data, target_library,
             import_name=import_name,
             selected_collections=selected_collections,
+            auto_request=auto_request,
+            config=config,
         )
     except Exception as e:
         logger.error("Import apply failed: %s", e)
@@ -216,6 +221,7 @@ async def import_apply_file(
     return ImportApplyResponse(
         collections=result["collections"],
         import_name=result["import_name"],
+        auto_request=result.get("auto_request"),
     )
 
 
@@ -237,6 +243,8 @@ def import_apply_share_code(
             server, import_data, request.target_library,
             import_name=request.import_name,
             selected_collections=request.selected_collections,
+            auto_request=request.auto_request,
+            config=config,
         )
     except Exception as e:
         logger.error("Import apply failed: %s", e)
@@ -245,6 +253,7 @@ def import_apply_share_code(
     return ImportApplyResponse(
         collections=result["collections"],
         import_name=result["import_name"],
+        auto_request=result.get("auto_request"),
     )
 
 
