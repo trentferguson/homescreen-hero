@@ -254,7 +254,10 @@ def sync_single_anilist_source(
                 m.get("title"), m.get("year"), m.get("anilist_id"),
             )
 
-    record_missing_items_in_db(source, missing_items)
+    # Skip on empty upstream to avoid wiping previously tracked items
+    # on transient API failures
+    if items:
+        record_missing_items_in_db(source, missing_items)
 
     return total, matched
 

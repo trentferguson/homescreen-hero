@@ -163,8 +163,10 @@ def sync_single_trakt_source(
                 m.get("ids"),
             )
 
-    # Persist missing items in the database
-    record_missing_items_in_db(source, missing_items)
+    # Persist missing items in the database (skip on empty upstream to avoid
+    # wiping previously tracked items on transient API failures)
+    if items:
+        record_missing_items_in_db(source, missing_items)
 
     # Auto-request missing items via Seerr if enabled for this source
     if source.auto_request and missing_items:

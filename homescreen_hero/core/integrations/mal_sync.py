@@ -251,7 +251,10 @@ def sync_single_mal_source(
                 m.get("title"), m.get("year"), m.get("mal_id"),
             )
 
-    record_missing_items_in_db(source, missing_items)
+    # Skip on empty upstream to avoid wiping previously tracked items
+    # on transient API failures
+    if items:
+        record_missing_items_in_db(source, missing_items)
 
     return total, matched
 
