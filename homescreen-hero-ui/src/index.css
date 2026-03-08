@@ -73,12 +73,12 @@
     background-color: transparent;
     /* Hidden by default */
     border-radius: 9999px;
-    transition: background-color 0.2s;
 }
 
 .scrollbar-hover-only:hover::-webkit-scrollbar-thumb {
     background-color: rgba(148, 163, 184, .35);
     /* Visible on hover */
+    transition: background-color 0.2s;
 }
 
 .scrollbar-hover-only::-webkit-scrollbar-thumb:hover {

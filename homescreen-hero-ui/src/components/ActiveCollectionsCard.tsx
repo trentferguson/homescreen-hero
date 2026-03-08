@@ -482,7 +482,7 @@ export default function ActiveCollectionsCard({
             </div>
 
             {loading ? (
-                <div className="flex gap-4 overflow-x-auto pb-2">
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hover-only">
                     {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="w-28 sm:w-32 shrink-0">
                             <div className="aspect-[2/3] rounded-xl bg-slate-800/60 animate-pulse" />
