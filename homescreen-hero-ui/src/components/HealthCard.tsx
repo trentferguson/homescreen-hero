@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTheme } from "../utils/theme";
 
 type HealthCardProps = {
     title: string;
@@ -19,6 +20,9 @@ export default function HealthCard({
     detail,
     icon,
 }: HealthCardProps) {
+    const { accent } = useTheme();
+    const compact = accent === "plex-orange";
+
     const isOk = ok === true;
     const statusLabel = loading ? "Checking…" : isOk ? subtitleOk : subtitleBad;
 
@@ -67,6 +71,31 @@ export default function HealthCard({
             ? "shadow-emerald-500/5"
             : "shadow-amber-500/5";
 
+    if (compact) {
+        return (
+            <div className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} px-4 py-3 h-20 transition-all duration-300 hover:bg-slate-800/30`}>
+                <div className="relative h-full flex items-center justify-between">
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">{title}</div>
+                        <div className="text-xl font-bold tracking-tight leading-none text-white">
+                            {statusLabel}
+                        </div>
+                    </div>
+                    <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                        <div className="absolute -top-0.5 -right-0.5 z-10">
+                            <div className={[
+                                "w-2.5 h-2.5 rounded-full",
+                                loading ? "bg-slate-500" : isOk ? "bg-emerald-400" : "bg-amber-400",
+                                loading ? "animate-pulse" : "",
+                            ].join(" ")} />
+                        </div>
+                        <div className="text-primary">{icon ?? <DefaultStackIcon compact />}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColor} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30`}>
             <div className="relative h-full flex items-center justify-between">
@@ -104,7 +133,15 @@ export default function HealthCard({
     );
 }
 
-function DefaultStackIcon() {
+function DefaultStackIcon({ compact }: { compact?: boolean }) {
+    if (compact) {
+        return (
+            <div className="relative">
+                <div className="w-6 h-4 rounded bg-slate-700/70 border border-slate-600/60" />
+                <div className="w-6 h-4 rounded bg-slate-700/70 border border-slate-600/60 mt-1" />
+            </div>
+        );
+    }
     return (
         <div className="relative">
             <div className="w-11 h-8 rounded-lg bg-slate-800/70 border border-slate-700/60" />

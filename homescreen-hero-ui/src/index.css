@@ -18,11 +18,31 @@
     --color-primary: 229 160 13;
     --color-primary-hover: 204 124 25;
     --color-bg-dark: 22 19 17;
-    --color-card-dark: 30 27 23;
-    --color-card-hover: 40 37 32;
+    --color-card-dark: 22 27 33;
+    --color-card-hover: 28 34 41;
     --color-slate-950: 10 8 7;
-    --color-slate-900: 22 19 16;
-    --color-slate-800: 35 30 26;
+    --color-slate-900: 30 30 30;
+    --color-slate-800: 50 50 50;
+}
+
+/* ===== Plex Theme: Flat Card Style ===== */
+:root[data-accent="plex-orange"] .bg-gradient-to-br {
+    background-image: none !important;
+    background-color: #161b21 !important;
+}
+
+:root[data-accent="plex-orange"] .hover\:bg-slate-800\/30:hover {
+    background-color: #1e242b !important;
+}
+
+:root[data-accent="plex-orange"] .shadow-lg,
+:root[data-accent="plex-orange"] .shadow-md {
+    box-shadow: none !important;
+}
+
+:root[data-accent="plex-orange"] .bg-gradient-to-br,
+:root[data-accent="plex-orange"] .bg-card-dark {
+    border-color: #252d36 !important;
 }
 
 /* ===== Custom dark scrollbar ===== */

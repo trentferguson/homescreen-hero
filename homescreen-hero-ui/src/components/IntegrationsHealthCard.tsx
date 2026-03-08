@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
+import { useTheme } from "../utils/theme";
 import { Activity, CheckCircle2, AlertCircle, XCircle, HelpCircle, RefreshCw } from "lucide-react";
 import {
     Dialog,
@@ -30,6 +31,8 @@ type IntegrationsHealthResponse = {
 };
 
 export default function IntegrationsHealthCard({ loading: parentLoading }: { loading?: boolean }) {
+    const { accent } = useTheme();
+    const compact = accent === "plex-orange";
     const [data, setData] = useState<IntegrationsHealthResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,7 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
 
     if (parentLoading || (loading && !data)) {
         return (
-            <div className="group relative overflow-hidden rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 p-5 h-32 transition-all duration-300">
+            <div className={`group relative overflow-hidden rounded-xl border border-slate-700/50 bg-gradient-to-br from-slate-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-slate-500/5 transition-all duration-300 ${compact ? "px-4 py-3 h-20" : "p-5 h-32"}`}>
                 <div className="relative h-full flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
@@ -97,7 +100,7 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
 
     if (error && !data) {
         return (
-            <div className="group relative overflow-hidden rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-red-500/5 p-5 h-32 transition-all duration-300">
+            <div className={`group relative overflow-hidden rounded-xl border border-red-500/30 bg-gradient-to-br from-red-500/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-red-500/5 transition-all duration-300 ${compact ? "px-4 py-3 h-20" : "p-5 h-32"}`}>
                 <div className="relative h-full flex flex-col items-center justify-center text-center">
                     <p className="text-xs text-red-400 mb-2">{error}</p>
                     <button onClick={loadHealth} className="px-3 py-1 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg">Retry</button>
@@ -145,33 +148,40 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
     return (
         <>
             <div
-                className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColorClass} p-5 h-32 transition-all duration-300 hover:bg-slate-800/30 cursor-pointer`}
+                className={`group relative overflow-hidden rounded-xl border ${borderColor} bg-gradient-to-br ${gradientBg} shadow-lg ${shadowColorClass} transition-all duration-300 hover:bg-slate-800/30 cursor-pointer ${compact ? "px-4 py-3 h-20" : "p-5 h-32"}`}
                 onClick={() => setShowModal(true)}
             >
-                <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-60 transition-opacity duration-200 pointer-events-none">
-                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                </div>
-
                 <div className="relative h-full flex items-center justify-between pointer-events-none">
                     <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-slate-400 mb-1">Integrations</div>
-                        <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-white transition-all duration-200">
-                            {overall.enabled_count}
-                        </div>
-                        <div className={`mt-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis ${statusColor}`}>
-                            {detailText}
-                        </div>
+                        {compact ? (
+                            <>
+                                <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">Integrations</div>
+                                <div className="text-xl font-bold tracking-tight leading-none text-white">
+                                    {overall.enabled_count} {overall.overall_status === "all_healthy" ? "Healthy" : overall.overall_status === "some_issues" ? "Issues" : "Offline"}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-sm font-medium text-slate-400 mb-1">Integrations</div>
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-none text-white transition-all duration-200">
+                                    {overall.enabled_count}
+                                </div>
+                                <div className={`mt-2.5 font-semibold text-xs sm:text-sm whitespace-nowrap overflow-hidden text-ellipsis ${statusColor}`}>
+                                    {detailText}
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    <div className="relative w-16 h-16 flex items-center justify-center justify-self-end shrink-0">
-                        <div className="absolute -top-1 -right-0.5 z-10">
-                            <div className={statusDotClass} />
+                    <div className={`relative flex items-center justify-center shrink-0 ${compact ? "w-10 h-10" : "w-16 h-16"}`}>
+                        <div className={`absolute z-10 ${compact ? "-top-0.5 -right-0.5" : "-top-1 -right-0.5"}`}>
+                            <div className={compact
+                                ? `w-2.5 h-2.5 rounded-full ${overall.overall_status === "all_healthy" ? "bg-emerald-400" : overall.overall_status === "some_issues" ? "bg-amber-400" : "bg-red-500"}`
+                                : statusDotClass}
+                            />
                         </div>
-                        <div className="text-slate-200 transition-transform duration-200 group-hover:scale-110">
-                            <Activity size={40} strokeWidth={1.5} />
+                        <div className={`transition-transform duration-200 group-hover:scale-110 ${compact ? "text-primary" : "text-slate-200"}`}>
+                            <Activity size={compact ? 22 : 40} strokeWidth={1.5} />
                         </div>
                     </div>
                 </div>

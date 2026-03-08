@@ -23,7 +23,7 @@ function SidebarLayout() {
     const closeMobileNav = () => setMobileNavOpen(false);
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <div className="min-h-screen bg-[#11161b] text-slate-100">
             {/* Desktop sidebar */}
             <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-60">
                 <Sidebar />
@@ -31,7 +31,7 @@ function SidebarLayout() {
 
             {/* Mobile sidebar */}
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-                <SheetContent side="left" className="w-60 p-0 bg-slate-950 border-slate-800/60">
+                <SheetContent side="left" className="w-60 p-0 bg-[#12161b] border-slate-800/60">
                     <SheetTitle className="sr-only">Navigation</SheetTitle>
                     <Sidebar onNavigate={closeMobileNav} />
                 </SheetContent>

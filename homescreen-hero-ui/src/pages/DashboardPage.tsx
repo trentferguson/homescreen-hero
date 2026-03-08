@@ -22,6 +22,7 @@ import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
 import { useDashboardLayout } from "../hooks/useDashboardLayout";
+import { useTheme } from "../utils/theme";
 
 type RotationHistoryItem = {
     id: number;
@@ -74,6 +75,7 @@ type HealthCache = {
 };
 
 export default function Dashboard() {
+    const { accent } = useTheme();
     const [health, setHealth] = useState<HealthMap>({});
     const [healthLoading, setHealthLoading] = useState(true);
     const [history, setHistory] = useState<RotationHistoryItem[]>([]);
@@ -499,7 +501,21 @@ export default function Dashboard() {
                                     : plex?.error ?? "Connection failed"
                         }
                         icon={
-                            <img src="/plex_icon_white.png" alt="Plex" className="w-12 h-12 object-contain" />
+                            <div
+                                aria-label="Plex"
+                                className="w-12 h-12"
+                                style={{
+                                    maskImage: "url(/plex_icon_white.png)",
+                                    WebkitMaskImage: "url(/plex_icon_white.png)",
+                                    maskSize: "contain",
+                                    WebkitMaskSize: "contain",
+                                    maskRepeat: "no-repeat",
+                                    WebkitMaskRepeat: "no-repeat",
+                                    maskPosition: "center",
+                                    WebkitMaskPosition: "center",
+                                    backgroundColor: accent === "plex-orange" ? "#e5a00d" : "white",
+                                }}
+                            />
                         }
                     />
                 );

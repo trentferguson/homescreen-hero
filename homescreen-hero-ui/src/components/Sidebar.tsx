@@ -49,7 +49,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     const navigate = useNavigate();
 
     return (
-        <aside className="flex flex-col h-full w-60 bg-slate-950 border-r border-slate-800/60">
+        <aside className="flex flex-col h-full w-60 bg-[#12161b] border-r border-slate-800/60">
             {/* Logo */}
             <div className="flex items-center gap-3 px-5 h-16 shrink-0">
                 <NavLink to="/" onClick={onNavigate} className="flex items-center gap-3 group">

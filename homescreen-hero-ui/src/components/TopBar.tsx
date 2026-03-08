@@ -18,7 +18,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
     };
 
     return (
-        <header className="sticky top-0 z-40 h-14 flex items-center justify-between px-4 lg:px-6 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 h-14 flex items-center justify-between px-4 lg:px-6 border-b border-slate-800/60 bg-[#12161b]/80 backdrop-blur-xl">
             {/* Left: hamburger (mobile only) */}
             <div className="flex items-center">
                 <button
