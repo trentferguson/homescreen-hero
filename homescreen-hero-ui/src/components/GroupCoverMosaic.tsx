@@ -126,7 +126,7 @@ export default function GroupCoverMosaic({ collections }: GroupCoverMosaicProps)
             </div>
 
             {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-900/70 to-slate-950/90 rounded-2xl" />
+            <div className="preserve-gradient absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-900/70 to-slate-950/90 rounded-2xl" />
         </div>
     );
 }

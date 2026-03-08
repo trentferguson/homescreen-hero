@@ -23,6 +23,7 @@ import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
 import { useDashboardLayout } from "../hooks/useDashboardLayout";
 import { useTheme } from "../utils/theme";
+import { usePageHeader } from "../utils/pageHeader";
 
 type RotationHistoryItem = {
     id: number;
@@ -76,6 +77,7 @@ type HealthCache = {
 
 export default function Dashboard() {
     const { accent } = useTheme();
+    const { setHeader, clearHeader } = usePageHeader();
     const [health, setHealth] = useState<HealthMap>({});
     const [healthLoading, setHealthLoading] = useState(true);
     const [history, setHistory] = useState<RotationHistoryItem[]>([]);
@@ -560,6 +562,70 @@ export default function Dashboard() {
         }
     };
 
+    // Push title + action buttons into the TopBar (plex theme only - no-op otherwise)
+    useEffect(() => {
+        if (accent !== "plex-orange") return;
+
+        setHeader({
+            title: "System Overview",
+            actions: (
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={toggleEditMode}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
+                            isEditMode
+                                ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                                : "border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-300"
+                        }`}
+                        title={isEditMode ? "Lock dashboard" : "Edit layout"}
+                    >
+                        {isEditMode ? <Unlock size={16} /> : <Lock size={16} />}
+                    </button>
+
+                    <button
+                        onClick={syncAllLists}
+                        disabled={busy !== null}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
+                    >
+                        {busy === "sync" ? "Syncing…" : "Sync Lists"}
+                    </button>
+
+                    <div className="relative" ref={rotationDropdownRef}>
+                        <div className="flex">
+                            <button
+                                onClick={forceRunRotation}
+                                disabled={busy !== null}
+                                className="flex items-center gap-2 px-3 py-2 rounded-l-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
+                            >
+                                {busy === "apply" ? "Running…" : "Run Rotation"}
+                            </button>
+                            <button
+                                onClick={() => setRotationDropdownOpen(!rotationDropdownOpen)}
+                                disabled={busy !== null}
+                                className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 border-l border-primary-hover/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                            >
+                                <ChevronDown size={14} className={`transition-transform ${rotationDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
+                        </div>
+                        {rotationDropdownOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-48 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden">
+                                <button
+                                    onClick={() => { simulateRotation(); setRotationDropdownOpen(false); }}
+                                    disabled={busy !== null}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-60"
+                                >
+                                    {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ),
+        });
+        return clearHeader;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accent, busy, isEditMode, rotationDropdownOpen]);
+
     return (
         <>
             {showSimulationModal && simulation ? (
@@ -694,71 +760,69 @@ export default function Dashboard() {
             ) : null}
 
             <div className="max-w-8xl mx-auto flex flex-col gap-4">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
-                        <p className="text-slate-500 dark:text-slate-400 text-sm">
-                            Monitor rotation status, history, and collection usage.
-                        </p>
-                    </div>
+                {/* In the default theme, show the page header inline since there's no sidebar TopBar */}
+                {accent !== "plex-orange" && (
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">System Overview</h2>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                Monitor rotation status, history, and collection usage.
+                            </p>
+                        </div>
 
-                    <div className="flex gap-3 flex-wrap">
-                        <button
-                            onClick={toggleEditMode}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
-                                isEditMode
-                                    ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
-                                    : "border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300"
-                            }`}
-                            title={isEditMode ? "Lock dashboard" : "Edit layout"}
-                        >
-                            {isEditMode ? <Unlock size={18} /> : <Lock size={18} />}
-                        </button>
+                        <div className="flex gap-3 flex-wrap">
+                            <button
+                                onClick={toggleEditMode}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
+                                    isEditMode
+                                        ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
+                                        : "border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300"
+                                }`}
+                                title={isEditMode ? "Lock dashboard" : "Edit layout"}
+                            >
+                                {isEditMode ? <Unlock size={18} /> : <Lock size={18} />}
+                            </button>
 
-                        <button
-                            onClick={syncAllLists}
-                            disabled={busy !== null}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
-                        >
-                            {busy === "sync" ? "Syncing…" : "Sync All Lists"}
-                        </button>
+                            <button
+                                onClick={syncAllLists}
+                                disabled={busy !== null}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-60"
+                            >
+                                {busy === "sync" ? "Syncing…" : "Sync All Lists"}
+                            </button>
 
-                        {/* Split button for Run Rotation */}
-                        <div className="relative" ref={rotationDropdownRef}>
-                            <div className="flex">
-                                <button
-                                    onClick={forceRunRotation}
-                                    disabled={busy !== null}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-l-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
-                                >
-                                    {busy === "apply" ? "Running…" : "Run Rotation Now"}
-                                </button>
-                                <button
-                                    onClick={() => setRotationDropdownOpen(!rotationDropdownOpen)}
-                                    disabled={busy !== null}
-                                    className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 border-l border-primary-hover/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
-                                >
-                                    <ChevronDown size={16} className={`transition-transform ${rotationDropdownOpen ? "rotate-180" : ""}`} />
-                                </button>
-                            </div>
-                            {rotationDropdownOpen && (
-                                <div className="absolute right-0 top-full mt-2 w-48 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden">
+                            <div className="relative" ref={rotationDropdownRef}>
+                                <div className="flex">
                                     <button
-                                        onClick={() => {
-                                            simulateRotation();
-                                            setRotationDropdownOpen(false);
-                                        }}
+                                        onClick={forceRunRotation}
                                         disabled={busy !== null}
-                                        className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-60"
+                                        className="flex items-center gap-2 px-4 py-2 rounded-l-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
                                     >
-                                        {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
+                                        {busy === "apply" ? "Running…" : "Run Rotation Now"}
+                                    </button>
+                                    <button
+                                        onClick={() => setRotationDropdownOpen(!rotationDropdownOpen)}
+                                        disabled={busy !== null}
+                                        className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 border-l border-primary-hover/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                    >
+                                        <ChevronDown size={16} className={`transition-transform ${rotationDropdownOpen ? "rotate-180" : ""}`} />
                                     </button>
                                 </div>
-                            )}
+                                {rotationDropdownOpen && (
+                                    <div className="absolute right-0 top-full mt-2 w-48 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden">
+                                        <button
+                                            onClick={() => { simulateRotation(); setRotationDropdownOpen(false); }}
+                                            disabled={busy !== null}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-slate-200 hover:bg-slate-700/50 transition-colors disabled:opacity-60"
+                                        >
+                                            {busy === "simulate" ? "Simulating…" : "Simulate Rotation"}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Pending user approvals banner */}
                 {pendingUserCount > 0 && (

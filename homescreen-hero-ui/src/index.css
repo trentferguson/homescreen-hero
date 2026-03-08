@@ -26,7 +26,7 @@
 }
 
 /* ===== Plex Theme: Flat Card Style ===== */
-:root[data-accent="plex-orange"] .bg-gradient-to-br {
+:root[data-accent="plex-orange"] .bg-gradient-to-br:not(.preserve-gradient) {
     background-image: none !important;
     background-color: #161b21 !important;
 }

@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
 import { Sheet, SheetContent, SheetTitle } from "../components/ui/sheet";
 import { useTheme } from "../utils/theme";
+import { PageHeaderProvider } from "../utils/pageHeader";
 
 function TopNavLayout() {
     return (
@@ -23,6 +24,7 @@ function SidebarLayout() {
     const closeMobileNav = () => setMobileNavOpen(false);
 
     return (
+        <PageHeaderProvider>
         <div className="min-h-screen bg-[#11161b] text-slate-100">
             {/* Desktop sidebar */}
             <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-60">
@@ -46,6 +48,7 @@ function SidebarLayout() {
                 </main>
             </div>
         </div>
+        </PageHeaderProvider>
     );
 }
 
