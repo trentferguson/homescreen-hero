@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Accent theme tokens ===== */
+:root {
+    --color-primary: 25 93 230;
+    --color-primary-hover: 37 99 235;
+    --color-bg-dark: 17 22 33;
+    --color-card-dark: 26 31 46;
+    --color-card-hover: 34 40 56;
+    --color-slate-950: 2 6 23;
+    --color-slate-900: 15 23 42;
+    --color-slate-800: 30 41 59;
+}
+
+:root[data-accent="plex-orange"] {
+    --color-primary: 229 160 13;
+    --color-primary-hover: 204 124 25;
+    --color-bg-dark: 22 19 17;
+    --color-card-dark: 30 27 23;
+    --color-card-hover: 40 37 32;
+    --color-slate-950: 10 8 7;
+    --color-slate-900: 22 19 16;
+    --color-slate-800: 35 30 26;
+}
+
 /* ===== Custom dark scrollbar ===== */
 .scrollbar-thin {
     scrollbar-width: thin;
@@ -219,14 +242,14 @@ select option {
 
 .hsh-datepicker .react-datepicker__day--selected,
 .hsh-datepicker .react-datepicker__day--keyboard-selected {
-    background-color: #3b82f6 !important;
+    background-color: rgb(var(--color-primary)) !important;
     color: #ffffff !important;
     font-weight: 500 !important;
 }
 
 .hsh-datepicker .react-datepicker__day--selected:hover,
 .hsh-datepicker .react-datepicker__day--keyboard-selected:hover {
-    background-color: #2563eb !important;
+    background-color: rgb(var(--color-primary-hover)) !important;
 }
 
 .hsh-datepicker .react-datepicker__day--today {

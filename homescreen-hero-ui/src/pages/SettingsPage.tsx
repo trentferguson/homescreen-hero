@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2, Shield, Users } from "lucide-react";
+import { SlidersHorizontal, Check, ChevronDown, FileText, Copy, Download, Pause, Play, RefreshCw, Search, Server, CalendarSync, Ban, Archive, Upload, HardDriveDownload, HardDriveUpload, Undo2, Shield, Users, Palette, Sun, Moon } from "lucide-react";
 import { Switch, Listbox } from "@headlessui/react";
 import FieldRow from "../components/FieldRow";
 import CollapsibleFormSection from "../components/CollapsibleFormSection";
@@ -9,6 +9,7 @@ import TestConnectionCta from "../components/TestConnectionCta";
 import Toast from "../components/Toast";
 import UserRow from "../components/UserRow";
 import { useAuth } from "../utils/auth";
+import { useTheme, type ThemeAccent } from "../utils/theme";
 
 const tabs = [
     { id: "general", label: "General", icon: SlidersHorizontal },
@@ -74,6 +75,61 @@ function LevelBadge({ level }: { level: Exclude<LogLevel, "ALL"> | null }) {
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${cls}`}>
             {level ?? "LOG"}
         </span>
+    );
+}
+
+const ACCENT_OPTIONS: { value: ThemeAccent; label: string; swatch: string }[] = [
+    { value: "default", label: "Default", swatch: "bg-[rgb(25,93,230)]" },
+    { value: "plex-orange", label: "Plex Orange", swatch: "bg-[rgb(229,160,13)]" },
+];
+
+function AppearanceSection() {
+    const { theme, setTheme, accent, setAccent } = useTheme();
+
+    return (
+        <CollapsibleFormSection
+            title="Appearance"
+            description="Customize how the dashboard looks."
+            icon={Palette}
+        >
+            <FieldRow label="Mode" description="Switch between light and dark interface.">
+                <div className="flex gap-2">
+                    {(["light", "dark"] as const).map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => setTheme(mode)}
+                            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                                theme === mode
+                                    ? "bg-primary text-white"
+                                    : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700"
+                            }`}
+                        >
+                            {mode === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                            {mode === "light" ? "Light" : "Dark"}
+                        </button>
+                    ))}
+                </div>
+            </FieldRow>
+
+            <FieldRow label="Accent" description="Choose the primary accent color used throughout the app.">
+                <div className="flex gap-3">
+                    {ACCENT_OPTIONS.map((opt) => (
+                        <button
+                            key={opt.value}
+                            onClick={() => setAccent(opt.value)}
+                            className={`flex items-center gap-2.5 rounded-lg px-4 py-2 text-sm font-medium transition border ${
+                                accent === opt.value
+                                    ? "border-primary bg-primary/10 text-slate-900 dark:text-white"
+                                    : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-600"
+                            }`}
+                        >
+                            <span className={`h-4 w-4 rounded-full ${opt.swatch} ring-1 ring-black/10`} />
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+            </FieldRow>
+        </CollapsibleFormSection>
     );
 }
 
@@ -834,6 +890,8 @@ export default function SettingsPage() {
 
             {activeTab === "general" ? (
                 <>
+                    <AppearanceSection />
+
                     <CollapsibleFormSection
                         title="Plex"
                         description="Provide credentials for the media server this dashboard references."
@@ -1069,7 +1127,7 @@ export default function SettingsPage() {
                                 type="button"
                                 onClick={saveAuthSettings}
                                 disabled={savingAuth || loadingAuth}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {savingAuth ? (
                                     <>
@@ -1101,7 +1159,7 @@ export default function SettingsPage() {
                                     type="button"
                                     onClick={fetchUsers}
                                     disabled={loadingUsers || authMethod === "password"}
-                                    className="text-xs text-primary hover:text-blue-400 transition disabled:opacity-50"
+                                    className="text-xs text-primary hover:text-primary/80 transition disabled:opacity-50"
                                 >
                                     {loadingUsers ? "Loading..." : "Refresh"}
                                 </button>
@@ -1302,7 +1360,7 @@ export default function SettingsPage() {
                                 type="button"
                                 onClick={saveRotationSettings}
                                 disabled={savingRotation || loadingRotation}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {savingRotation ? (
                                     <>
@@ -1677,7 +1735,7 @@ export default function SettingsPage() {
                                     type="button"
                                     onClick={handleExport}
                                     disabled={exporting}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {exporting ? (
                                         <>
@@ -1758,7 +1816,7 @@ export default function SettingsPage() {
                                     type="button"
                                     onClick={handleImport}
                                     disabled={!selectedFile || importing || validating || (validationResult !== null && !validationResult.ok)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {importing ? (
                                         <>

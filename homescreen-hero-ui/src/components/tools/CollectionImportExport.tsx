@@ -269,7 +269,7 @@ function ExportTab({
                         </label>
                         <button
                             onClick={toggleAll}
-                            className="text-xs text-primary hover:text-blue-400 transition-colors"
+                            className="text-xs text-primary hover:text-primary/80 transition-colors"
                         >
                             {selectedCollections.size === collections.length ? "Deselect All" : "Select All"}
                         </button>
@@ -369,7 +369,7 @@ function ExportTab({
                 <button
                     onClick={() => doExport("share-code")}
                     disabled={exporting || selectedCollections.size === 0}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                 >
                     {copied ? (
                         <>
@@ -631,7 +631,7 @@ function ImportTab({
                                     setSelectedForImport(new Set(previewResults.map((c) => c.original_name)));
                                 }
                             }}
-                            className="text-xs text-primary hover:text-blue-400 transition-colors"
+                            className="text-xs text-primary hover:text-primary/80 transition-colors"
                         >
                             {selectedForImport.size === previewResults.length ? "Deselect All" : "Select All"}
                         </button>
@@ -767,7 +767,7 @@ function ImportTab({
                     <button
                         onClick={handleImport}
                         disabled={!canPreview || importing || (previewResults !== null && selectedForImport.size === 0)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                     >
                         {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                         Import{previewResults && selectedForImport.size > 0 ? ` (${selectedForImport.size})` : ""}

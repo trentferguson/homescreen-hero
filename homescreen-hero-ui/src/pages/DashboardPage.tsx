@@ -666,7 +666,7 @@ export default function Dashboard() {
                                 Close
                             </button>
                             <button
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                 onClick={applySimulation}
                                 disabled={busy !== null}
                             >
@@ -714,14 +714,14 @@ export default function Dashboard() {
                                 <button
                                     onClick={forceRunRotation}
                                     disabled={busy !== null}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-l-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                    className="flex items-center gap-2 px-4 py-2 rounded-l-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 text-sm font-bold transition-all duration-200 active:scale-95 disabled:opacity-60"
                                 >
                                     {busy === "apply" ? "Running…" : "Run Rotation Now"}
                                 </button>
                                 <button
                                     onClick={() => setRotationDropdownOpen(!rotationDropdownOpen)}
                                     disabled={busy !== null}
-                                    className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-blue-600 text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 border-l border-blue-400/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
+                                    className="flex items-center px-2 py-2 rounded-r-lg bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 hover:shadow-primary/40 border-l border-primary-hover/30 transition-all duration-200 active:scale-95 disabled:opacity-60"
                                 >
                                     <ChevronDown size={16} className={`transition-transform ${rotationDropdownOpen ? "rotate-180" : ""}`} />
                                 </button>

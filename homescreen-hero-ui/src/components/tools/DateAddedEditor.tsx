@@ -332,7 +332,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                     <button
                                         type="button"
                                         onClick={selectAll}
-                                        className="text-xs text-primary hover:text-blue-400 transition-colors"
+                                        className="text-xs text-primary hover:text-primary/80 transition-colors"
                                     >
                                         Select all
                                     </button>
@@ -587,7 +587,7 @@ export default function DateAddedEditor({ onClose }: DateAddedEditorProps) {
                                 type="button"
                                 onClick={handleUpdate}
                                 disabled={selectedItems.size === 0 || updating}
-                                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                             >
                                 {updating ? (
                                     <>

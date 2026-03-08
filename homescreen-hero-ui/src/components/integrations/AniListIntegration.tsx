@@ -249,7 +249,7 @@ export function AniListIntegration() {
                         type="button"
                         onClick={handleAdd}
                         disabled={formDisabled || !canAdd}
-                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {integration.savingSource ? "Adding\u2026" : "Add List"}
                     </button>
@@ -318,7 +318,7 @@ export function AniListIntegration() {
                         type="button"
                         onClick={handleAddBrowse}
                         disabled={formDisabled || !canAddBrowse}
-                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {integration.savingSource ? "Adding\u2026" : "Add List"}
                     </button>

@@ -138,7 +138,7 @@ export function MDBListIntegration() {
                             type="button"
                             onClick={integration.testConnection}
                             disabled={integration.testStatus === "testing"}
-                            className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
                         >
                             {integration.testStatus === "testing"
                                 ? "Testing…"

@@ -158,7 +158,7 @@ export default function ExportCollectionDialog({
                         <button
                             onClick={handleCopyShareCode}
                             disabled={exporting}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {copied ? (
                                 <>

@@ -332,7 +332,7 @@ export function MALIntegration() {
                             type="button"
                             onClick={integration.testConnection}
                             disabled={integration.testStatus === "testing"}
-                            className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-semibold px-3 py-2 transition disabled:opacity-70"
                         >
                             {integration.testStatus === "testing"
                                 ? "Testing\u2026"
@@ -400,7 +400,7 @@ export function MALIntegration() {
                         type="button"
                         onClick={handleAddUser}
                         disabled={formDisabled || !canAddUser}
-                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {integration.savingSource ? "Adding\u2026" : "Add List"}
                     </button>
@@ -443,7 +443,7 @@ export function MALIntegration() {
                         type="button"
                         onClick={handleAddRanking}
                         disabled={formDisabled || !canAddRanking}
-                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {integration.savingSource ? "Adding\u2026" : "Add List"}
                     </button>
@@ -519,7 +519,7 @@ export function MALIntegration() {
                         type="button"
                         onClick={handleAddSeasonal}
                         disabled={formDisabled || !canAddSeasonal}
-                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="shrink-0 cursor-pointer rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {integration.savingSource ? "Adding\u2026" : "Add List"}
                     </button>

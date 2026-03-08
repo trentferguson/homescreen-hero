@@ -907,7 +907,7 @@ export default function CollectionsPage() {
                 <div className="text-red-400">Error: {error}</div>
                 <button
                     onClick={handleRefresh}
-                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                    className="mt-4 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg transition-colors"
                 >
                     Retry
                 </button>
@@ -930,7 +930,7 @@ export default function CollectionsPage() {
                     {/* Create Collection Button */}
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
                     >
                         <Plus size={18} />
                         Create Collection
@@ -1063,7 +1063,7 @@ export default function CollectionsPage() {
                         </p>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="mt-4 text-primary hover:text-blue-400 font-medium transition-colors"
+                            className="mt-4 text-primary hover:text-primary/80 font-medium transition-colors"
                         >
                             Create your first collection
                         </button>
@@ -1322,7 +1322,7 @@ export default function CollectionsPage() {
                         <button
                             onClick={handleQuickEditSubmit}
                             disabled={quickEditing || !quickEditTitle.trim()}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {quickEditing ? "Saving..." : "Save Changes"}
                         </button>
@@ -1542,7 +1542,7 @@ export default function CollectionsPage() {
                             <button
                                 onClick={handleCreateCollection}
                                 disabled={creating || !newCollectionTitle.trim() || !newCollectionLibrary.trim() || selectedMovies.size === 0}
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {creating ? "Creating..." : "Create Collection"}
                             </button>

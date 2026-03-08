@@ -462,7 +462,7 @@ export default function CollectionDetailPage() {
                         </button>
                         <button
                             onClick={openAddModal}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95"
                         >
                             <Plus size={18} />
                             Add Items
@@ -487,7 +487,7 @@ export default function CollectionDetailPage() {
                         <p className="text-slate-400">This collection is empty</p>
                         <button
                             onClick={openAddModal}
-                            className="mt-4 text-primary hover:text-blue-400 font-medium transition-colors"
+                            className="mt-4 text-primary hover:text-primary/80 font-medium transition-colors"
                         >
                             Add your first item
                         </button>
@@ -669,7 +669,7 @@ export default function CollectionDetailPage() {
                             <button
                                 onClick={handleAddSelectedItems}
                                 disabled={adding || selectedItems.size === 0}
-                                className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {adding ? "Adding..." : `Add Selected (${selectedItems.size})`}
                             </button>
@@ -987,7 +987,7 @@ export default function CollectionDetailPage() {
                             type="button"
                             onClick={handleUpdateCollection}
                             disabled={updating || !editTitle.trim()}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {updating ? "Updating..." : "Save Changes"}
                         </button>
@@ -1127,7 +1127,7 @@ export default function CollectionDetailPage() {
                             type="button"
                             onClick={handleUploadItemPoster}
                             disabled={uploadingItemPoster || (!itemPosterFile && !itemPosterUrl)}
-                            className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {uploadingItemPoster ? "Uploading..." : "Upload Poster"}
                         </button>

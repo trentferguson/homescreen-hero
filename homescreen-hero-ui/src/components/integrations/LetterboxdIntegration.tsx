@@ -92,7 +92,7 @@ export function LetterboxdIntegration() {
                                         type="button"
                                         onClick={() => integration.addSource()}
                                         disabled={integration.savingSource || integration.loadingSources || !canAdd}
-                                        className="cursor-pointer rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                                        className="cursor-pointer rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                                     >
                                         {integration.savingSource ? "Adding…" : "Add List"}
                                     </button>

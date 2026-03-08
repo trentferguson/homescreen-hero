@@ -68,7 +68,7 @@ export default function ConfigPage() {
                 <button
                     onClick={save}
                     disabled={saving}
-                    className="px-4 py-2 rounded-lg bg-primary hover:bg-blue-600 text-white font-bold disabled:opacity-60"
+                    className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold disabled:opacity-60"
                 >
                     {saving ? "Saving…" : "Save & Validate"}
                 </button>

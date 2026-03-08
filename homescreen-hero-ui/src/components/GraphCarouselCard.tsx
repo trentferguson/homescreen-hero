@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
+import { usePrimaryColor } from "../utils/theme";
 import { Listbox } from "@headlessui/react";
 import { ChevronDown, Check, ChevronLeft, ChevronRight, Settings, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
@@ -110,6 +111,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
+    const primaryColor = usePrimaryColor();
     const [hourlyData, setHourlyData] = useState<HourlyData[]>([]);
     const [dailyData, setDailyData] = useState<DailyData[]>([]);
     const [concurrentData, setConcurrentData] = useState<ConcurrentData[]>([]);
@@ -439,7 +441,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                 />
                                 <Bar
                                     dataKey="plays"
-                                    fill="#195de6"
+                                    fill={primaryColor}
                                     radius={[4, 4, 0, 0]}
                                 />
                             </BarChart>
@@ -457,8 +459,8 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                             <AreaChart data={dailyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                                 <defs>
                                     <linearGradient id="colorPlays" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                        <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
@@ -487,7 +489,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                 <Area
                                     type="monotone"
                                     dataKey="plays"
-                                    stroke="#8b5cf6"
+                                    stroke={primaryColor}
                                     strokeWidth={2}
                                     fillOpacity={1}
                                     fill="url(#colorPlays)"
@@ -531,7 +533,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                     />
                                     <Bar
                                         dataKey="peak_concurrent"
-                                        fill="#195de6"
+                                        fill={primaryColor}
                                         radius={[4, 4, 0, 0]}
                                     />
                                 </BarChart>
@@ -539,8 +541,8 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                 <AreaChart data={concurrentChartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                                     <defs>
                                         <linearGradient id="colorConcurrent" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#195de6" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#195de6" stopOpacity={0} />
+                                            <stop offset="5%" stopColor={primaryColor} stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" className="stroke-slate-700" />
@@ -569,7 +571,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                                     <Area
                                         type="monotone"
                                         dataKey="peak_concurrent"
-                                        stroke="#195de6"
+                                        stroke={primaryColor}
                                         strokeWidth={2}
                                         fillOpacity={1}
                                         fill="url(#colorConcurrent)"

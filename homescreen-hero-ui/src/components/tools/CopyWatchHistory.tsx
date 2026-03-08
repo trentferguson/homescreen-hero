@@ -603,7 +603,7 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                                     type="button"
                                     onClick={handlePreview}
                                     disabled={!canPreview}
-                                    className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                                 >
                                     {loadingPreview ? (
                                         <>
@@ -645,7 +645,7 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                                         previewCounts?.movies_to_mark_unwatched === 0 &&
                                         previewCounts?.episodes_to_mark_unwatched === 0
                                     }
-                                    className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                                 >
                                     <CheckCircle2 className="h-4 w-4" />
                                     Confirm & Apply
@@ -660,7 +660,7 @@ export default function CopyWatchHistory({ onClose }: CopyWatchHistoryProps) {
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-blue-600 transition-colors"
+                                className="px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover transition-colors"
                             >
                                 Done
                             </button>

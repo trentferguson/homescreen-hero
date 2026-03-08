@@ -205,7 +205,7 @@ export function SourceListManager<TMissing extends BaseMissingItem>(
                     type="button"
                     onClick={onAddSource}
                     disabled={savingSource || loadingSources || !canAdd}
-                    className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     {savingSource ? "Adding…" : "Add List"}
                 </button>

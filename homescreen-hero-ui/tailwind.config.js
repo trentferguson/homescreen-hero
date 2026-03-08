@@ -5,11 +5,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#195de6",
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        "primary-hover": "rgb(var(--color-primary-hover) / <alpha-value>)",
         "background-light": "#f6f6f8",
-        "background-dark": "#111621",
-        "card-dark": "#1a1f2e",
-        "card-hover": "#222838",
+        "background-dark": "rgb(var(--color-bg-dark) / <alpha-value>)",
+        "card-dark": "rgb(var(--color-card-dark) / <alpha-value>)",
+        "card-hover": "rgb(var(--color-card-hover) / <alpha-value>)",
+        slate: {
+          950: "rgb(var(--color-slate-950) / <alpha-value>)",
+          900: "rgb(var(--color-slate-900) / <alpha-value>)",
+          800: "rgb(var(--color-slate-800) / <alpha-value>)",
+        },
       },
       fontFamily: {
         display: ["Inter", "sans-serif"],

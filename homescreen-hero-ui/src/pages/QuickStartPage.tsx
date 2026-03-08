@@ -164,7 +164,7 @@ function WelcomeStep() {
 
             <button
                 onClick={() => nextStep()}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
             >
                 Get Started
                 <ArrowRight className="h-5 w-5" />
@@ -248,7 +248,7 @@ function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 <button
                     onClick={handleNext}
                     disabled={!localUsername || (!localPassword && !envVars.auth_password_from_env)}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -516,7 +516,7 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 <button
                     onClick={handleNext}
                     disabled={(!plexUrl && !envVars.plex_url_from_env) || (!plexToken && !envVars.plex_token_from_env) || !plexTestSuccess || selectedLibraries.length === 0}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -731,7 +731,7 @@ function TraktStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
                 <button
                     onClick={handleNext}
                     disabled={localTraktEnabled && !localTraktClientId && !envVars.trakt_client_id_from_env}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -944,7 +944,7 @@ function MDBListStep({ wizardData, setWizardData, envVars }: { wizardData: Wizar
                 <button
                     onClick={handleNext}
                     disabled={localMDBListEnabled && !localMDBListApiKey && !envVars.mdblist_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -1160,7 +1160,7 @@ function TautulliStep({ wizardData, setWizardData, envVars }: { wizardData: Wiza
                 <button
                     onClick={handleNext}
                     disabled={localTautulliEnabled && !localTautulliApiKey && !envVars.tautulli_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -1376,7 +1376,7 @@ function SeerrStep({ wizardData, setWizardData, envVars }: { wizardData: WizardD
                 <button
                     onClick={handleNext}
                     disabled={localSeerrEnabled && !localSeerrApiKey && !envVars.seerr_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -1564,7 +1564,7 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
                 </button>
                 <button
                     onClick={handleNext}
-                    className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
                 >
                     Next
                     <ArrowRight className="h-5 w-5" />
@@ -1697,7 +1697,7 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
             <button
                 onClick={handleComplete}
                 disabled={loading}
-                className="w-full py-3 px-4 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
                 {loading ? (
                     <>
