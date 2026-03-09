@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 import { RefreshCw, Plus, Search, Trash2, Check, ChevronDown, ArrowUpAZ, ArrowDownAZ, Edit, Image, Pin, Home, Users, Star, LayoutGrid, List } from "lucide-react";
+import { useTheme } from "../utils/theme";
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { Listbox } from "@headlessui/react";
 import Toast from "../components/Toast";
@@ -191,6 +192,7 @@ function CollectionCard({
     onClick,
     onEdit,
     onDelete,
+    isPlex,
 }: {
     collection: Collection;
     index: number;
@@ -201,7 +203,16 @@ function CollectionCard({
     onClick: () => void;
     onEdit: (e: React.MouseEvent) => void;
     onDelete: (e: React.MouseEvent) => void;
+    isPlex: boolean;
 }) {
+    const cardClass = isPlex
+        ? "group relative rounded-lg overflow-visible animate-slide-up text-left cursor-pointer"
+        : "group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up text-left cursor-pointer";
+
+    const imgClass = isPlex
+        ? "w-full h-full object-cover transition-all duration-300 ease-out"
+        : "w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110";
+
     return (
         <div
             key={`${collection.library}-${collection.title}`}
@@ -209,16 +220,16 @@ function CollectionCard({
             tabIndex={0}
             onClick={onClick}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-            className="group relative rounded-xl overflow-hidden border border-slate-800/60 bg-slate-900/50 shadow-md hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 animate-slide-up text-left cursor-pointer"
+            className={cardClass}
             style={{ animationDelay: `${index * 0.03}s` }}
         >
             {/* Poster Image */}
-            <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
+            <div className={`aspect-[2/3] bg-slate-800 relative overflow-hidden ${isPlex ? "rounded-lg border border-slate-700/40 group-hover:border-primary/70 transition-all duration-300" : ""}`}>
                 {collection.poster_url ? (
                     <img
                         src={collection.poster_url}
                         alt={collection.title}
-                        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                        className={imgClass}
                         loading="lazy"
                     />
                 ) : (
@@ -230,7 +241,7 @@ function CollectionCard({
                 {/* Edit Button (shown on hover, top-left) */}
                 <button
                     onClick={onEdit}
-                    className="absolute top-2 left-2 p-2 bg-primary/70 hover:bg-primary/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className={`absolute top-2 left-2 p-2 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 ${isPlex ? "bg-black/60 hover:bg-black/80" : "bg-primary/70 hover:bg-primary/90"}`}
                     title="Edit collection"
                 >
                     <Edit size={16} />
@@ -246,7 +257,11 @@ function CollectionCard({
                 {/* Active Badge Overlay */}
                 {collection.is_active && (
                     <div className="absolute bottom-2 left-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-emerald-900/70 text-emerald-400 border border-emerald-800/50 backdrop-blur-sm">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm ${
+                            isPlex
+                                ? "bg-primary/70 text-white border border-primary/50"
+                                : "bg-emerald-900/70 text-emerald-400 border border-emerald-800/50"
+                        }`}>
                             Active
                         </span>
                     </div>
@@ -265,7 +280,7 @@ function CollectionCard({
                 {/* Delete Button */}
                 <button
                     onClick={onDelete}
-                    className="p-2 bg-red-600/70 hover:bg-red-600/90 text-white rounded-lg"
+                    className={`p-2 text-white rounded-lg ${isPlex ? "bg-black/60 hover:bg-red-600/80" : "bg-red-600/70 hover:bg-red-600/90"}`}
                     title="Delete collection"
                 >
                     <Trash2 size={16} />
@@ -277,9 +292,11 @@ function CollectionCard({
                 <h3 className="text-white font-medium text-sm truncate text-center">
                     {collection.title}
                 </h3>
-                <p className="text-slate-400 text-xs text-center mt-1">
-                    {collection.library}
-                </p>
+                {!isPlex && (
+                    <p className="text-slate-400 text-xs text-center mt-1">
+                        {collection.library}
+                    </p>
+                )}
             </div>
         </div>
     );
@@ -333,6 +350,8 @@ export default function CollectionsPage() {
     const [quickEditing, setQuickEditing] = useState(false);
 
     const navigate = useNavigate();
+    const { accent } = useTheme();
+    const isPlex = accent === "plex-orange";
 
     useEffect(() => {
         loadCollections();
@@ -827,6 +846,16 @@ export default function CollectionsPage() {
             return sortOrder === "asc" ? comparison : -comparison;
         });
 
+    // Group filtered collections by library for Plex theme section headers
+    const collectionsByLibrary = useMemo(() => {
+        const grouped: Record<string, Collection[]> = {};
+        for (const col of filteredCollections) {
+            if (!grouped[col.library]) grouped[col.library] = [];
+            grouped[col.library].push(col);
+        }
+        return grouped;
+    }, [filteredCollections]);
+
     const handleCollectionClick = (collection: Collection) => {
         navigate(
             `/collections/${encodeURIComponent(collection.library)}/${encodeURIComponent(collection.title)}`
@@ -960,7 +989,11 @@ export default function CollectionsPage() {
                         placeholder="Search collections..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                        className={`w-full pl-10 pr-4 py-2 rounded-lg text-white placeholder-slate-500 focus:outline-none transition-colors ${
+                            isPlex
+                                ? "bg-slate-800/50 border border-slate-700/40 focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
+                                : "bg-slate-900 border border-slate-700 focus:ring-2 focus:ring-primary/70"
+                        }`}
                     />
                 </div>
 
@@ -1047,15 +1080,6 @@ export default function CollectionsPage() {
 
             {/* Collections */}
             <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 className="text-lg font-bold text-white tracking-tight">All Collections</h3>
-                        <p className="text-sm text-slate-400 mt-0.5">
-                            {filteredCollections.length} collection{filteredCollections.length !== 1 ? 's' : ''} found
-                        </p>
-                    </div>
-                </div>
-
                 {filteredCollections.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-700/60 bg-slate-900/50 p-8 text-center">
                         <p className="text-slate-400">
@@ -1144,20 +1168,32 @@ export default function CollectionsPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {filteredCollections.map((collection, index) => (
-                            <CollectionCard
-                                key={`${collection.library}-${collection.title}`}
-                                collection={collection}
-                                index={index}
-                                isPinned={pinnedCollections.has(collection.title)}
-                                isPinning={pinningCollection === collection.title}
-                                onPinWithVisibility={(visibility) => handlePinWithVisibility(collection, visibility)}
-                                onUnpin={() => handleUnpin(collection)}
-                                onClick={() => handleCollectionClick(collection)}
-                                onEdit={(e) => openQuickEditModal(collection, e)}
-                                onDelete={(e) => handleDeleteCollection(collection.library, collection.title, e)}
-                            />
+                    <div className="space-y-8">
+                        {Object.entries(collectionsByLibrary).map(([library, cols]) => (
+                            <div key={library}>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <h4 className="text-lg font-bold text-white tracking-tight">{library}</h4>
+                                    <div className="flex-1 h-px bg-slate-700/50" />
+                                    <span className="text-xs text-slate-500">{cols.length} collection{cols.length !== 1 ? 's' : ''}</span>
+                                </div>
+                                <div className={`grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 ${isPlex ? "gap-3" : "gap-4"}`}>
+                                    {cols.map((collection, index) => (
+                                        <CollectionCard
+                                            key={`${collection.library}-${collection.title}`}
+                                            collection={collection}
+                                            index={index}
+                                            isPinned={pinnedCollections.has(collection.title)}
+                                            isPinning={pinningCollection === collection.title}
+                                            onPinWithVisibility={(visibility) => handlePinWithVisibility(collection, visibility)}
+                                            onUnpin={() => handleUnpin(collection)}
+                                            onClick={() => handleCollectionClick(collection)}
+                                            onEdit={(e) => openQuickEditModal(collection, e)}
+                                            onDelete={(e) => handleDeleteCollection(collection.library, collection.title, e)}
+                                            isPlex={isPlex}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
