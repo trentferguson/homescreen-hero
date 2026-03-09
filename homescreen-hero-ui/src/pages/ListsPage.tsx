@@ -4,20 +4,18 @@ import { Tab } from "@headlessui/react";
 import { TraktIntegration } from "../components/integrations/TraktIntegration";
 import { LetterboxdIntegration } from "../components/integrations/LetterboxdIntegration";
 import { MDBListIntegration } from "../components/integrations/MDBListIntegration";
-import { AnimeIntegration } from "../components/integrations/AnimeIntegration";
-import { TautulliIntegration } from "../components/integrations/TautulliIntegration";
-import { SeerrIntegration } from "../components/integrations/SeerrIntegration";
+import { AniListIntegration } from "../components/integrations/AniListIntegration";
+import { MALIntegration } from "../components/integrations/MALIntegration";
 
 const tabs = [
     { name: "Trakt", key: "trakt", component: TraktIntegration },
     { name: "Letterboxd", key: "letterboxd", component: LetterboxdIntegration },
     { name: "MDBList", key: "mdblist", component: MDBListIntegration },
-    { name: "Anime", key: "anime", component: AnimeIntegration },
-    { name: "Tautulli", key: "tautulli", component: TautulliIntegration },
-    { name: "Seerr", key: "seerr", component: SeerrIntegration },
+    { name: "AniList", key: "anilist", component: AniListIntegration },
+    { name: "MyAnimeList", key: "mal", component: MALIntegration },
 ] as const;
 
-export default function IntegrationsPage() {
+export default function ListsPage() {
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -38,11 +36,10 @@ export default function IntegrationsPage() {
         <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                    Integrations
+                    Lists
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
-                    Manage third-party service integrations for automated list syncing and content
-                    discovery.
+                    Manage third-party list sources for automated syncing and content discovery.
                 </p>
             </div>
 
@@ -67,6 +64,23 @@ export default function IntegrationsPage() {
                                         <strong>Note:</strong> Letterboxd integration uses web scraping since their
                                         API requires approval. Movies are matched by title and year, which may be
                                         less accurate than ID-based matching.
+                                    </p>
+                                </div>
+                            )}
+                            {(tab.key === "anilist" || tab.key === "mal") && (
+                                <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 px-4 py-3">
+                                    <p className="text-xs text-slate-300">
+                                        <strong>Note:</strong> Anime sources are matched to Plex using the{" "}
+                                        <a
+                                            href="https://github.com/Fribb/anime-lists"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="underline hover:text-slate-100"
+                                        >
+                                            anime-lists
+                                        </a>{" "}
+                                        ID mapping database, with a fallback to title/year matching. Point your
+                                        sources at a show library for anime series, or a movie library for anime films.
                                     </p>
                                 </div>
                             )}

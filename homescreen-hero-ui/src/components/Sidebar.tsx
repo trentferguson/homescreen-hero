@@ -3,7 +3,7 @@ import {
     LayoutDashboard,
     Layers,
     Library,
-    Plug,
+    List,
     Wrench,
     Settings,
     LogOut,
@@ -23,7 +23,7 @@ const navItems: NavItemDef[] = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/groups", label: "Groups", icon: Layers },
     { to: "/collections", label: "Collections", icon: Library },
-    { to: "/integrations", label: "Integrations", icon: Plug },
+    { to: "/lists", label: "Lists", icon: List },
     { to: "/tools", label: "Tools", icon: Wrench },
 ];
 

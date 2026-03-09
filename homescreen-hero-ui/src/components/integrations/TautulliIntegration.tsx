@@ -11,7 +11,6 @@ export function TautulliIntegration() {
         <ConfigPanel
             title="Tautulli Configuration"
             description="Configure your Tautulli API credentials and analytics settings."
-            defaultExpanded
         >
             <FieldRow
                 label="Enable Tautulli"

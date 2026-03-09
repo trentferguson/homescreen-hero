@@ -272,7 +272,7 @@ export default function GraphCarouselCard({ loading }: { loading?: boolean }) {
                         Tautulli is not configured
                     </p>
                     <a
-                        href="/integrations"
+                        href="/settings#integrations"
                         className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition"
                     >
                         Configure Tautulli

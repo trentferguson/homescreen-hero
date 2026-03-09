@@ -7,7 +7,7 @@ import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ConfigPage from "./pages/ConfigPage";
 import SettingsPage from "./pages/SettingsPage";
-import IntegrationsPage from "./pages/IntegrationsPage";
+import ListsPage from "./pages/ListsPage";
 import GroupsPage from "./pages/GroupsPage";
 import GroupDetailPage from "./pages/GroupDetailPage";
 import SmartGroupDetailPage from "./pages/SmartGroupDetailPage";
@@ -56,7 +56,7 @@ const router = createBrowserRouter([
       { path: "/groups/:groupId", element: <GroupDetailPage /> },
       { path: "/collections", element: <CollectionsPage /> },
       { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },
-      { path: "/integrations", element: <IntegrationsPage /> },
+      { path: "/lists", element: <ListsPage /> },
       { path: "/tools", element: <ToolsPage /> },
       { path: "/config", element: <ConfigPage /> },
       { path: "/settings", element: <SettingsPage /> },

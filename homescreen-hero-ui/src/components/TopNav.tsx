@@ -52,7 +52,7 @@ export default function TopNav() {
                     <NavItem to="/" label="Dashboard" />
                     <NavItem to="/groups" label="Groups" />
                     <NavItem to="/collections" label="Collections" />
-                    <NavItem to="/integrations" label="Integrations" />
+                    <NavItem to="/lists" label="Lists" />
                     <NavItem to="/tools" label="Tools" />
                 </nav>
 

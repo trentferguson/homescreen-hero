@@ -8,7 +8,7 @@ const routeTitles: Record<string, string> = {
     "/": "System Overview",
     "/groups": "Groups",
     "/collections": "Collections",
-    "/integrations": "Integrations",
+    "/lists": "Lists",
     "/tools": "Tools & Utilities",
     "/settings": "Settings",
 };
