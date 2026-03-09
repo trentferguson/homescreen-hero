@@ -250,6 +250,13 @@ function SortableCollectionCard({
                 {cinematic && (
                     <div className="absolute inset-0 rounded-xl border-[1.5px] border-transparent group-hover:border-primary/90 transition-colors duration-200 pointer-events-none z-30" />
                 )}
+
+                {/* Library pill overlaid on poster (cinematic only) */}
+                {cinematic && collection.library && (
+                    <span className="absolute bottom-2 left-2 z-20 text-[10px] px-2 py-0.5 rounded-full bg-black/60 text-slate-300 font-medium backdrop-blur-sm pointer-events-none">
+                        {collection.library}
+                    </span>
+                )}
             </div>
 
             <div className="mt-2.5">
@@ -262,7 +269,7 @@ function SortableCollectionCard({
                     </div>
                 </div>
 
-                {collection.library && (
+                {!cinematic && collection.library && (
                     <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-300 font-medium">
                         {collection.library}
                     </span>
@@ -462,7 +469,7 @@ export default function ActiveCollectionsCard({
                         onClick={() => setVisibilityFilter("my_home")}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
                             visibilityFilter === "my_home"
-                                ? "bg-primary/20 text-white shadow-sm"
+                                ? "bg-[#374151] text-white shadow-sm"
                                 : "text-slate-400 hover:text-white"
                         }`}
                     >
@@ -473,7 +480,7 @@ export default function ActiveCollectionsCard({
                         onClick={() => setVisibilityFilter("shared")}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
                             visibilityFilter === "shared"
-                                ? "bg-primary/20 text-white shadow-sm"
+                                ? "bg-[#374151] text-white shadow-sm"
                                 : "text-slate-400 hover:text-white"
                         }`}
                     >
@@ -484,7 +491,7 @@ export default function ActiveCollectionsCard({
                         onClick={() => setVisibilityFilter("recommended")}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
                             visibilityFilter === "recommended"
-                                ? "bg-primary/20 text-white shadow-sm"
+                                ? "bg-[#374151] text-white shadow-sm"
                                 : "text-slate-400 hover:text-white"
                         }`}
                     >
@@ -495,7 +502,7 @@ export default function ActiveCollectionsCard({
                         onClick={() => setVisibilityFilter("all")}
                         className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
                             visibilityFilter === "all"
-                                ? "bg-primary/20 text-white shadow-sm"
+                                ? "bg-[#374151] text-white shadow-sm"
                                 : "text-slate-400 hover:text-white"
                         }`}
                     >

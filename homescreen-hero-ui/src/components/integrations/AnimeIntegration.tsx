@@ -10,14 +10,14 @@ export function AnimeIntegration() {
     return (
         <div className="space-y-4">
             {/* Shared note */}
-            <div className="rounded-lg border border-blue-700/50 bg-blue-900/20 px-4 py-3">
-                <p className="text-xs text-blue-200">
+            <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 px-4 py-3">
+                <p className="text-xs text-slate-300">
                     All anime sources are matched to Plex using the{" "}
                     <a
                         href="https://github.com/Fribb/anime-lists"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline hover:text-blue-100"
+                        className="underline hover:text-slate-100"
                     >
                         anime-lists
                     </a>{" "}

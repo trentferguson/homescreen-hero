@@ -62,8 +62,8 @@ export default function IntegrationsPage() {
                     {tabs.map((tab) => (
                         <Tab.Panel key={tab.name} className="space-y-4 focus:outline-none">
                             {tab.key === "letterboxd" && (
-                                <div className="rounded-lg border border-blue-700/50 bg-blue-900/20 px-4 py-3">
-                                    <p className="text-xs text-blue-200">
+                                <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 px-4 py-3">
+                                    <p className="text-xs text-slate-300">
                                         <strong>Note:</strong> Letterboxd integration uses web scraping since their
                                         API requires approval. Movies are matched by title and year, which may be
                                         less accurate than ID-based matching.
