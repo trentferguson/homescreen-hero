@@ -1218,3 +1218,34 @@ def reorder_collections_endpoint(
     except Exception as e:
         logger.error(f"Error reordering collections: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to reorder: {str(e)}")
+
+
+class RecentlyAddedItem(BaseModel):
+    title: str
+    year: Optional[int] = None
+    added_at: Optional[str] = None
+    thumb: Optional[str] = None
+    media_type: str = "unknown"
+    rating_key: str
+    library: str
+
+
+class RecentlyAddedResponse(BaseModel):
+    items: List[RecentlyAddedItem]
+
+
+@router.get("/recently-added", response_model=RecentlyAddedResponse)
+def get_recently_added_endpoint(
+    limit: int = 10,
+    _current_user: CurrentUser = Depends(require_admin),
+) -> RecentlyAddedResponse:
+    from homescreen_hero.core.integrations.plex_client import get_recently_added
+
+    try:
+        config = load_config()
+        server = get_plex_server(config)
+        items = get_recently_added(server, config, limit=min(limit, 25))
+        return RecentlyAddedResponse(items=[RecentlyAddedItem(**item) for item in items])
+    except Exception as e:
+        logger.error(f"Error fetching recently added: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch recently added: {str(e)}")

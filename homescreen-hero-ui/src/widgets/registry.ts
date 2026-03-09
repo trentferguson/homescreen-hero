@@ -103,6 +103,13 @@ export const widgetRegistry: Record<string, WidgetDefinition> = {
         requiresIntegration: "seerr",
         colSpan: 2,
     },
+    "recently-added": {
+        id: "recently-added",
+        name: "Recently Added",
+        description: "Latest additions to your Plex libraries",
+        category: "activity",
+        section: "main",
+    },
 };
 
 // Section configuration

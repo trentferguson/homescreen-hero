@@ -18,6 +18,7 @@ import RecentRotationsCard from "../components/RecentRotationsCard";
 import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
 import SeerrCarouselCard from "../components/SeerrCarouselCard";
 import AutoRequestActivityCard from "../components/dashboard/AutoRequestActivityCard";
+import RecentlyAddedCard from "../components/RecentlyAddedCard";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
@@ -557,6 +558,8 @@ export default function Dashboard() {
                 return <SeerrCarouselCard key={widgetId} loading={healthLoading} />;
             case "auto-request-activity":
                 return <AutoRequestActivityCard key={widgetId} />;
+            case "recently-added":
+                return <RecentlyAddedCard key={widgetId} loading={healthLoading} />;
             default:
                 return null;
         }

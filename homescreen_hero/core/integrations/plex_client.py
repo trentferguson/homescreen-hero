@@ -477,6 +477,48 @@ def reorder_homescreen_collections(
 
 # Home user functions for watch history copying
 
+def get_recently_added(server: PlexServer, config: AppConfig, limit: int = 10) -> List[Dict[str, Any]]:
+    # Fetch recently added items across all enabled Plex libraries.
+    # Returns a flat list sorted by addedAt (newest first), limited to `limit` items.
+    from ..poster_proxy import create_proxy_url
+
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+    all_items: List[Dict[str, Any]] = []
+
+    for library_name in enabled_libraries:
+        try:
+            library = server.library.section(library_name)
+            recent = library.recentlyAdded(maxresults=limit)
+
+            for item in recent:
+                thumb = None
+                if getattr(item, "thumb", None):
+                    try:
+                        full_url = server.url(item.thumb, includeToken=True)
+                        plex_url = server.transcodeImage(full_url, height=450, width=300, minSize=1)
+                        thumb = create_proxy_url(plex_url)
+                    except Exception:
+                        thumb = None
+
+                media_type = getattr(item, "type", "unknown")
+
+                all_items.append({
+                    "title": item.title,
+                    "year": getattr(item, "year", None),
+                    "added_at": item.addedAt.isoformat() if item.addedAt else None,
+                    "thumb": thumb,
+                    "media_type": media_type,
+                    "rating_key": str(item.ratingKey),
+                    "library": library_name,
+                })
+        except Exception as e:
+            logger.warning("Failed to fetch recently added from '%s': %s", library_name, e)
+
+    # Sort by added_at descending and trim to limit
+    all_items.sort(key=lambda x: x["added_at"] or "", reverse=True)
+    return all_items[:limit]
+
+
 def get_plex_account(config: AppConfig) -> MyPlexAccount:
     # Create MyPlexAccount from configured token for home user access
     # This requires a Plex.tv account token, not a local server token
