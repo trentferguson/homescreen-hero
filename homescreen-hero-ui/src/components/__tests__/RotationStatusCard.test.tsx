@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import RotationStatusCard from "../RotationStatusCard";
+import { ThemeProvider } from "../../utils/theme";
 
 // Helper to capture navigation
 function LocationDisplay() {
@@ -12,10 +13,12 @@ function LocationDisplay() {
 
 function renderWithRouter(ui: React.ReactElement) {
     return render(
-        <MemoryRouter>
-            {ui}
-            <LocationDisplay />
-        </MemoryRouter>
+        <ThemeProvider>
+            <MemoryRouter>
+                {ui}
+                <LocationDisplay />
+            </MemoryRouter>
+        </ThemeProvider>
     );
 }
 
