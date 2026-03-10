@@ -87,7 +87,7 @@ const ACCENT_OPTIONS: { value: ThemeAccent; label: string; swatch: string }[] = 
 ];
 
 function AppearanceSection() {
-    const { theme, setTheme, accent, setAccent } = useTheme();
+    const { accent, setAccent } = useTheme();
 
     return (
         <CollapsibleFormSection
@@ -95,22 +95,22 @@ function AppearanceSection() {
             description="Customize how the dashboard looks."
             icon={Palette}
         >
-            <FieldRow label="Mode" description="Switch between light and dark interface.">
+            <FieldRow label="Mode" description="Light mode may come down the road.">
                 <div className="flex gap-2">
-                    {(["light", "dark"] as const).map((mode) => (
-                        <button
-                            key={mode}
-                            onClick={() => setTheme(mode)}
-                            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-                                theme === mode
-                                    ? "bg-primary text-white"
-                                    : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700"
-                            }`}
-                        >
-                            {mode === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                            {mode === "light" ? "Light" : "Dark"}
-                        </button>
-                    ))}
+                    <button
+                        className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition opacity-40 cursor-not-allowed bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                        disabled
+                    >
+                        <Sun className="h-4 w-4" />
+                        Light
+                    </button>
+                    <button
+                        className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition bg-primary text-white"
+                        disabled
+                    >
+                        <Moon className="h-4 w-4" />
+                        Dark
+                    </button>
                 </div>
             </FieldRow>
 

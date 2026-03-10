@@ -2,7 +2,6 @@ import { Menu } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import VersionBadge from "./VersionBadge";
 import { usePageHeader } from "../utils/pageHeader";
-import { useTheme } from "../utils/theme";
 
 const routeTitles: Record<string, string> = {
     "/": "System Overview",
@@ -20,7 +19,6 @@ type TopBarProps = {
 export default function TopBar({ onMenuClick }: TopBarProps) {
     const location = useLocation();
     const { title, actions } = usePageHeader();
-    const { accent, setAccent } = useTheme();
 
     const displayTitle = title || routeTitles[location.pathname] || "";
 
@@ -46,14 +44,6 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
             {/* Right: page actions + version */}
             <div className="flex items-center gap-3">
                 {actions}
-                {/* Dev-only theme toggle */}
-                <button
-                    onClick={() => setAccent(accent === "plex-orange" ? "default" : "plex-orange")}
-                    className="px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors"
-                    title="Toggle Plex theme (dev)"
-                >
-                    {accent === "plex-orange" ? "PLEX" : "DEF"}
-                </button>
                 <VersionBadge />
             </div>
         </header>

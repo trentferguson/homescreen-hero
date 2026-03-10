@@ -3,7 +3,6 @@ import { User, LogOut, Settings } from "lucide-react";
 import IconButton from "./IconButton";
 import VersionBadge from "./VersionBadge";
 import { useAuth } from "../utils/auth";
-import { useTheme } from "../utils/theme";
 
 function NavItem({ to, label }: { to: string; label: string }) {
     return (
@@ -24,7 +23,6 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { logout, username, authEnabled, thumb } = useAuth();
-    const { setAccent } = useTheme();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -58,14 +56,6 @@ export default function TopNav() {
 
                 {/* RIGHT: Version + Icons */}
                 <div className="flex items-center gap-3">
-                    {/* Dev-only theme toggle */}
-                    <button
-                        onClick={() => setAccent("plex-orange")}
-                        className="px-2 py-1 rounded text-[10px] font-bold tracking-wider border border-slate-300 dark:border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
-                        title="Switch to Plex theme (dev)"
-                    >
-                        PLEX
-                    </button>
                     <VersionBadge />
                     <IconButton label="Settings" onClick={() => navigate("/settings")}>
                         <Settings size={20} />
