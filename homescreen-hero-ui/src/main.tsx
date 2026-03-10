@@ -56,6 +56,7 @@ const router = createBrowserRouter([
       { path: "/groups/:groupId", element: <GroupDetailPage /> },
       { path: "/collections", element: <CollectionsPage /> },
       { path: "/collections/:library/:collectionTitle", element: <CollectionDetailPage /> },
+      { path: "/integrations", element: <Navigate to="/lists" replace /> },
       { path: "/lists", element: <ListsPage /> },
       { path: "/tools", element: <ToolsPage /> },
       { path: "/config", element: <ConfigPage /> },

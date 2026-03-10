@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel
 import logging
 import random
@@ -1236,7 +1236,7 @@ class RecentlyAddedResponse(BaseModel):
 
 @router.get("/recently-added", response_model=RecentlyAddedResponse)
 def get_recently_added_endpoint(
-    limit: int = 10,
+    limit: int = Query(10, ge=1, le=25),
     _current_user: CurrentUser = Depends(require_admin),
 ) -> RecentlyAddedResponse:
     from homescreen_hero.core.integrations.plex_client import get_recently_added
@@ -1244,8 +1244,8 @@ def get_recently_added_endpoint(
     try:
         config = load_config()
         server = get_plex_server(config)
-        items = get_recently_added(server, config, limit=min(limit, 25))
+        items = get_recently_added(server, config, limit=limit)
         return RecentlyAddedResponse(items=[RecentlyAddedItem(**item) for item in items])
     except Exception as e:
         logger.error(f"Error fetching recently added: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch recently added: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch recently added")
