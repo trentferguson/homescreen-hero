@@ -119,7 +119,7 @@ const OPERATORS_BY_FIELD: Record<string, { value: string; label: string }[]> = {
     ],
 };
 
-const SOURCE_OPTIONS = ["plex", "trakt", "letterboxd", "mdblist", "anilist", "mal"];
+const SOURCE_OPTIONS = ["plex", "trakt", "letterboxd", "mdblist", "tmdb", "anilist", "mal"];
 
 const emptyForm: SmartGroupForm = {
     name: "",

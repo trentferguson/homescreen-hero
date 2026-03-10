@@ -20,6 +20,7 @@ from homescreen_hero.core.config.loader import (
 )
 from homescreen_hero.core.integrations.trakt_client import TraktClient, TraktConfig
 from homescreen_hero.core.integrations.mdblist_client import MDBListClient, MDBListConfig
+from homescreen_hero.core.integrations.tmdb_client import TMDbClient, TMDbConfig
 from homescreen_hero.core.integrations.tautulli_client import TautulliClient, TautulliConfig
 from homescreen_hero.core.integrations.seerr_client import SeerrClient, SeerrConfig
 from homescreen_hero.core.scheduler import update_rotation_schedule
@@ -38,6 +39,7 @@ from .schemas import (
     TautulliTestRequest,
     SeerrTestRequest,
     MALTestRequest,
+    TMDbTestRequest,
     ConnectionTestResponse,
     QuickStartRequest,
 )
@@ -291,6 +293,7 @@ def check_env_vars() -> EnvVarsResponse:
         auth_secret_from_env=bool(os.getenv("HSH_AUTH_SECRET_KEY")),
         trakt_client_id_from_env=bool(os.getenv("HSH_TRAKT_CLIENT_ID")),
         mdblist_api_key_from_env=bool(os.getenv("HSH_MDBLIST_API_KEY")),
+        tmdb_api_key_from_env=bool(os.getenv("HSH_TMDB_API_KEY")),
         tautulli_api_key_from_env=bool(os.getenv("HSH_TAUTULLI_API_KEY")),
         tautulli_url_from_env=bool(os.getenv("HSH_TAUTULLI_BASE_URL")),
         seerr_api_key_from_env=bool(os.getenv("HSH_SEERR_API_KEY")),
@@ -406,6 +409,23 @@ def test_mal_connection(payload: MALTestRequest) -> ConnectionTestResponse:
         return ConnectionTestResponse(ok=ok, error=error)
     except Exception as exc:
         logger.exception("MAL connection test failed")
+        return ConnectionTestResponse(ok=False, error=str(exc))
+
+
+@router.post("/test-tmdb", response_model=ConnectionTestResponse)
+def test_tmdb_connection(payload: TMDbTestRequest) -> ConnectionTestResponse:
+    # Test TMDb connection with provided credentials.
+    try:
+        api_key = payload.api_key or os.getenv("HSH_TMDB_API_KEY")
+        if not api_key:
+            return ConnectionTestResponse(ok=False, error="No TMDb API Key provided")
+
+        cfg = TMDbConfig(api_key=api_key, base_url=payload.base_url)
+        client = TMDbClient(cfg)
+        ok, error = client.ping()
+        return ConnectionTestResponse(ok=ok, error=error)
+    except Exception as exc:
+        logger.exception("TMDb connection test failed")
         return ConnectionTestResponse(ok=False, error=str(exc))
 
 

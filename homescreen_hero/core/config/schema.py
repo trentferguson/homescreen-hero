@@ -353,6 +353,33 @@ class MDBListSettings(BaseModel):
     sources: List[MDBListSource] = Field(default_factory=list)
 
 
+class TMDbSource(BaseModel):
+    name: str = Field(..., description="Display name for this list (becomes Plex collection name)")
+    url: str = Field(..., description="TMDb list URL (e.g., https://www.themoviedb.org/list/123456)")
+    plex_library: str = Field(..., description="Target Plex library name")
+    auto_request: bool = Field(
+        default=False,
+        description="Automatically request missing items via Seerr after sync",
+    )
+
+
+class TMDbSettings(BaseModel):
+    # TMDb connection details.
+    enabled: bool = Field(
+        default=False,
+        description="Whether TMDb integration is enabled",
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="TMDb API key (can be set via HSH_TMDB_API_KEY env var)",
+    )
+    base_url: str = Field(
+        "https://api.themoviedb.org/3",
+        description="Base URL for TMDb API",
+    )
+    sources: List[TMDbSource] = Field(default_factory=list)
+
+
 class AniListSource(BaseModel):
     name: str = Field(..., description="Display name for this list (becomes Plex collection name)")
     url: str = Field(..., description="AniList user list URL (e.g., https://anilist.co/user/username/animelist)")
@@ -452,6 +479,7 @@ class AppConfig(BaseModel):
     trakt: Optional[TraktSettings] = None
     letterboxd: Optional[LetterboxdSettings] = None
     mdblist: Optional[MDBListSettings] = None
+    tmdb: Optional[TMDbSettings] = None
     anilist: Optional[AniListSettings] = None
     mal: Optional[MALSettings] = None
     tautulli: Optional[TautulliSettings] = None

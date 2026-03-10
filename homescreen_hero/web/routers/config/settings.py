@@ -16,6 +16,7 @@ from homescreen_hero.core.config.schema import (
     TraktSettings,
     LetterboxdSettings,
     MDBListSettings,
+    TMDbSettings,
     AniListSettings,
     MALSettings,
     TautulliSettings,
@@ -32,6 +33,7 @@ from .schemas import (
     TraktConfigSaveRequest,
     LetterboxdConfigSaveRequest,
     MDBListConfigSaveRequest,
+    TMDbConfigSaveRequest,
     AniListConfigSaveRequest,
     MALConfigSaveRequest,
     TautulliConfigSaveRequest,
@@ -269,6 +271,68 @@ def save_mdblist_settings(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message="MDBList settings saved and validated.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# TMDB SETTINGS
+# ========================================================================
+
+@router.get("/tmdb", response_model=TMDbSettings)
+def get_tmdb_settings(_current_user: CurrentUser = Depends(require_admin)) -> TMDbSettings:
+    # Return the currently configured TMDb settings
+    try:
+        config = load_config()
+        if config.tmdb is None:
+            # Still surface the env var so the UI shows the masked key
+            env_key = os.getenv("HSH_TMDB_API_KEY") or None
+            return TMDbSettings(enabled=False, api_key=env_key, base_url="https://api.themoviedb.org/3", sources=[])
+        return config.tmdb
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/tmdb", response_model=ConfigSaveResponse)
+def save_tmdb_settings(
+    payload: TMDbConfigSaveRequest,
+    _current_user: CurrentUser = Depends(require_admin)
+) -> ConfigSaveResponse:
+    # Update only TMDb settings in config.yaml while preserving other keys
+    try:
+        data = load_config_mapping()
+
+        tmdb_section = data.get("tmdb") if isinstance(data.get("tmdb"), dict) else {}
+        tmdb_section = dict(tmdb_section)
+
+        # Only save api_key to config if it's not coming from environment variable
+        api_key_from_env = os.getenv("HSH_TMDB_API_KEY")
+        if api_key_from_env:
+            tmdb_section.pop("api_key", None)
+        else:
+            tmdb_section["api_key"] = payload.api_key
+
+        tmdb_section.update(
+            enabled=payload.enabled,
+            base_url=payload.base_url,
+        )
+
+        data["tmdb"] = tmdb_section
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message="TMDb settings saved and validated.",
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -15,6 +15,7 @@ from homescreen_hero.core.config.schema import (
     TraktSource,
     LetterboxdSource,
     MDBListSource,
+    TMDbSource,
     AniListSource,
     MALSource,
 )
@@ -26,6 +27,7 @@ from .helpers import (
     load_trakt_sources,
     load_letterboxd_sources,
     load_mdblist_sources,
+    load_tmdb_sources,
     load_anilist_sources,
     load_mal_sources,
     get_all_source_names,
@@ -44,6 +46,10 @@ from .schemas import (
     MDBListSourceStatus,
     MDBListSyncResponse,
     MDBListMissingItemOut,
+    TMDbSourcePayload,
+    TMDbSourceStatus,
+    TMDbSyncResponse,
+    TMDbMissingItemOut,
     AniListSourcePayload,
     AniListSourceStatus,
     AniListSyncResponse,
@@ -891,6 +897,279 @@ def get_missing_items_for_mdblist_source(
         raise
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("Error fetching missing items for MDBList source at index %d: %s", index, exc)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ========================================================================
+# TMDB SOURCES
+# ========================================================================
+
+@router.get("/tmdb/sources", response_model=list[TMDbSource])
+def list_tmdb_sources(current_user: CurrentUser = Depends(require_admin)) -> list[TMDbSource]:
+    # Return list of all configured TMDb sources
+    try:
+        config = load_config()
+        return list(getattr(getattr(config, "tmdb", None), "sources", []) or [])
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/tmdb/sources", response_model=ConfigSaveResponse)
+def create_tmdb_source(
+    payload: TMDbSourcePayload,
+    current_user: CurrentUser = Depends(require_admin)
+) -> ConfigSaveResponse:
+    # Append new TMDb source to config.yaml
+    try:
+        data = load_config_mapping()
+
+        if payload.name in get_all_source_names(data):
+            raise HTTPException(status_code=409, detail=f"A source named '{payload.name}' already exists. Please choose a different name.")
+
+        tmdb_section = data.get("tmdb") if isinstance(data.get("tmdb"), dict) else {}
+        tmdb_section = dict(tmdb_section)
+
+        sources = load_tmdb_sources(data)
+        sources.append(payload.model_dump(exclude_none=True))
+
+        tmdb_section["sources"] = sources
+        data["tmdb"] = tmdb_section
+
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"TMDb source '{payload.name}' added.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.put("/tmdb/sources/{index}", response_model=ConfigSaveResponse)
+def update_tmdb_source(
+    index: int,
+    payload: TMDbSourcePayload,
+    current_user: CurrentUser = Depends(require_admin),
+) -> ConfigSaveResponse:
+    # Replace existing TMDb source at given index in config.yaml
+    try:
+        data = load_config_mapping()
+        tmdb_section = data.get("tmdb") if isinstance(data.get("tmdb"), dict) else {}
+        tmdb_section = dict(tmdb_section)
+
+        sources = load_tmdb_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="TMDb source not found")
+
+        sources[index] = payload.model_dump(exclude_none=True)
+        tmdb_section["sources"] = sources
+        data["tmdb"] = tmdb_section
+
+        save_config_mapping(data)
+
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"TMDb source '{payload.name}' updated.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.delete("/tmdb/sources/{index}", response_model=ConfigSaveResponse)
+def delete_tmdb_source(
+    index: int,
+    current_user: CurrentUser = Depends(require_admin)
+) -> ConfigSaveResponse:
+    # Remove TMDb source at given index from config.yaml
+    try:
+        data = load_config_mapping()
+        tmdb_section = data.get("tmdb") if isinstance(data.get("tmdb"), dict) else {}
+        tmdb_section = dict(tmdb_section)
+
+        sources = load_tmdb_sources(data)
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="TMDb source not found")
+
+        removed = sources.pop(index)
+        tmdb_section["sources"] = sources
+        data["tmdb"] = tmdb_section
+
+        save_config_mapping(data)
+
+        name = removed.get("name") if isinstance(removed, dict) else None
+        config_path = get_config_path()
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"TMDb source '{name or index}' deleted.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/tmdb/sources/status", response_model=list[TMDbSourceStatus])
+def get_tmdb_sources_status(
+    current_user: CurrentUser = Depends(require_admin)
+) -> list[TMDbSourceStatus]:
+    # Return sync status for each configured TMDb source.
+    try:
+        from homescreen_hero.core.db import get_sync_status
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "tmdb", None), "sources", []) or [])
+
+        statuses: list[TMDbSourceStatus] = []
+        for idx, source in enumerate(sources):
+            record = get_sync_status("tmdb", source.name)
+            statuses.append(
+                TMDbSourceStatus(
+                    source_index=idx,
+                    name=source.name,
+                    last_sync_time=record.last_sync_time if record else None,
+                    sync_status=record.sync_status if record else "never_synced",
+                    error_message=record.error_message if record else None,
+                    items_matched=record.items_matched if record else 0,
+                    items_total=record.items_total if record else 0,
+                )
+            )
+
+        return statuses
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/tmdb/sources/{index}/sync", response_model=TMDbSyncResponse)
+def sync_tmdb_source(
+    index: int,
+    current_user: CurrentUser = Depends(require_admin)
+) -> TMDbSyncResponse:
+    # Manually sync a specific TMDb source to Plex collection.
+    try:
+        from homescreen_hero.core.integrations.tmdb_sync import sync_single_tmdb_source
+        from homescreen_hero.core.db import record_sync_result
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "tmdb", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="TMDb source not found")
+
+        source = sources[index]
+        server = get_plex_server(config)
+
+        total, matched = sync_single_tmdb_source(server, config, source)
+        missing = total - matched
+
+        record_sync_result(
+            integration_type="tmdb",
+            source_name=source.name,
+            source_url=source.url,
+            items_total=total,
+            items_matched=matched,
+        )
+
+        return TMDbSyncResponse(
+            ok=True,
+            message=f"Synced '{source.name}' successfully",
+            items_total=total,
+            items_matched=matched,
+            items_missing=missing,
+            sync_time=datetime.utcnow(),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Error syncing TMDb source at index %d: %s", index, exc)
+
+        try:
+            from homescreen_hero.core.db import record_sync_result
+            config = load_config()
+            sources = list(getattr(getattr(config, "tmdb", None), "sources", []) or [])
+            if 0 <= index < len(sources):
+                record_sync_result(
+                    integration_type="tmdb",
+                    source_name=sources[index].name,
+                    source_url=sources[index].url,
+                    items_total=0,
+                    items_matched=0,
+                    sync_status="error",
+                    error_message=str(exc),
+                )
+        except Exception:
+            pass
+
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(exc)}") from exc
+
+
+@router.get("/tmdb/sources/{index}/missing", response_model=list[TMDbMissingItemOut])
+def get_missing_items_for_tmdb_source(
+    index: int,
+    current_user: CurrentUser = Depends(require_admin)
+) -> list[TMDbMissingItemOut]:
+    # Get items from a TMDb list that weren't found in Plex.
+    try:
+        from homescreen_hero.core.db import get_session
+        from homescreen_hero.core.db.models import TMDbMissingItem
+
+        config = load_config()
+        sources = list(getattr(getattr(config, "tmdb", None), "sources", []) or [])
+
+        if index < 0 or index >= len(sources):
+            raise HTTPException(status_code=404, detail="TMDb source not found")
+
+        source = sources[index]
+
+        with get_session() as session:
+            results = session.query(TMDbMissingItem).filter(
+                TMDbMissingItem.source_name == source.name,
+                TMDbMissingItem.source_url == source.url
+            ).order_by(TMDbMissingItem.last_seen.desc()).all()
+
+            return [
+                TMDbMissingItemOut(
+                    title=item.title,
+                    year=item.year,
+                    tmdb_id=item.tmdb_id,
+                    media_type=item.media_type,
+                    first_seen=item.first_seen,
+                    last_seen=item.last_seen,
+                    times_seen=item.times_seen,
+                )
+                for item in results
+            ]
+    except HTTPException:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Error fetching missing items for TMDb source at index %d: %s", index, exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

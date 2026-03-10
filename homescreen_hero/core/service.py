@@ -10,6 +10,7 @@ from .integrations import (
     sync_all_trakt_sources,
     sync_all_letterboxd_sources,
     sync_all_mdblist_sources,
+    sync_all_tmdb_sources,
     sync_all_anilist_sources,
     sync_all_mal_sources,
     apply_home_screen_selection,
@@ -138,6 +139,7 @@ def _sync_selected_collections(
     from .integrations.trakt_sync import sync_single_trakt_source
     from .integrations.letterboxd_sync import sync_single_letterboxd_source
     from .integrations.mdblist_sync import sync_single_mdblist_source
+    from .integrations.tmdb_sync import sync_single_tmdb_source
     from .integrations.anilist_sync import sync_single_anilist_source
     from .integrations.mal_sync import sync_single_mal_source
     from .db import record_sync_result
@@ -146,6 +148,7 @@ def _sync_selected_collections(
     trakt_sources = {}
     letterboxd_sources = {}
     mdblist_sources = {}
+    tmdb_sources = {}
     anilist_sources = {}
     mal_sources = {}
 
@@ -160,6 +163,10 @@ def _sync_selected_collections(
     if config.mdblist and config.mdblist.enabled:
         for source in config.mdblist.sources:
             mdblist_sources[source.name] = source
+
+    if config.tmdb and config.tmdb.enabled:
+        for source in config.tmdb.sources:
+            tmdb_sources[source.name] = source
 
     if config.anilist and config.anilist.sources:
         for source in config.anilist.sources:
@@ -202,6 +209,9 @@ def _sync_selected_collections(
         elif collection_name in mdblist_sources:
             logger.info(f"Syncing selected MDBList collection: {collection_name}")
             _sync_and_record("mdblist", mdblist_sources[collection_name], sync_single_mdblist_source)
+        elif collection_name in tmdb_sources:
+            logger.info(f"Syncing selected TMDb collection: {collection_name}")
+            _sync_and_record("tmdb", tmdb_sources[collection_name], sync_single_tmdb_source)
         elif collection_name in anilist_sources:
             logger.info(f"Syncing selected AniList collection: {collection_name}")
             _sync_and_record("anilist", anilist_sources[collection_name], sync_single_anilist_source)
@@ -265,6 +275,10 @@ def run_rotation_once(
             sync_all_mdblist_sources(server, config)
         except Exception as e:
             logger.error("MDBList sync failed, continuing with rotation: %s", e)
+        try:
+            sync_all_tmdb_sources(server, config)
+        except Exception as e:
+            logger.error("TMDb sync failed, continuing with rotation: %s", e)
         try:
             sync_all_anilist_sources(server, config)
         except Exception as e:
@@ -478,6 +492,7 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
     sync_all_trakt_sources(server, config)
     sync_all_letterboxd_sources(server, config)
     sync_all_mdblist_sources(server, config)
+    sync_all_tmdb_sources(server, config)
     sync_all_anilist_sources(server, config)
     sync_all_mal_sources(server, config)
 

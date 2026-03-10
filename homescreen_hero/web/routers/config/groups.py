@@ -16,6 +16,7 @@ from homescreen_hero.core.config.schema import (
     TraktSettings,
     LetterboxdSettings,
     MDBListSettings,
+    TMDbSettings,
     AniListSettings,
     MALSettings,
 )
@@ -250,6 +251,18 @@ def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> Co
                     )
                 )
 
+        tmdb_sources: list[CollectionSourcesResponse.CollectionSource] = []
+        tmdb_cfg: Optional[TMDbSettings] = getattr(config, "tmdb", None)
+        if tmdb_cfg and getattr(tmdb_cfg, "sources", None):
+            for src in tmdb_cfg.sources:
+                tmdb_sources.append(
+                    CollectionSourcesResponse.CollectionSource(
+                        name=src.name,
+                        source="tmdb",
+                        detail=src.plex_library or src.url,
+                    )
+                )
+
         anilist_sources: list[CollectionSourcesResponse.CollectionSource] = []
         anilist_cfg: Optional[AniListSettings] = getattr(config, "anilist", None)
         if anilist_cfg and getattr(anilist_cfg, "sources", None):
@@ -276,7 +289,7 @@ def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> Co
 
         # Plex collections created by third-party sync duplicate those sources.
         # Filter them out so the UI only shows the authoritative source.
-        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources + anilist_sources + mal_sources}
+        third_party_names = {s.name for s in trakt_sources + letterboxd_sources + mdblist_sources + tmdb_sources + anilist_sources + mal_sources}
         plex_sources = [s for s in plex_sources if s.name not in third_party_names]
 
         return CollectionSourcesResponse(
@@ -284,6 +297,7 @@ def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> Co
             trakt=trakt_sources,
             letterboxd=letterboxd_sources,
             mdblist=mdblist_sources,
+            tmdb=tmdb_sources,
             anilist=anilist_sources,
             mal=mal_sources,
         )

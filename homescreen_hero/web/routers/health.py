@@ -12,6 +12,7 @@ from homescreen_hero.core.db import init_db
 from homescreen_hero.core.integrations.plex_client import get_plex_server
 from homescreen_hero.core.integrations.trakt_client import get_trakt_client
 from homescreen_hero.core.integrations.mdblist_client import get_mdblist_client
+from homescreen_hero.core.integrations.tmdb_client import get_tmdb_client
 from homescreen_hero.core.integrations.anilist_client import get_anilist_client
 from homescreen_hero.core.integrations.mal_client import get_mal_client
 from homescreen_hero.core.logging_config import level_from_name, setup_logging
@@ -150,6 +151,59 @@ def _check_mdblist(config: Any) -> HealthComponent:
         logger.exception("MDBList health check failed")
         return HealthComponent(
             ok=False, error=f"Unhandled error in MDBList health check: {exc}"
+        )
+
+
+# Helper function for TMDb health check
+def _check_tmdb(config: Any) -> HealthComponent:
+    try:
+        tmdb_client = get_tmdb_client(config)
+
+        if tmdb_client is None:
+            if config.tmdb and config.tmdb.enabled:
+                return HealthComponent(ok=False, error="TMDb enabled but API key not configured")
+            return HealthComponent(ok=True, error="TMDb disabled or not configured")
+
+        t_ok, t_error = tmdb_client.ping()
+        issues: list[str] = []
+
+        if not t_ok:
+            issues.append(f"TMDb ping failed: {t_error or 'unknown error'}")
+
+        try:
+            server = get_plex_server(config)
+
+            if config.tmdb and config.tmdb.sources:
+                for src in config.tmdb.sources:
+                    if not src.plex_library:
+                        issues.append(f"Source '{src.name}' has no plex_library set")
+                        continue
+
+                    try:
+                        server.library.section(src.plex_library)
+                    except NotFound:
+                        issues.append(
+                            f"Source '{src.name}' uses unknown Plex library "
+                            f"'{src.plex_library}'"
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        issues.append(
+                            f"Source '{src.name}' failed library check "
+                            f"'{src.plex_library}': {exc}"
+                        )
+        except Exception as exc:  # pragma: no cover - defensive
+            issues.append(f"Failed to validate TMDb sources against Plex: {exc}")
+
+        return (
+            HealthComponent(ok=False, error="; ".join(issues))
+            if issues
+            else HealthComponent(ok=True)
+        )
+
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("TMDb health check failed")
+        return HealthComponent(
+            ok=False, error=f"Unhandled error in TMDb health check: {exc}"
         )
 
 
@@ -390,6 +444,16 @@ def health_mdblist() -> HealthComponent:
     return _check_mdblist(config)
 
 
+# Validate TMDb connectivity and configured Plex library references
+@router.get("/health/tmdb", response_model=HealthComponent)
+def health_tmdb() -> HealthComponent:
+    component, config = _check_config()
+    if not component.ok:
+        return HealthComponent(ok=False, error=component.error)
+
+    return _check_tmdb(config)
+
+
 # Validate Tautulli connectivity
 @router.get("/health/tautulli", response_model=HealthComponent)
 def health_tautulli() -> HealthComponent:
@@ -458,6 +522,7 @@ def health_check() -> HealthResponse:
 
     components["trakt"] = _check_trakt(config)
     components["mdblist"] = _check_mdblist(config)
+    components["tmdb"] = _check_tmdb(config)
     components["anilist"] = _check_anilist(config)
     components["mal"] = _check_mal(config)
     components["tautulli"] = _check_tautulli(config)

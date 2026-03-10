@@ -41,7 +41,7 @@ type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "ALL";
 
 type CollectionSource = {
     name: string;
-    source: "plex" | "trakt" | "letterboxd" | "mdblist" | "anilist";
+    source: "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal";
     detail?: string | null;
 };
 
@@ -50,7 +50,9 @@ type CollectionSourcesResponse = {
     trakt: CollectionSource[];
     letterboxd: CollectionSource[];
     mdblist: CollectionSource[];
+    tmdb: CollectionSource[];
     anilist: CollectionSource[];
+    mal: CollectionSource[];
 };
 
 function guessLevel(line: string): Exclude<LogLevel, "ALL"> | null {
@@ -211,7 +213,7 @@ export default function SettingsPage() {
     const [intervalInput, setIntervalInput] = useState("12");
     const [maxCollectionsInput, setMaxCollectionsInput] = useState("5");
     const [blacklistSearch, setBlacklistSearch] = useState("");
-    const [blacklistSourceFilter, setBlacklistSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "anilist">("all");
+    const [blacklistSourceFilter, setBlacklistSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal">("all");
     const [blacklistPage, setBlacklistPage] = useState(1);
     const [collectionSources, setCollectionSources] = useState<CollectionSource[]>([]);
     const blacklistItemsPerPage = 20;
@@ -354,7 +356,9 @@ export default function SettingsPage() {
                     ...(data.trakt || []),
                     ...(data.letterboxd || []),
                     ...(data.mdblist || []),
+                    ...(data.tmdb || []),
                     ...(data.anilist || []),
+                    ...(data.mal || []),
                 ];
                 setCollectionSources(combined);
             })
@@ -1289,7 +1293,7 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="flex gap-2 flex-wrap">
-                                {(["all", "plex", "trakt", "letterboxd", "mdblist", "anilist"] as const).map((filter) => (
+                                {(["all", "plex", "trakt", "letterboxd", "mdblist", "tmdb", "anilist", "mal"] as const).map((filter) => (
                                     <button
                                         key={filter}
                                         type="button"
@@ -1339,12 +1343,12 @@ export default function SettingsPage() {
                                             className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold flex-shrink-0 text-white"
                                             style={{
                                                 backgroundColor:
-                                                    source.source === "plex"
-                                                        ? "#e5a00d"
-                                                        : source.source === "trakt"
-                                                        ? "#af35a3"
-                                                        : source.source === "letterboxd"
-                                                        ? "#00a63d"
+                                                    source.source === "plex" ? "#e5a00d"
+                                                        : source.source === "trakt" ? "#af35a3"
+                                                        : source.source === "letterboxd" ? "#00a63d"
+                                                        : source.source === "tmdb" ? "#01b4e4"
+                                                        : source.source === "anilist" ? "#2b2d42"
+                                                        : source.source === "mal" ? "#2e51a2"
                                                         : "#4284c9",
                                             }}
                                         >

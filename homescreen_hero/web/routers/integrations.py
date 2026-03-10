@@ -19,6 +19,7 @@ from .health import (
     _check_seerr,
     _check_plex,
     _check_mdblist,
+    _check_tmdb,
     _check_anilist,
     _check_mal,
 )
@@ -143,7 +144,30 @@ def get_integrations_health(
         )
     )
 
-    # 5. Seerr
+    # 5. TMDb
+    tmdb_health = _check_tmdb(config)
+    tmdb_enabled = bool(config.tmdb and config.tmdb.enabled)
+    if not tmdb_enabled:
+        tmdb_status = "disabled"
+        tmdb_detail = tmdb_health.error or "TMDb disabled"
+    elif not tmdb_health.ok:
+        tmdb_status = "error"
+        tmdb_detail = tmdb_health.error
+    else:
+        tmdb_status = "online"
+        tmdb_detail = "TMDb OK"
+
+    integrations.append(
+        IntegrationHealthOut(
+            name="TMDb",
+            enabled=tmdb_enabled,
+            ok=tmdb_health.ok or not tmdb_enabled,
+            status=tmdb_status,
+            detail=tmdb_detail,
+        )
+    )
+
+    # 6. Seerr
     seerr_health = _check_seerr(config)
     seerr_enabled = bool(config.seerr and config.seerr.enabled)
     if not seerr_enabled:

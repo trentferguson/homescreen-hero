@@ -6,11 +6,13 @@ import { LetterboxdIntegration } from "../components/integrations/LetterboxdInte
 import { MDBListIntegration } from "../components/integrations/MDBListIntegration";
 import { AniListIntegration } from "../components/integrations/AniListIntegration";
 import { MALIntegration } from "../components/integrations/MALIntegration";
+import { TMDbIntegration } from "../components/integrations/TMDbIntegration";
 
 const tabs = [
     { name: "Trakt", key: "trakt", component: TraktIntegration },
     { name: "Letterboxd", key: "letterboxd", component: LetterboxdIntegration },
     { name: "MDBList", key: "mdblist", component: MDBListIntegration },
+    { name: "TMDb", key: "tmdb", component: TMDbIntegration },
     { name: "AniList", key: "anilist", component: AniListIntegration },
     { name: "MyAnimeList", key: "mal", component: MALIntegration },
 ] as const;

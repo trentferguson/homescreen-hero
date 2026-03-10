@@ -74,6 +74,12 @@ export interface MALMissingItem extends BaseMissingItem {
     tvdb_id: number | null;
 }
 
+// TMDb-specific missing item
+export interface TMDbMissingItem extends BaseMissingItem {
+    tmdb_id: number | null;
+    media_type: string | null;
+}
+
 // Settings types
 export interface TraktSettings {
     enabled: boolean;
@@ -106,6 +112,13 @@ export interface SeerrSettings {
 export interface MALSettings {
     enabled: boolean;
     client_id: string;
+}
+
+export interface TMDbSettings {
+    enabled: boolean;
+    api_key: string;
+    base_url: string;
+    sources?: Source[];
 }
 
 export interface PlexLibraryConfig {

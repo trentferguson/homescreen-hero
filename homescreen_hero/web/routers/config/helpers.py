@@ -71,6 +71,19 @@ def load_mdblist_sources(data: dict) -> list[dict]:
     return list(sources or [])
 
 
+def load_tmdb_sources(data: dict) -> list[dict]:
+    # Extract the list of TMDb sources from config mapping
+    tmdb_section = data.get("tmdb")
+    if tmdb_section and not isinstance(tmdb_section, dict):
+        raise ValueError("config.tmdb must be a mapping if present")
+
+    sources = tmdb_section.get("sources") if isinstance(tmdb_section, dict) else []
+    if sources and not isinstance(sources, list):
+        raise ValueError("config.tmdb.sources must be a list")
+
+    return list(sources or [])
+
+
 def load_anilist_sources(data: dict) -> list[dict]:
     # Extract the list of AniList sources from config mapping
     anilist_section = data.get("anilist")
@@ -100,7 +113,7 @@ def load_mal_sources(data: dict) -> list[dict]:
 def get_all_source_names(data: dict) -> set[str]:
     # Collect all source names across integrations (used for duplicate validation)
     names: set[str] = set()
-    for section_key in ("trakt", "letterboxd", "mdblist", "anilist", "mal"):
+    for section_key in ("trakt", "letterboxd", "mdblist", "tmdb", "anilist", "mal"):
         section = data.get(section_key)
         if not isinstance(section, dict):
             continue

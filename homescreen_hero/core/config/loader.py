@@ -150,6 +150,13 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             logger.debug("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
             config.mdblist.api_key = mdblist_api_key
 
+    # TMDb API key override (if TMDb is enabled)
+    if config.tmdb and config.tmdb.enabled:
+        tmdb_api_key = os.getenv("HSH_TMDB_API_KEY")
+        if tmdb_api_key:
+            logger.debug("Using TMDb API key from HSH_TMDB_API_KEY environment variable")
+            config.tmdb.api_key = tmdb_api_key
+
     # Tautulli API key override (if Tautulli is enabled)
     if config.tautulli and config.tautulli.enabled:
         tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
@@ -236,6 +243,10 @@ def _validate_collection_references(config: AppConfig) -> None:
 
     if config.mdblist and config.mdblist.enabled and config.mdblist.sources:
         for source in config.mdblist.sources:
+            integration_collections.add(source.name)
+
+    if config.tmdb and config.tmdb.enabled and config.tmdb.sources:
+        for source in config.tmdb.sources:
             integration_collections.add(source.name)
 
     if config.anilist and config.anilist.sources:

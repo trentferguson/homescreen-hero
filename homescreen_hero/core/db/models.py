@@ -159,6 +159,39 @@ class MDBListMissingItem(Base):
     times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
+class TMDbMissingItem(Base):
+    __tablename__ = "tmdb_missing_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Which TMDb source this came from
+    source_name: Mapped[str] = mapped_column(String, nullable=False)
+    source_url: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Where we expected to find it in Plex
+    plex_library: Mapped[str] = mapped_column(String, nullable=False)
+    plex_collection: Mapped[str] = mapped_column(String, nullable=False)
+
+    # Movie identity
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # TMDb ID
+    tmdb_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Media type (movie or tv)
+    media_type: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Tracking
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    times_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
 class AniListMissingItem(Base):
     __tablename__ = "anilist_missing_items"
 

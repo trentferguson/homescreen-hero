@@ -43,7 +43,7 @@ type CollectionGroup = {
 
 type CollectionSource = {
     name: string;
-    source: "plex" | "trakt" | "letterboxd" | "mdblist" | "anilist";
+    source: "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal";
     detail?: string | null;
 };
 
@@ -52,7 +52,9 @@ type CollectionSourcesResponse = {
     trakt: CollectionSource[];
     letterboxd: CollectionSource[];
     mdblist: CollectionSource[];
+    tmdb: CollectionSource[];
     anilist: CollectionSource[];
+    mal: CollectionSource[];
 };
 
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
@@ -89,7 +91,7 @@ export default function GroupDetailPage() {
     const [messageVisible, setMessageVisible] = useState(false);
     const [sources, setSources] = useState<CollectionSource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-    const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist">("all");
+    const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal">("all");
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export default function GroupDetailPage() {
         fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
-                const combined = [...(data.plex || []), ...(data.trakt || []), ...(data.letterboxd || []), ...(data.mdblist || []), ...(data.anilist || [])];
+                const combined = [...(data.plex || []), ...(data.trakt || []), ...(data.letterboxd || []), ...(data.mdblist || []), ...(data.tmdb || []), ...(data.anilist || []), ...(data.mal || [])];
                 setSources(combined);
             })
             .catch(() => {
@@ -603,6 +605,18 @@ export default function GroupDetailPage() {
                             >
                                 MDBList
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setSourceFilter("tmdb")}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === "tmdb"
+                                        ? "text-white"
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === "tmdb" ? { backgroundColor: "#01b4e4" } : undefined}
+                            >
+                                TMDb
+                            </button>
                         </div>
                     </div>
 
@@ -619,16 +633,23 @@ export default function GroupDetailPage() {
                                     <span
                                         className="rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 text-white"
                                         style={{
-                                            backgroundColor: source.source === "plex"
-                                                ? "#e5a00d"
-                                                : source.source === "trakt"
-                                                ? "#af35a3"
-                                                : source.source === "letterboxd"
-                                                ? "#00a63d"
+                                            backgroundColor:
+                                                source.source === "plex" ? "#e5a00d"
+                                                : source.source === "trakt" ? "#af35a3"
+                                                : source.source === "letterboxd" ? "#00a63d"
+                                                : source.source === "tmdb" ? "#01b4e4"
+                                                : source.source === "anilist" ? "#2b2d42"
+                                                : source.source === "mal" ? "#2e51a2"
                                                 : "#4284c9"
                                         }}
                                     >
-                                        {source.source === "plex" ? "Plex" : source.source === "trakt" ? "Trakt" : source.source === "letterboxd" ? "Letterboxd" : "MDBList"}
+                                        {source.source === "plex" ? "Plex"
+                                            : source.source === "trakt" ? "Trakt"
+                                            : source.source === "letterboxd" ? "Letterboxd"
+                                            : source.source === "tmdb" ? "TMDb"
+                                            : source.source === "anilist" ? "AniList"
+                                            : source.source === "mal" ? "MAL"
+                                            : "MDBList"}
                                     </span>
                                 </div>
                                 {source.detail ? (

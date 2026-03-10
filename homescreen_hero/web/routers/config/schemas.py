@@ -14,6 +14,8 @@ from homescreen_hero.core.config.schema import (
     LetterboxdSource,
     MDBListSettings,
     MDBListSource,
+    TMDbSettings,
+    TMDbSource,
     AniListSettings,
     AniListSource,
     MALSettings,
@@ -137,13 +139,14 @@ class GroupReorderRequest(BaseModel):
 class CollectionSourcesResponse(BaseModel):
     class CollectionSource(BaseModel):
         name: str
-        source: Literal["plex", "trakt", "letterboxd", "mdblist", "anilist", "mal"]
+        source: Literal["plex", "trakt", "letterboxd", "mdblist", "tmdb", "anilist", "mal"]
         detail: Optional[str] = None
 
     plex: List[CollectionSource]
     trakt: List[CollectionSource]
     letterboxd: List[CollectionSource]
     mdblist: List[CollectionSource]
+    tmdb: List[CollectionSource]
     anilist: List[CollectionSource]
     mal: List[CollectionSource]
 
@@ -248,6 +251,54 @@ class MDBListMissingItemOut(BaseModel):
     times_seen: int
 
 
+# Incoming payload for TMDb settings updates.
+class TMDbConfigSaveRequest(TMDbSettings):
+    pass
+
+
+# Incoming payload for TMDb source create/update operations.
+class TMDbSourcePayload(TMDbSource):
+    pass
+
+
+# Status information for a TMDb source including sync history.
+class TMDbSourceStatus(BaseModel):
+    source_index: int
+    name: str
+    last_sync_time: Optional[datetime] = None
+    sync_status: Literal["success", "error", "pending", "never_synced"]
+    error_message: Optional[str] = None
+    items_matched: int = 0
+    items_total: int = 0
+
+
+# Response from manual TMDb sync operation.
+class TMDbSyncResponse(BaseModel):
+    ok: bool
+    message: str
+    items_total: int
+    items_matched: int
+    items_missing: int
+    sync_time: datetime
+
+
+# A TMDb item that wasn't found in Plex.
+class TMDbMissingItemOut(BaseModel):
+    title: str
+    year: Optional[int]
+    tmdb_id: Optional[int]
+    media_type: Optional[str]
+    first_seen: datetime
+    last_seen: datetime
+    times_seen: int
+
+
+# Request payload for testing TMDb connection with provided credentials.
+class TMDbTestRequest(BaseModel):
+    api_key: Optional[str] = None  # Falls back to HSH_TMDB_API_KEY env var
+    base_url: str = "https://api.themoviedb.org/3"
+
+
 # Status information for an AniList source including sync history.
 class AniListSourceStatus(BaseModel):
     source_index: int
@@ -335,6 +386,7 @@ class EnvVarsResponse(BaseModel):
     auth_secret_from_env: bool
     trakt_client_id_from_env: bool
     mdblist_api_key_from_env: bool
+    tmdb_api_key_from_env: bool
     tautulli_api_key_from_env: bool
     tautulli_url_from_env: bool
     seerr_api_key_from_env: bool

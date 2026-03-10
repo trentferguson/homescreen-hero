@@ -43,6 +43,10 @@ def build_collection_metadata(server, config: AppConfig) -> List[CollectionMetad
         for src in config.mdblist.sources:
             third_party[src.name] = ("mdblist", src.plex_library)
 
+    if config.tmdb and config.tmdb.enabled and config.tmdb.sources:
+        for src in config.tmdb.sources:
+            third_party[src.name] = ("tmdb", src.plex_library)
+
     if config.anilist and config.anilist.sources:
         for src in config.anilist.sources:
             third_party[src.name] = ("anilist", src.plex_library)
