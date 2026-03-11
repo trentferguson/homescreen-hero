@@ -68,6 +68,7 @@ export default function IntegrationsHealthCard({ loading: parentLoading }: { loa
             "Trakt": "/api/health/trakt",
             "Tautulli": "/api/health/tautulli",
             "MDBList": "/api/health/mdblist",
+            "TMDb": "/api/health/tmdb",
             "Seerr": "/api/health/seerr",
         };
 
