@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _delete_plex_collection(source_name: str, plex_library: str) -> None:
+def _delete_plex_collection(source_name: str, plex_library: str) -> bool:
     # Delete a Plex collection by name from the specified library.
     # Only called when the user explicitly opts in via delete_collection=true.
     try:
@@ -77,11 +77,13 @@ def _delete_plex_collection(source_name: str, plex_library: str) -> None:
         collection = library.collection(source_name)
         collection.delete()
         logger.info("Deleted Plex collection '%s' from library '%s'", source_name, plex_library)
+        return True
     except Exception as exc:
         logger.warning(
             "Could not delete Plex collection '%s' from '%s': %s",
             source_name, plex_library, exc,
         )
+        return False
 
 
 # ========================================================================
@@ -203,13 +205,17 @@ def delete_trakt_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"Trakt source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
@@ -490,13 +496,17 @@ def delete_letterboxd_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"Letterboxd source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
@@ -774,13 +784,17 @@ def delete_mdblist_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"MDBList source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
@@ -1060,13 +1074,17 @@ def delete_tmdb_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"TMDb source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
@@ -1362,13 +1380,17 @@ def delete_anilist_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"AniList source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
@@ -1648,13 +1670,17 @@ def delete_mal_source(
 
         name = removed.get("name") if isinstance(removed, dict) else None
         plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        collection_deleted = False
         if delete_collection and name and plex_library:
-            _delete_plex_collection(name, plex_library)
+            collection_deleted = _delete_plex_collection(name, plex_library)
 
         config_path = get_config_path()
         msg = f"MAL source '{name or index}' deleted."
         if delete_collection and name:
-            msg += f" Plex collection '{name}' also removed."
+            if collection_deleted:
+                msg += f" Plex collection '{name}' also removed."
+            else:
+                msg += f" Failed to remove Plex collection '{name}'. Check logs for details."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),

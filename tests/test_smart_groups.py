@@ -359,6 +359,7 @@ class TestGetAvailableFilterOptions:
             trakt = None
             letterboxd = None
             mdblist = None
+            tmdb = None
             anilist = None
             mal = None
 
