@@ -1,17 +1,23 @@
 import { useState, useRef, useEffect } from "react";
-import { Info, Plus, ChevronDown } from "lucide-react";
+import { Info, Plus, ChevronDown, Lock } from "lucide-react";
 
 interface HiddenWidget {
     id: string;
     name: string;
     description: string;
     available: boolean;
+    requiresIntegration?: string;
 }
 
 interface EditModeBannerProps {
     hiddenWidgets?: HiddenWidget[];
     onAddWidget?: (widgetId: string) => void;
 }
+
+const integrationLabels: Record<string, string> = {
+    tautulli: "Tautulli",
+    seerr: "Overseerr",
+};
 
 export function EditModeBanner({ hiddenWidgets = [], onAddWidget }: EditModeBannerProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -35,7 +41,11 @@ export function EditModeBanner({ hiddenWidgets = [], onAddWidget }: EditModeBann
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const availableToAdd = hiddenWidgets.filter((w) => w.available);
+    // Sort: available first, then unavailable
+    const sortedWidgets = [...hiddenWidgets].sort((a, b) => {
+        if (a.available === b.available) return 0;
+        return a.available ? -1 : 1;
+    });
 
     return (
         <div className="flex items-center justify-between gap-4 px-4 py-2.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-sm text-amber-400">
@@ -44,7 +54,7 @@ export function EditModeBanner({ hiddenWidgets = [], onAddWidget }: EditModeBann
                 <span>Drag widgets to reorder. Click the lock icon when done.</span>
             </div>
 
-            {availableToAdd.length > 0 && (
+            {sortedWidgets.length > 0 && (
                 <div className="relative">
                     <button
                         ref={buttonRef}
@@ -59,20 +69,35 @@ export function EditModeBanner({ hiddenWidgets = [], onAddWidget }: EditModeBann
                     {isOpen && (
                         <div
                             ref={dropdownRef}
-                            className="absolute right-0 top-full mt-2 w-64 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden"
+                            className="absolute right-0 top-full mt-2 w-72 rounded-lg bg-slate-800 border border-slate-700 shadow-xl z-50 overflow-hidden"
                         >
                             <div className="px-3 py-2 border-b border-slate-700">
                                 <p className="text-xs font-medium text-slate-400">Hidden Widgets</p>
                             </div>
                             <div className="max-h-64 overflow-y-auto scrollbar-thin">
-                                {availableToAdd.map((widget) => (
+                                {sortedWidgets.map((widget) => (
                                     <button
                                         key={widget.id}
-                                        onClick={() => onAddWidget?.(widget.id)}
-                                        className="w-full px-3 py-2.5 text-left hover:bg-slate-700/50 transition-colors border-b border-slate-700/50 last:border-b-0"
+                                        onClick={() => widget.available && onAddWidget?.(widget.id)}
+                                        disabled={!widget.available}
+                                        className={`w-full px-3 py-2.5 text-left border-b border-slate-700/50 last:border-b-0 transition-colors ${
+                                            widget.available
+                                                ? "hover:bg-slate-700/50 cursor-pointer"
+                                                : "opacity-50 cursor-not-allowed"
+                                        }`}
                                     >
-                                        <p className="text-sm font-medium text-slate-200">{widget.name}</p>
-                                        <p className="text-xs text-slate-400 mt-0.5">{widget.description}</p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-medium text-slate-200">{widget.name}</p>
+                                            {!widget.available && (
+                                                <Lock size={12} className="flex-shrink-0 text-slate-500" />
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            {widget.available
+                                                ? widget.description
+                                                : `Requires ${integrationLabels[widget.requiresIntegration ?? ""] ?? widget.requiresIntegration}`
+                                            }
+                                        </p>
                                     </button>
                                 ))}
                             </div>

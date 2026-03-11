@@ -130,6 +130,7 @@ export default function Dashboard() {
                 name: widget.name,
                 description: widget.description,
                 available: isWidgetAvailable(widget.id),
+                requiresIntegration: widget.requiresIntegration,
             }));
     }, [visibilityMap, isWidgetAvailable]);
 
