@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 
 from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
 from homescreen_hero.core.config.loader import (
@@ -65,6 +65,23 @@ import os
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _delete_plex_collection(source_name: str, plex_library: str) -> None:
+    # Delete a Plex collection by name from the specified library.
+    # Only called when the user explicitly opts in via delete_collection=true.
+    try:
+        config = load_config()
+        server = get_plex_server(config)
+        library = server.library.section(plex_library)
+        collection = library.collection(source_name)
+        collection.delete()
+        logger.info("Deleted Plex collection '%s' from library '%s'", source_name, plex_library)
+    except Exception as exc:
+        logger.warning(
+            "Could not delete Plex collection '%s' from '%s': %s",
+            source_name, plex_library, exc,
+        )
 
 
 # ========================================================================
@@ -165,7 +182,8 @@ def update_trakt_source(
 @router.delete("/trakt/sources/{index}", response_model=ConfigSaveResponse)
 def delete_trakt_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove Trakt source at given index from config.yaml
     try:
@@ -184,12 +202,19 @@ def delete_trakt_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"Trakt source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"Trakt source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise
@@ -444,7 +469,8 @@ def update_letterboxd_source(
 @router.delete("/letterboxd/sources/{index}", response_model=ConfigSaveResponse)
 def delete_letterboxd_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove Letterboxd source at given index from config.yaml
     try:
@@ -463,12 +489,19 @@ def delete_letterboxd_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"Letterboxd source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"Letterboxd source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise
@@ -720,7 +753,8 @@ def update_mdblist_source(
 @router.delete("/mdblist/sources/{index}", response_model=ConfigSaveResponse)
 def delete_mdblist_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove MDBList source at given index from config.yaml
     try:
@@ -739,12 +773,19 @@ def delete_mdblist_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"MDBList source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"MDBList source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise
@@ -998,7 +1039,8 @@ def update_tmdb_source(
 @router.delete("/tmdb/sources/{index}", response_model=ConfigSaveResponse)
 def delete_tmdb_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove TMDb source at given index from config.yaml
     try:
@@ -1017,12 +1059,19 @@ def delete_tmdb_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"TMDb source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"TMDb source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise
@@ -1292,7 +1341,8 @@ def update_anilist_source(
 @router.delete("/anilist/sources/{index}", response_model=ConfigSaveResponse)
 def delete_anilist_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove AniList source at given index from config.yaml
     try:
@@ -1311,12 +1361,19 @@ def delete_anilist_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"AniList source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"AniList source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise
@@ -1570,7 +1627,8 @@ def update_mal_source(
 @router.delete("/mal/sources/{index}", response_model=ConfigSaveResponse)
 def delete_mal_source(
     index: int,
-    current_user: CurrentUser = Depends(require_admin)
+    delete_collection: bool = Query(False),
+    current_user: CurrentUser = Depends(require_admin),
 ) -> ConfigSaveResponse:
     # Remove MAL source at given index from config.yaml
     try:
@@ -1589,12 +1647,19 @@ def delete_mal_source(
         save_config_mapping(data)
 
         name = removed.get("name") if isinstance(removed, dict) else None
+        plex_library = removed.get("plex_library") if isinstance(removed, dict) else None
+        if delete_collection and name and plex_library:
+            _delete_plex_collection(name, plex_library)
+
         config_path = get_config_path()
+        msg = f"MAL source '{name or index}' deleted."
+        if delete_collection and name:
+            msg += f" Plex collection '{name}' also removed."
         return ConfigSaveResponse(
             ok=True,
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
-            message=f"MAL source '{name or index}' deleted.",
+            message=msg,
         )
     except HTTPException:
         raise

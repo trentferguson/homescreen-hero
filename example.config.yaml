@@ -108,6 +108,17 @@ mal:
 #   plex_library: "Anime"
 #   max_items: 50
 
+# Optional: TMDb integration
+tmdb:
+  enabled: false
+  # api_key: "YOUR_TMDB_API_KEY"  # RECOMMENDED: Use HSH_TMDB_API_KEY environment variable instead
+  # Get your API key from: https://www.themoviedb.org/settings/api
+  base_url: https://api.themoviedb.org/3
+  sources:
+  - name: "TMDB_LIST_NAME"  # This is the name that will show up in Plex
+    url: "LINK_TO_TMDB_LIST"  # e.g., https://www.themoviedb.org/list/123456
+    plex_library: "YOUR_PLEX_LIBRARY_NAME" # e.g., "Movies"
+
 # Optional: MDBList integration
 mdblist:
   enabled: false

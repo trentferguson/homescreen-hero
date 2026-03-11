@@ -1,5 +1,13 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { RefreshCw, ChevronRight, ChevronLeft, ListPlus, Trash2 } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from "../../ui/confirm-dialog";
 import { Switch } from "@headlessui/react";
 import type { Source, SourceStatus, BaseMissingItem, PlexLibraryConfig } from "../../../types/integrations";
 import { SyncStatusBadge } from "./SyncStatusBadge";
@@ -14,7 +22,7 @@ export interface SourceListProps<TMissing extends BaseMissingItem> {
     sources: Source[];
     statuses: Map<number, SourceStatus>;
     onSyncSource: (index: number) => void;
-    onRemoveSource: (index: number) => void;
+    onRemoveSource: (index: number, deleteCollection?: boolean) => void;
     onUpdateSource?: (index: number, source: Source) => void;
     loadingSources: boolean;
     syncingSource: number | null;
@@ -53,6 +61,28 @@ export function SourceList<TMissing extends BaseMissingItem>(
         showAutoRequest = false,
     } = props;
 
+    // Delete confirmation state
+    const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
+    const [deleteCollection, setDeleteCollection] = useState(false);
+
+    const handleDeleteClick = (idx: number) => {
+        setPendingDeleteIndex(idx);
+        setDeleteCollection(false);
+    };
+
+    const handleConfirmDelete = () => {
+        if (pendingDeleteIndex !== null) {
+            onRemoveSource(pendingDeleteIndex, deleteCollection);
+            setPendingDeleteIndex(null);
+            setDeleteCollection(false);
+        }
+    };
+
+    const handleCancelDelete = () => {
+        setPendingDeleteIndex(null);
+        setDeleteCollection(false);
+    };
+
     if (loadingSources) {
         return <p className="text-xs text-slate-400">Loading sources…</p>;
     }
@@ -85,7 +115,7 @@ export function SourceList<TMissing extends BaseMissingItem>(
                             source={source}
                             status={status}
                             onSync={() => onSyncSource(idx)}
-                            onRemove={() => onRemoveSource(idx)}
+                            onRemove={() => handleDeleteClick(idx)}
                             onUpdate={onUpdateSource ? (s) => onUpdateSource(idx, s) : undefined}
                             isSyncing={syncingSource === idx}
                             isDeleting={deletingSource === idx}
@@ -107,6 +137,16 @@ export function SourceList<TMissing extends BaseMissingItem>(
                     </Fragment>
                 );
             })}
+
+            {/* Delete confirmation dialog */}
+            <DeleteConfirmDialog
+                open={pendingDeleteIndex !== null}
+                sourceName={pendingDeleteIndex !== null ? (sources[pendingDeleteIndex]?.name ?? "") : ""}
+                deleteCollection={deleteCollection}
+                onToggleDeleteCollection={() => setDeleteCollection((v) => !v)}
+                onConfirm={handleConfirmDelete}
+                onCancel={handleCancelDelete}
+            />
         </div>
     );
 }
@@ -131,7 +171,7 @@ interface SourceListManagerProps<TMissing extends BaseMissingItem> {
 
     // Actions
     onSyncSource: (index: number) => void;
-    onRemoveSource: (index: number) => void;
+    onRemoveSource: (index: number, deleteCollection?: boolean) => void;
     onUpdateSource?: (index: number, source: Source) => void;
 
     // Loading states
@@ -569,6 +609,56 @@ function ExpandedDetailRow<TMissing extends BaseMissingItem>(
                 <p className="text-xs text-emerald-400">All items found in Plex!</p>
             )}
         </div>
+    );
+}
+
+// ─── Delete Confirmation Dialog ──────────────────────────────────────────────
+
+interface DeleteConfirmDialogProps {
+    open: boolean;
+    sourceName: string;
+    deleteCollection: boolean;
+    onToggleDeleteCollection: () => void;
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+function DeleteConfirmDialog({
+    open,
+    sourceName,
+    deleteCollection,
+    onToggleDeleteCollection,
+    onConfirm,
+    onCancel,
+}: DeleteConfirmDialogProps) {
+    return (
+        <AlertDialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
+            <AlertDialogContent>
+                <AlertDialogTitle>Remove "{sourceName}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will remove the list source from your configuration.
+                </AlertDialogDescription>
+
+                <label className="flex items-center gap-2.5 rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2.5 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={deleteCollection}
+                        onChange={onToggleDeleteCollection}
+                        className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-rose-500 focus:ring-rose-500/30 focus:ring-offset-0 cursor-pointer"
+                    />
+                    <span className="text-sm text-slate-300">
+                        Also delete the <strong className="text-slate-100">"{sourceName}"</strong> collection from Plex
+                    </span>
+                </label>
+
+                <div className="flex items-center justify-end gap-3 mt-2">
+                    <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onConfirm}>
+                        {deleteCollection ? "Delete Source & Collection" : "Delete Source"}
+                    </AlertDialogAction>
+                </div>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }
 

@@ -144,6 +144,7 @@ def get_collections():
 | Trakt | `core/integrations/trakt_client.py` | Third-party list sync |
 | MDBList | `core/integrations/mdblist_client.py` | Third-party list sync |
 | Tautulli | `core/integrations/tautulli_client.py` | Analytics & streaming metrics |
+| TMDb | `core/integrations/tmdb_client.py` | Third-party list sync |
 | Letterboxd | `core/integrations/letterboxd_scraper.py` | List scraping |
 | AniList | `core/integrations/anilist_client.py` | Anime list sync |
 
@@ -160,6 +161,7 @@ Sensitive values go in `.env` (not committed):
 - `HSH_AUTH_SECRET_KEY` - JWT secret
 - `HSH_TRAKT_CLIENT_ID` - Trakt API client ID
 - `HSH_MDBLIST_API_KEY` - MDBList API key
+- `HSH_TMDB_API_KEY` - TMDb API key
 - `HSH_TAUTULLI_API_KEY` - Tautulli API key
 - `HSH_TAUTULLI_BASE_URL` - Tautulli server URL
 

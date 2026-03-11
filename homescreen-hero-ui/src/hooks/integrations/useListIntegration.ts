@@ -59,7 +59,7 @@ export interface UseListIntegrationReturn<TSettings, TMissing> {
     setNewSource: React.Dispatch<React.SetStateAction<Source>>;
     addSource: (sourceOverride?: Source) => Promise<boolean>;
     updateSource: (index: number, source: Source) => Promise<void>;
-    removeSource: (index: number) => Promise<void>;
+    removeSource: (index: number, deleteCollection?: boolean) => Promise<void>;
     syncSource: (index: number) => Promise<void>;
     savingSource: boolean;
     syncingSource: number | null;
@@ -311,11 +311,14 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 
     // Remove source
     const removeSource = useCallback(
-        async (index: number) => {
+        async (index: number, deleteCollection = false) => {
             try {
                 setDeletingSource(index);
 
-                const r = await fetchWithAuth(`${basePath}/sources/${index}`, {
+                const url = deleteCollection
+                    ? `${basePath}/sources/${index}?delete_collection=true`
+                    : `${basePath}/sources/${index}`;
+                const r = await fetchWithAuth(url, {
                     method: "DELETE",
                 });
 
