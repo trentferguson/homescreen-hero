@@ -1,24 +1,21 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, createContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wizard, useWizard } from "react-use-wizard";
-import { ArrowRight, ArrowLeft, Check, ExternalLink, Shield, Server, Database, Sparkles, Clock, ChevronDown, List, BarChart2, Film } from "lucide-react";
-import { Switch, Listbox } from "@headlessui/react";
+import { ArrowRight, ArrowLeft, Check, Shield, Server, Sparkles, Plug, KeyRound, RefreshCw, Layers, Info, Film, Tv, Video, Swords, BookOpen, Users, Home, Star, Clock, Hand, Shuffle, Scale, RotateCcw, Palette, type LucideIcon } from "lucide-react";
+import { Transition } from "@headlessui/react";
 import PosterBackground from "../components/PosterBackground";
-import { Checkbox } from "../components/ui/checkbox";
+import { Slider } from "../components/ui/slider";
+
 import { getShuffledStaticPosters } from "../utils/staticPosters";
 import { useAuth } from "../utils/auth";
+import { useTheme, type ThemeAccent } from "../utils/theme";
 
 type EnvVars = {
     plex_token_from_env: boolean;
     plex_url_from_env: boolean;
+    plex_url_value: string | null;
     auth_password_from_env: boolean;
     auth_secret_from_env: boolean;
-    trakt_client_id_from_env: boolean;
-    mdblist_api_key_from_env: boolean;
-    tautulli_api_key_from_env: boolean;
-    tautulli_url_from_env: boolean;
-    seerr_api_key_from_env: boolean;
-    seerr_url_from_env: boolean;
 };
 
 type Library = {
@@ -26,70 +23,81 @@ type Library = {
     type: string;
 };
 
+type AuthMethod = "password" | "plex" | "both";
+
+type RotationMode = "groups" | "auto_rotate";
+
 type WizardData = {
     authEnabled: boolean;
+    authMethod: AuthMethod;
     authUsername: string;
     authPassword: string;
     plexUrl: string;
     plexToken: string;
     selectedLibraries: string[];
-    traktEnabled: boolean;
-    traktClientId: string;
-    traktBaseUrl: string;
-    mdblistEnabled: boolean;
-    mdblistApiKey: string;
-    mdblistBaseUrl: string;
-    tautulliEnabled: boolean;
-    tautulliApiKey: string;
-    tautulliBaseUrl: string;
-    seerrEnabled: boolean;
-    seerrApiKey: string;
-    seerrBaseUrl: string;
+    rotationMode: RotationMode;
     rotationEnabled: boolean;
     rotationIntervalHours: number;
     rotationMaxCollections: number;
     rotationStrategy: string;
     rotationAllowRepeats: boolean;
+    visibilityHome: boolean;
+    visibilityShared: boolean;
+    visibilityRecommended: boolean;
 };
+
+const STEP_COUNT = 6; // Theme, Plex, Auth, Rotation Mode, Rotation Settings, Complete
+
+type SlideDirection = "forward" | "back";
+const SlideDirectionContext = createContext<SlideDirection>("forward");
+
+function StepProgress({ step, label }: { step: number; label: string }) {
+    const pct = Math.round((step / STEP_COUNT) * 100);
+    return (
+        <div className="space-y-2 mb-6">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+                    Step {step} of {STEP_COUNT}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{pct}% Complete</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div
+                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${pct}%` }}
+                />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{label}</h2>
+        </div>
+    );
+}
 
 export default function QuickStartPage() {
     const [wizardData, setWizardData] = useState<WizardData>({
         authEnabled: true,
+        authMethod: "password",
         authUsername: "admin",
         authPassword: "",
         plexUrl: "",
         plexToken: "",
         selectedLibraries: [],
-        traktEnabled: false,
-        traktClientId: "",
-        traktBaseUrl: "https://api.trakt.tv",
-        mdblistEnabled: false,
-        mdblistApiKey: "",
-        mdblistBaseUrl: "https://api.mdblist.com",
-        tautulliEnabled: false,
-        tautulliApiKey: "",
-        tautulliBaseUrl: "http://localhost:8181",
-        seerrEnabled: false,
-        seerrApiKey: "",
-        seerrBaseUrl: "http://localhost:5055",
-        rotationEnabled: false,
+        rotationMode: "groups",
+        rotationEnabled: true,
         rotationIntervalHours: 12,
         rotationMaxCollections: 5,
         rotationStrategy: "random",
         rotationAllowRepeats: false,
+        visibilityHome: true,
+        visibilityShared: false,
+        visibilityRecommended: false,
     });
 
     const [envVars, setEnvVars] = useState<EnvVars>({
         plex_token_from_env: false,
         plex_url_from_env: false,
+        plex_url_value: null,
         auth_password_from_env: false,
         auth_secret_from_env: false,
-        trakt_client_id_from_env: false,
-        mdblist_api_key_from_env: false,
-        tautulli_api_key_from_env: false,
-        tautulli_url_from_env: false,
-        seerr_api_key_from_env: false,
-        seerr_url_from_env: false,
     });
 
     useEffect(() => {
@@ -105,21 +113,33 @@ export default function QuickStartPage() {
     // Memoize static posters so they don't reshuffle on every render
     const staticPosters = useMemo(() => getShuffledStaticPosters(), []);
 
+    const prevStepRef = useRef(0);
+    const [slideDirection, setSlideDirection] = useState<SlideDirection>("forward");
+    const [stepKey, setStepKey] = useState(0);
+
+    const handleStepChange = (newStep: number) => {
+        setSlideDirection(newStep > prevStepRef.current ? "forward" : "back");
+        prevStepRef.current = newStep;
+        setStepKey((k) => k + 1);
+    };
+
     return (
         <PosterBackground staticPosters={staticPosters}>
             <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 w-full max-w-2xl p-8">
-                    <Wizard>
+                <div className="bg-white/85 dark:bg-slate-900/85 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 w-full max-w-3xl p-8 overflow-hidden">
+                    <SlideDirectionContext.Provider value={slideDirection}>
+                    <Wizard onStepChange={handleStepChange}
+                        wrapper={<div key={stepKey} className={`wizard-slide ${slideDirection === "forward" ? "wizard-slide-in-right" : "wizard-slide-in-left"}`} />}
+                    >
                         <WelcomeStep />
-                        <AuthStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
+                        <ThemeStep />
                         <PlexStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
-                        <TraktStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
-                        <MDBListStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
-                        <TautulliStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
-                        <SeerrStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
-                        <RotationStep wizardData={wizardData} setWizardData={setWizardData} />
-                        <CompleteStep wizardData={wizardData} />
+                        <AuthStep wizardData={wizardData} setWizardData={setWizardData} envVars={envVars} />
+                        <RotationModeStep wizardData={wizardData} setWizardData={setWizardData} />
+                        <RotationSettingsStep wizardData={wizardData} setWizardData={setWizardData} />
+                        <CompleteStep wizardData={wizardData} envVars={envVars} />
                     </Wizard>
+                    </SlideDirectionContext.Provider>
                 </div>
             </div>
         </PosterBackground>
@@ -129,42 +149,43 @@ export default function QuickStartPage() {
 function WelcomeStep() {
     const { nextStep } = useWizard();
 
+    const steps = [
+        { icon: Sparkles, label: "Pick a theme" },
+        { icon: Server, label: "Connect to Plex" },
+        { icon: Shield, label: "Set up auth" },
+        { icon: RefreshCw, label: "Configure rotation" },
+    ];
+
     return (
-        <div className="space-y-5 animate-in fade-in duration-500">
-            <div className="flex flex-col items-center gap-3">
+        <div className="space-y-8 ">
+            <div className="flex flex-col items-center gap-4">
                 <img
                     src="/logo_text.png"
                     alt="homescreen-hero"
-                    className="h-auto w-auto select-none scale-90"
+                    className="h-auto w-auto select-none"
                 />
-                <Sparkles className="h-10 w-10 text-primary" />
-            </div>
-
-            <div className="text-center space-y-3">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    Welcome to homescreen-hero
-                </h1>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Let's get you set up in just a few quick steps. We'll configure your Plex connection, select your libraries, and optionally set up authentication, Trakt, and MDBList integrations.
+                <p className="text-sm text-slate-600 dark:text-slate-400 text-center">
+                    Your Plex companion for automated homescreen collections.
                 </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Shield className="h-5 w-5 text-primary mb-1.5" />
-                    <h3 className="font-semibold text-xs text-slate-900 dark:text-white mb-0.5">Secure</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Optional password protection for your dashboard</p>
-                </div>
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Server className="h-5 w-5 text-primary mb-1.5" />
-                    <h3 className="font-semibold text-xs text-slate-900 dark:text-white mb-0.5">Simple</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Easy Plex integration with just your URL and token</p>
-                </div>
+            <div className="flex items-center justify-center gap-3">
+                {steps.map((step, i) => (
+                    <div key={step.label} className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                            <step.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{step.label}</span>
+                        </div>
+                        {i < steps.length - 1 && (
+                            <ArrowRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 flex-shrink-0" />
+                        )}
+                    </div>
+                ))}
             </div>
 
             <button
                 onClick={() => nextStep()}
-                className="w-full py-2.5 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
             >
                 Get Started
                 <ArrowRight className="h-5 w-5" />
@@ -173,69 +194,221 @@ function WelcomeStep() {
     );
 }
 
+function ThemeStep() {
+    const { nextStep, previousStep } = useWizard();
+    const { accent, setAccent } = useTheme();
+
+    const accentChoices: { value: ThemeAccent; label: string; description: string; swatch: string }[] = [
+        { value: "default", label: "Default Blue", description: "Clean and modern", swatch: "bg-[rgb(25,93,230)]" },
+        { value: "plex-orange", label: "Plex Orange", description: "Warm and familiar", swatch: "bg-[rgb(229,160,13)]" },
+    ];
+
+    return (
+        <div className="space-y-6 ">
+            <StepProgress step={1} label="Appearance" />
+            <p className="text-sm text-slate-600 dark:text-slate-400 -mt-4">
+                Pick a look that feels right. You can always change this later in settings.
+            </p>
+
+            {/* Accent color */}
+            <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Accent color
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                    {accentChoices.map((choice) => (
+                        <button
+                            key={choice.value}
+                            type="button"
+                            onClick={() => setAccent(choice.value)}
+                            className={`text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                                accent === choice.value
+                                    ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`h-8 w-8 rounded-full ${choice.swatch} flex-shrink-0 shadow-sm`} />
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{choice.label}</span>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{choice.description}</p>
+                                </div>
+                                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                    accent === choice.value
+                                        ? "border-primary"
+                                        : "border-slate-400 dark:border-slate-500"
+                                }`}>
+                                    {accent === choice.value && (
+                                        <div className="h-2 w-2 rounded-full bg-primary" />
+                                    )}
+                                </div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+                <button
+                    onClick={() => previousStep()}
+                    className="px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-2 text-sm font-medium"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                </button>
+                <button
+                    onClick={() => nextStep()}
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    Next
+                    <ArrowRight className="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
     const { nextStep, previousStep } = useWizard();
+    const [localMethod, setLocalMethod] = useState<AuthMethod>(wizardData.authMethod);
     const [localUsername, setLocalUsername] = useState(wizardData.authUsername);
     const [localPassword, setLocalPassword] = useState(wizardData.authPassword);
+
+    const needsPassword = localMethod === "password" || localMethod === "both";
+
+    const canProceed = needsPassword
+        ? localUsername && (localPassword || envVars.auth_password_from_env)
+        : true;
 
     const handleNext = () => {
         setWizardData({
             ...wizardData,
             authEnabled: true,
-            authUsername: localUsername,
-            authPassword: localPassword,
+            authMethod: localMethod,
+            authUsername: needsPassword ? localUsername : "admin",
+            authPassword: needsPassword ? localPassword : "",
         });
         nextStep();
     };
 
+    const methods: { value: AuthMethod; label: string; description: string; icon: typeof KeyRound }[] = [
+        {
+            value: "password",
+            label: "Password",
+            description: "Sign in with a username and password. Less secure, but simple.",
+            icon: KeyRound,
+        },
+        {
+            value: "plex",
+            label: "Plex",
+            description: "Sign in with your Plex account with Plex OAuth instead of a separate password.",
+            icon: Server,
+        },
+        {
+            value: "both",
+            label: "Password + Plex",
+            description: "Use either local auth (password) or your Plex account to sign in.",
+            icon: Layers,
+        },
+    ];
+
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <Shield className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Authentication</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Set up password protection for your dashboard
-                </p>
+        <div className="space-y-6 ">
+            <StepProgress step={3} label="Authentication" />
+            <p className="text-sm text-slate-600 dark:text-slate-400 -mt-4">
+                Choose how you'll sign in to your dashboard
+            </p>
+
+            <div className="space-y-3">
+                {methods.map((m) => (
+                    <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setLocalMethod(m.value)}
+                        className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                            localMethod === m.value
+                                ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                localMethod === m.value
+                                    ? "bg-primary/10 dark:bg-primary/20"
+                                    : "bg-slate-100 dark:bg-slate-800"
+                            }`}>
+                                <m.icon className={`h-4.5 w-4.5 ${
+                                    localMethod === m.value
+                                        ? "text-primary"
+                                        : "text-slate-500 dark:text-slate-400"
+                                }`} />
+                            </div>
+                            <div className="flex-1">
+                                <div className="text-sm font-semibold text-slate-900 dark:text-white">{m.label}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{m.description}</div>
+                            </div>
+                            <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                localMethod === m.value
+                                    ? "border-primary"
+                                    : "border-slate-400 dark:border-slate-500"
+                            }`}>
+                                {localMethod === m.value && (
+                                    <div className="h-2 w-2 rounded-full bg-primary" />
+                                )}
+                            </div>
+                        </div>
+                    </button>
+                ))}
             </div>
 
-            <div className="space-y-4">
-                <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Username
-                    </label>
-                    <input
-                        id="username"
-                        type="text"
-                        value={localUsername}
-                        onChange={(e) => setLocalUsername(e.target.value)}
-                        required
-                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                    />
-                </div>
+            <Transition
+                show={needsPassword}
+                enter="transition-all duration-300 ease-out overflow-hidden"
+                enterFrom="opacity-0 max-h-0 -translate-y-2"
+                enterTo="opacity-100 max-h-60 translate-y-0"
+                leave="transition-all duration-250 ease-in overflow-hidden"
+                leaveFrom="opacity-100 max-h-60 translate-y-0"
+                leaveTo="opacity-0 max-h-0 -translate-y-2"
+            >
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Username
+                        </label>
+                        <input
+                            id="username"
+                            type="text"
+                            value={localUsername}
+                            onChange={(e) => setLocalUsername(e.target.value)}
+                            required
+                            placeholder="e.g. admin"
+                            className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        />
+                    </div>
 
-                <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Password
-                    </label>
-                    {envVars.auth_password_from_env ? (
-                        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                            <p className="text-sm text-blue-700 dark:text-blue-400">
-                                ✓ Password configured via environment variable (HSH_AUTH_PASSWORD)
-                            </p>
-                        </div>
-                    ) : (
+                    <div>
+                        <label htmlFor="password" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Password
+                            {envVars.auth_password_from_env && (
+                                <span className="inline-flex items-center gap-1 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                                    <Check className="h-3 w-3" />
+                                    Set via env variable
+                                </span>
+                            )}
+                        </label>
                         <input
                             id="password"
                             type="password"
-                            value={localPassword}
+                            value={envVars.auth_password_from_env ? "••••••••••••" : localPassword}
                             onChange={(e) => setLocalPassword(e.target.value)}
-                            required
+                            required={!envVars.auth_password_from_env}
+                            disabled={envVars.auth_password_from_env}
                             placeholder="Enter a secure password"
-                            className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            className={`w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${envVars.auth_password_from_env ? "opacity-50 cursor-not-allowed" : ""}`}
                         />
-                    )}
+                    </div>
                 </div>
-            </div>
+            </Transition>
 
             <div className="flex gap-3">
                 <button
@@ -247,7 +420,7 @@ function AuthStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 </button>
                 <button
                     onClick={handleNext}
-                    disabled={!localUsername || (!localPassword && !envVars.auth_password_from_env)}
+                    disabled={!canProceed}
                     className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     Next
@@ -266,8 +439,12 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
     const [selectedLibraries, setSelectedLibraries] = useState<string[]>(wizardData.selectedLibraries);
     const [testingPlex, setTestingPlex] = useState(false);
     const [plexTestSuccess, setPlexTestSuccess] = useState(false);
-    const [fetchingLibraries, setFetchingLibraries] = useState(false);
     const [error, setError] = useState("");
+
+    // Reset success state when inputs change
+    useEffect(() => {
+        setPlexTestSuccess(false);
+    }, [plexUrl, plexToken]);
 
     const handleTestPlex = async () => {
         if ((!plexUrl && !envVars.plex_url_from_env) || (!plexToken && !envVars.plex_token_from_env)) {
@@ -280,13 +457,14 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
             setError("");
             setPlexTestSuccess(false);
 
+            const minDelay = new Promise((r) => setTimeout(r, 1200));
+
             const response = await fetch("/api/admin/config/quick-start", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     plex_url: plexUrl,
                     plex_token: plexToken,
-                    trakt_enabled: false,
                     libraries: ["dummy"],
                 }),
             });
@@ -296,30 +474,27 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 throw new Error(text || "Failed to connect to Plex");
             }
 
-            await fetchLibraries();
+            // Fetch libraries but don't show them yet
+            const libResponse = await fetch("/api/collections/libraries");
+            if (!libResponse.ok) {
+                const errorText = await libResponse.text();
+                throw new Error(`Failed to fetch libraries: ${errorText}`);
+            }
+            const libData = await libResponse.json();
+            const libs: Library[] = (libData.libraries || []).filter(
+                (lib: Library) => lib.type === "movie" || lib.type === "show" || lib.type === "other"
+            );
+
+            // Wait for the animation to finish, then reveal everything at once
+            await minDelay;
+            setAvailableLibraries(libs);
             setPlexTestSuccess(true);
         } catch (err) {
+            await new Promise((r) => setTimeout(r, 800));
             setError(err instanceof Error ? err.message : "Plex connection test failed");
             setPlexTestSuccess(false);
         } finally {
             setTestingPlex(false);
-        }
-    };
-
-    const fetchLibraries = async () => {
-        try {
-            setFetchingLibraries(true);
-            const response = await fetch("/api/collections/libraries");
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Failed to fetch libraries: ${errorText}`);
-            }
-            const data = await response.json();
-            setAvailableLibraries(data.libraries || []);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to fetch libraries");
-        } finally {
-            setFetchingLibraries(false);
         }
     };
 
@@ -329,6 +504,31 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 ? prev.filter((name) => name !== libraryName)
                 : [...prev, libraryName]
         );
+    };
+
+    const toggleAll = () => {
+        if (selectedLibraries.length === availableLibraries.length) {
+            setSelectedLibraries([]);
+        } else {
+            setSelectedLibraries(availableLibraries.map((lib) => lib.title));
+        }
+    };
+
+    const libraryMeta = (type: string, title: string): { label: string; icon: LucideIcon } => {
+        const t = title.toLowerCase();
+
+        // Fuzzy-match title first for sub-genres
+        if (/anime|anim[eé]/i.test(t)) return { label: "Anime Library", icon: Swords };
+        if (/document/i.test(t)) return { label: "Documentary Library", icon: BookOpen };
+
+        // Fall back to Plex library type
+        const typeMap: Record<string, { label: string; icon: LucideIcon }> = {
+            movie: { label: "Movie Library", icon: Film },
+            show: { label: "TV Library", icon: Tv },
+            other: { label: "Other Videos", icon: Video },
+        };
+
+        return typeMap[type] || { label: `${type.charAt(0).toUpperCase()}${type.slice(1)} Library`, icon: Film };
     };
 
     const handleNext = () => {
@@ -346,1212 +546,284 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <Server className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Plex Connection</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Connect to your Plex Media Server
-                </p>
+        <div className="space-y-6 ">
+            <StepProgress step={2} label="Connection & Libraries" />
+            <p className="text-sm text-slate-600 dark:text-slate-400 -mt-4">
+                Connect to your Plex Media Server and select your libraries
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="plexUrl" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Plex Server URL
+                        {envVars.plex_url_from_env && (
+                            <span className="inline-flex items-center gap-1 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                                <Check className="h-3 w-3" />
+                                Set via env variable
+                            </span>
+                        )}
+                    </label>
+                    <input
+                        id="plexUrl"
+                        type="text"
+                        value={envVars.plex_url_value ?? plexUrl}
+                        onChange={(e) => setPlexUrl(e.target.value)}
+                        disabled={envVars.plex_url_from_env}
+                        placeholder="http://localhost:32400"
+                        className={`w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${envVars.plex_url_from_env ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                </div>
+
+                <div>
+                    <label htmlFor="plexToken" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        X-Plex-Token
+                        {envVars.plex_token_from_env && (
+                            <span className="inline-flex items-center gap-1 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                                <Check className="h-3 w-3" />
+                                Set via env variable
+                            </span>
+                        )}
+                    </label>
+                    <input
+                        id="plexToken"
+                        type="password"
+                        value={envVars.plex_token_from_env ? "••••••••••••••••••••••••" : plexToken}
+                        onChange={(e) => setPlexToken(e.target.value)}
+                        disabled={envVars.plex_token_from_env}
+                        placeholder="Your Plex token"
+                        className={`w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${envVars.plex_token_from_env ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <a
+                        href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1 text-xs text-primary hover:underline"
+                    >
+                        How to find your token
+                    </a>
+                </div>
             </div>
 
-            <div className="space-y-4">
-                <div>
-                    <label htmlFor="plexUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Server URL
-                    </label>
-                    {envVars.plex_url_from_env ? (
-                        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                            <p className="text-sm text-blue-700 dark:text-blue-400">
-                                ✓ Plex URL configured via environment variable (HSH_PLEX_URL)
-                            </p>
-                        </div>
-                    ) : (
-                        <input
-                            id="plexUrl"
-                            type="text"
-                            value={plexUrl}
-                            onChange={(e) => setPlexUrl(e.target.value)}
-                            required
-                            placeholder="http://192.168.1.100:32400"
-                            className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                        />
-                    )}
+            <button
+                onClick={handleTestPlex}
+                disabled={testingPlex || plexTestSuccess}
+                className={`w-full py-3 px-4 font-semibold rounded-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                    plexTestSuccess
+                        ? "bg-green-500 dark:bg-green-600 text-white shadow-lg cursor-default"
+                        : "bg-primary hover:bg-primary-hover text-white shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                }`}
+            >
+                {testingPlex ? (
+                    <>
+                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Testing connection...
+                    </>
+                ) : plexTestSuccess ? (
+                    <>
+                        <Check className="h-5 w-5" />
+                        Connected to Plex
+                    </>
+                ) : (
+                    "Test Connection & Fetch Libraries"
+                )}
+            </button>
+
+            {error && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
+                    {error}
                 </div>
+            )}
 
-                <div>
-                    <label htmlFor="plexToken" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        X-Plex-Token
-                    </label>
-                    {envVars.plex_token_from_env ? (
-                        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                            <p className="text-sm text-blue-700 dark:text-blue-400">
-                                ✓ Plex token configured via environment variable (HSH_PLEX_TOKEN)
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <input
-                                id="plexToken"
-                                type="password"
-                                value={plexToken}
-                                onChange={(e) => setPlexToken(e.target.value)}
-                                required
-                                placeholder="••••••••••••••••••••"
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                <a
-                                    href="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary hover:underline inline-flex items-center gap-1"
-                                >
-                                    How to find your token
-                                    <ExternalLink className="h-3 w-3" />
-                                </a>
-                            </p>
-                        </>
-                    )}
-                </div>
-
-                <button
-                    type="button"
-                    onClick={handleTestPlex}
-                    disabled={testingPlex || (!plexUrl && !envVars.plex_url_from_env) || (!plexToken && !envVars.plex_token_from_env)}
-                    className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    {testingPlex ? (
-                        <>
-                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Testing connection...
-                        </>
-                    ) : plexTestSuccess ? (
-                        <>
-                            <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                            Connection successful!
-                        </>
-                    ) : (
-                        "Test Plex Connection"
-                    )}
-                </button>
-
-                {plexTestSuccess && (
-                    <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700 animate-in fade-in duration-300">
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                                <Database className="h-4 w-4 text-primary" />
+            {availableLibraries.length > 0 && (
+                <div className="space-y-3 animate-slide-expand overflow-hidden">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                                 Select Libraries
                             </h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                Choose which Plex libraries to use with homescreen-hero
-                            </p>
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                {availableLibraries.length} found
+                            </span>
                         </div>
-
-                        {fetchingLibraries ? (
-                            <div className="text-center py-4">
-                                <svg className="animate-spin h-5 w-5 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Loading libraries...</p>
-                            </div>
-                        ) : availableLibraries.length > 0 ? (
-                            <div className="space-y-2">
-                                {availableLibraries.map((lib) => (
-                                    <div
-                                        key={lib.title}
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 hover:border-primary/50 transition-colors"
-                                    >
-                                        <Checkbox
-                                            id={`lib-${lib.title}`}
-                                            checked={selectedLibraries.includes(lib.title)}
-                                            onCheckedChange={() => toggleLibrary(lib.title)}
-                                        />
-                                        <label htmlFor={`lib-${lib.title}`} className="flex-1 cursor-pointer">
-                                            <div className="text-sm font-medium text-slate-900 dark:text-white">
-                                                {lib.title}
-                                            </div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                {lib.type}
-                                            </div>
-                                        </label>
+                        <button
+                            type="button"
+                            onClick={toggleAll}
+                            className="text-xs font-medium text-primary hover:text-primary-hover transition-colors"
+                        >
+                            {selectedLibraries.length === availableLibraries.length ? "Deselect All" : "Select All"}
+                        </button>
+                    </div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {availableLibraries.map((lib) => {
+                            const selected = selectedLibraries.includes(lib.title);
+                            const meta = libraryMeta(lib.type, lib.title);
+                            const LibIcon = meta.icon;
+                            return (
+                                <button
+                                    key={lib.title}
+                                    type="button"
+                                    onClick={() => toggleLibrary(lib.title)}
+                                    className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 ${
+                                        selected
+                                            ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                            : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                            selected
+                                                ? "bg-primary/10 dark:bg-primary/20"
+                                                : "bg-slate-100 dark:bg-slate-800"
+                                        }`}>
+                                            <LibIcon className={`h-4.5 w-4.5 ${
+                                                selected
+                                                    ? "text-primary"
+                                                    : "text-slate-500 dark:text-slate-400"
+                                            }`} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-sm font-medium text-slate-900 dark:text-white">{lib.title}</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{meta.label}</div>
+                                        </div>
+                                        {selected && (
+                                            <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                                        )}
                                     </div>
-                                ))}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <div className="flex gap-3">
+                <button
+                    onClick={() => previousStep()}
+                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                    Back
+                </button>
+                <button
+                    onClick={handleNext}
+                    disabled={selectedLibraries.length === 0}
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    Next
+                    <ArrowRight className="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function RotationModeStep({ wizardData, setWizardData }: { wizardData: WizardData; setWizardData: (data: WizardData) => void }) {
+    const { nextStep, previousStep } = useWizard();
+    const [localMode, setLocalMode] = useState<RotationMode>(wizardData.rotationMode);
+
+    const handleNext = () => {
+        setWizardData({ ...wizardData, rotationMode: localMode });
+        nextStep();
+    };
+
+    const modes: { value: RotationMode; label: string; description: string; bullets: string[]; icon: LucideIcon; recommended?: boolean }[] = [
+        {
+            value: "groups",
+            label: "Collection Groups",
+            description: "Organize collections into named groups with individual rules for full control over what appears on your homescreen.",
+            bullets: [
+                "Create groups like \"Holiday\", \"Action\", \"New Releases\"",
+                "Set pick counts, weights, and schedules per group",
+                "Seasonal date ranges and smart filters",
+            ],
+            icon: Layers,
+            recommended: true,
+        },
+        {
+            value: "auto_rotate",
+            label: "Auto-Rotate",
+            description: "The simplest option. Randomly rotates collections from all your libraries on a schedule with no additional setup.",
+            bullets: [
+                "Picks from every collection in your libraries",
+                "No manual setup required",
+                "Good if you just want variety",
+            ],
+            icon: RefreshCw,
+        },
+    ];
+
+    return (
+        <div className="space-y-6 ">
+            <StepProgress step={4} label="Rotation Mode" />
+            <p className="text-sm text-slate-600 dark:text-slate-400 -mt-4">
+                Choose how collections are selected for your homescreen
+            </p>
+
+            <div className="space-y-3">
+                {modes.map((m) => (
+                    <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setLocalMode(m.value)}
+                        className={`w-full text-left p-5 rounded-lg border-2 transition-all duration-200 ${
+                            localMode === m.value
+                                ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                        }`}
+                    >
+                        <div className="flex items-start gap-4">
+                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                localMode === m.value
+                                    ? "bg-primary/10 dark:bg-primary/20"
+                                    : "bg-slate-100 dark:bg-slate-800"
+                            }`}>
+                                <m.icon className={`h-5 w-5 ${
+                                    localMode === m.value
+                                        ? "text-primary"
+                                        : "text-slate-500 dark:text-slate-400"
+                                }`} />
                             </div>
-                        ) : (
-                            <div className="text-center py-4 text-sm text-slate-500 dark:text-slate-400">
-                                No libraries found
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{m.label}</span>
+                                    {m.recommended && (
+                                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wide">Recommended</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{m.description}</p>
+                                <ul className="mt-2.5 space-y-1">
+                                    {m.bullets.map((b) => (
+                                        <li key={b} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
+                                            <Check className={`h-3 w-3 mt-0.5 flex-shrink-0 ${
+                                                localMode === m.value ? "text-primary" : "text-slate-400 dark:text-slate-500"
+                                            }`} />
+                                            {b}
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
-                        )}
-
-                        {selectedLibraries.length > 0 && (
-                            <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
-                                <p className="text-xs text-green-700 dark:text-green-400">
-                                    {selectedLibraries.length} {selectedLibraries.length === 1 ? 'library' : 'libraries'} selected
-                                </p>
+                            <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1 ${
+                                localMode === m.value
+                                    ? "border-primary"
+                                    : "border-slate-400 dark:border-slate-500"
+                            }`}>
+                                {localMode === m.value && (
+                                    <div className="h-2 w-2 rounded-full bg-primary" />
+                                )}
                             </div>
-                        )}
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    onClick={() => previousStep()}
-                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleNext}
-                    disabled={(!plexUrl && !envVars.plex_url_from_env) || (!plexToken && !envVars.plex_token_from_env) || !plexTestSuccess || selectedLibraries.length === 0}
-                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    Next
-                    <ArrowRight className="h-5 w-5" />
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function TraktStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
-    const { nextStep, previousStep } = useWizard();
-    const [localTraktEnabled, setLocalTraktEnabled] = useState(wizardData.traktEnabled);
-    const [localTraktClientId, setLocalTraktClientId] = useState(wizardData.traktClientId);
-    const [localTraktBaseUrl, setLocalTraktBaseUrl] = useState(wizardData.traktBaseUrl);
-    const [testingTrakt, setTestingTrakt] = useState(false);
-    const [traktTestSuccess, setTraktTestSuccess] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleTestTrakt = async () => {
-        if ((!localTraktClientId && !envVars.trakt_client_id_from_env) || !localTraktBaseUrl) {
-            setError("Please enter both Trakt Client ID and Base URL before testing");
-            return;
-        }
-
-        try {
-            setTestingTrakt(true);
-            setError("");
-            setTraktTestSuccess(false);
-
-            // Test Trakt connection with provided credentials
-            const response = await fetch("/api/admin/config/test-trakt", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    client_id: localTraktClientId,
-                    base_url: localTraktBaseUrl,
-                }),
-            });
-            if (!response.ok) {
-                throw new Error("Trakt connection test failed");
-            }
-
-            const result = await response.json();
-            if (!result.ok) {
-                throw new Error(result.error || "Trakt connection test failed");
-            }
-
-            setTraktTestSuccess(true);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Trakt connection test failed");
-            setTraktTestSuccess(false);
-        } finally {
-            setTestingTrakt(false);
-        }
-    };
-
-    const handleNext = () => {
-        setWizardData({
-            ...wizardData,
-            traktEnabled: localTraktEnabled,
-            traktClientId: localTraktClientId,
-            traktBaseUrl: localTraktBaseUrl,
-        });
-        nextStep();
-    };
-
-    const handleSkip = () => {
-        setWizardData({
-            ...wizardData,
-            traktEnabled: false,
-            traktClientId: "",
-            traktBaseUrl: "https://api.trakt.tv",
-        });
-        nextStep();
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                    <span className="text-2xl">🎬</span>
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Trakt Integration</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Optionally sync Trakt lists with your Plex collections
-                </p>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Checkbox
-                        id="traktEnabled"
-                        checked={localTraktEnabled}
-                        onCheckedChange={(checked) => setLocalTraktEnabled(checked === true)}
-                    />
-                    <label htmlFor="traktEnabled" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable Trakt integration
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Sync Trakt lists to create Plex collections automatically
-                        </div>
-                    </label>
-                </div>
-
-                {localTraktEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="traktClientId" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Trakt Client ID
-                            </label>
-                            {envVars.trakt_client_id_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Trakt Client ID configured via environment variable (HSH_TRAKT_CLIENT_ID)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="traktClientId"
-                                        type="text"
-                                        value={localTraktClientId}
-                                        onChange={(e) => setLocalTraktClientId(e.target.value)}
-                                        required={localTraktEnabled}
-                                        placeholder="Your Trakt application client ID"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                        <a
-                                            href="https://trakt.tv/oauth/applications"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:underline inline-flex items-center gap-1"
-                                        >
-                                            Get your client ID from Trakt
-                                            <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="traktBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Trakt API Base URL
-                            </label>
-                            <input
-                                id="traktBaseUrl"
-                                type="text"
-                                value={localTraktBaseUrl}
-                                onChange={(e) => setLocalTraktBaseUrl(e.target.value)}
-                                required={localTraktEnabled}
-                                placeholder="https://api.trakt.tv"
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Default is fine for most users. Only change if using a custom Trakt instance.
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleTestTrakt}
-                            disabled={testingTrakt || (!localTraktClientId && !envVars.trakt_client_id_from_env) || !localTraktBaseUrl}
-                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {testingTrakt ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Testing connection...
-                                </>
-                            ) : traktTestSuccess ? (
-                                <>
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                    Connection successful!
-                                </>
-                            ) : (
-                                "Test Trakt Connection"
-                            )}
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    onClick={() => previousStep()}
-                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                    Back
-                </button>
-                {!localTraktEnabled && (
-                    <button
-                        onClick={handleSkip}
-                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                        Skip
-                        <ArrowRight className="h-5 w-5" />
                     </button>
-                )}
-                <button
-                    onClick={handleNext}
-                    disabled={localTraktEnabled && !localTraktClientId && !envVars.trakt_client_id_from_env}
-                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    Next
-                    <ArrowRight className="h-5 w-5" />
-                </button>
+                ))}
             </div>
-        </div>
-    );
-}
 
-function MDBListStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
-    const { nextStep, previousStep } = useWizard();
-    const [localMDBListEnabled, setLocalMDBListEnabled] = useState(wizardData.mdblistEnabled);
-    const [localMDBListApiKey, setLocalMDBListApiKey] = useState(wizardData.mdblistApiKey);
-    const [localMDBListBaseUrl, setLocalMDBListBaseUrl] = useState(wizardData.mdblistBaseUrl);
-    const [testingMDBList, setTestingMDBList] = useState(false);
-    const [mdblistTestSuccess, setMDBListTestSuccess] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleTestMDBList = async () => {
-        if ((!localMDBListApiKey && !envVars.mdblist_api_key_from_env) || !localMDBListBaseUrl) {
-            setError("Please enter both MDBList API Key and Base URL before testing");
-            return;
-        }
-
-        try {
-            setTestingMDBList(true);
-            setError("");
-            setMDBListTestSuccess(false);
-
-            // Test MDBList connection with provided credentials
-            const response = await fetch("/api/admin/config/test-mdblist", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    api_key: localMDBListApiKey,
-                    base_url: localMDBListBaseUrl,
-                }),
-            });
-            if (!response.ok) {
-                throw new Error("MDBList connection test failed");
-            }
-
-            const result = await response.json();
-            if (!result.ok) {
-                throw new Error(result.error || "MDBList connection test failed");
-            }
-
-            setMDBListTestSuccess(true);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "MDBList connection test failed");
-            setMDBListTestSuccess(false);
-        } finally {
-            setTestingMDBList(false);
-        }
-    };
-
-    const handleNext = () => {
-        setWizardData({
-            ...wizardData,
-            mdblistEnabled: localMDBListEnabled,
-            mdblistApiKey: localMDBListApiKey,
-            mdblistBaseUrl: localMDBListBaseUrl,
-        });
-        nextStep();
-    };
-
-    const handleSkip = () => {
-        setWizardData({
-            ...wizardData,
-            mdblistEnabled: false,
-            mdblistApiKey: "",
-            mdblistBaseUrl: "https://api.mdblist.com",
-        });
-        nextStep();
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <List className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">MDBList Integration</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Optionally sync MDBList collections with your Plex libraries
+            <div className="flex items-start gap-3 px-4 py-2.5 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/20">
+                <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                    You can switch between modes or create groups at any time from the Groups page.
                 </p>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Checkbox
-                        id="mdblistEnabled"
-                        checked={localMDBListEnabled}
-                        onCheckedChange={(checked) => setLocalMDBListEnabled(checked === true)}
-                    />
-                    <label htmlFor="mdblistEnabled" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable MDBList integration
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Sync MDBList collections to create Plex collections automatically
-                        </div>
-                    </label>
-                </div>
-
-                {localMDBListEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="mdblistApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                MDBList API Key
-                            </label>
-                            {envVars.mdblist_api_key_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ MDBList API Key configured via environment variable (HSH_MDBLIST_API_KEY)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="mdblistApiKey"
-                                        type="password"
-                                        value={localMDBListApiKey}
-                                        onChange={(e) => setLocalMDBListApiKey(e.target.value)}
-                                        required={localMDBListEnabled}
-                                        placeholder="Your MDBList API key"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                        <a
-                                            href="https://mdblist.com/preferences/"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:underline inline-flex items-center gap-1"
-                                        >
-                                            Get your API key from MDBList
-                                            <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="mdblistBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                MDBList API Base URL
-                            </label>
-                            <input
-                                id="mdblistBaseUrl"
-                                type="text"
-                                value={localMDBListBaseUrl}
-                                onChange={(e) => setLocalMDBListBaseUrl(e.target.value)}
-                                required={localMDBListEnabled}
-                                placeholder="https://api.mdblist.com"
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Default is fine for most users. Only change if using a custom MDBList instance.
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleTestMDBList}
-                            disabled={testingMDBList || (!localMDBListApiKey && !envVars.mdblist_api_key_from_env) || !localMDBListBaseUrl}
-                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {testingMDBList ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Testing connection...
-                                </>
-                            ) : mdblistTestSuccess ? (
-                                <>
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                    Connection successful!
-                                </>
-                            ) : (
-                                "Test MDBList Connection"
-                            )}
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    onClick={() => previousStep()}
-                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                    Back
-                </button>
-                {!localMDBListEnabled && (
-                    <button
-                        onClick={handleSkip}
-                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                        Skip
-                        <ArrowRight className="h-5 w-5" />
-                    </button>
-                )}
-                <button
-                    onClick={handleNext}
-                    disabled={localMDBListEnabled && !localMDBListApiKey && !envVars.mdblist_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    Next
-                    <ArrowRight className="h-5 w-5" />
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function TautulliStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
-    const { nextStep, previousStep } = useWizard();
-    const [localTautulliEnabled, setLocalTautulliEnabled] = useState(wizardData.tautulliEnabled);
-    const [localTautulliApiKey, setLocalTautulliApiKey] = useState(wizardData.tautulliApiKey);
-    const [localTautulliBaseUrl, setLocalTautulliBaseUrl] = useState(wizardData.tautulliBaseUrl);
-    const [testingTautulli, setTestingTautulli] = useState(false);
-    const [tautulliTestSuccess, setTautulliTestSuccess] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleTestTautulli = async () => {
-        if ((!localTautulliApiKey && !envVars.tautulli_api_key_from_env) || (!localTautulliBaseUrl && !envVars.tautulli_url_from_env)) {
-            setError("Please enter both Tautulli API Key and URL before testing");
-            return;
-        }
-
-        try {
-            setTestingTautulli(true);
-            setError("");
-            setTautulliTestSuccess(false);
-
-            // Test Tautulli connection with provided credentials
-            // Send empty strings for values configured via env vars so backend uses env var values
-            const response = await fetch("/api/admin/config/test-tautulli", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    api_key: envVars.tautulli_api_key_from_env ? "" : localTautulliApiKey,
-                    base_url: envVars.tautulli_url_from_env ? "" : localTautulliBaseUrl,
-                }),
-            });
-            if (!response.ok) {
-                throw new Error("Tautulli connection test failed");
-            }
-
-            const result = await response.json();
-            if (!result.ok) {
-                throw new Error(result.error || "Tautulli connection test failed");
-            }
-
-            setTautulliTestSuccess(true);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Tautulli connection test failed");
-            setTautulliTestSuccess(false);
-        } finally {
-            setTestingTautulli(false);
-        }
-    };
-
-    const handleNext = () => {
-        setWizardData({
-            ...wizardData,
-            tautulliEnabled: localTautulliEnabled,
-            tautulliApiKey: localTautulliApiKey,
-            tautulliBaseUrl: localTautulliBaseUrl,
-        });
-        nextStep();
-    };
-
-    const handleSkip = () => {
-        setWizardData({
-            ...wizardData,
-            tautulliEnabled: false,
-            tautulliApiKey: "",
-            tautulliBaseUrl: "http://localhost:8181",
-        });
-        nextStep();
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <BarChart2 className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Tautulli Integration</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Optionally connect Tautulli for streaming analytics
-                </p>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Checkbox
-                        id="tautulliEnabled"
-                        checked={localTautulliEnabled}
-                        onCheckedChange={(checked) => setLocalTautulliEnabled(checked === true)}
-                    />
-                    <label htmlFor="tautulliEnabled" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable Tautulli integration
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Collect streaming analytics and track collection performance
-                        </div>
-                    </label>
-                </div>
-
-                {localTautulliEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="tautulliApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Tautulli API Key
-                            </label>
-                            {envVars.tautulli_api_key_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Tautulli API Key configured via environment variable (HSH_TAUTULLI_API_KEY)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="tautulliApiKey"
-                                        type="password"
-                                        value={localTautulliApiKey}
-                                        onChange={(e) => setLocalTautulliApiKey(e.target.value)}
-                                        required={localTautulliEnabled}
-                                        placeholder="Your Tautulli API key"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Found in Tautulli under Settings → Web Interface → API Key
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="tautulliBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Tautulli URL
-                            </label>
-                            {envVars.tautulli_url_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Tautulli URL configured via environment variable (HSH_TAUTULLI_BASE_URL)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="tautulliBaseUrl"
-                                        type="text"
-                                        value={localTautulliBaseUrl}
-                                        onChange={(e) => setLocalTautulliBaseUrl(e.target.value)}
-                                        required={localTautulliEnabled}
-                                        placeholder="http://localhost:8181"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        The URL where your Tautulli instance is running
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleTestTautulli}
-                            disabled={testingTautulli || (!localTautulliApiKey && !envVars.tautulli_api_key_from_env) || (!localTautulliBaseUrl && !envVars.tautulli_url_from_env)}
-                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {testingTautulli ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Testing connection...
-                                </>
-                            ) : tautulliTestSuccess ? (
-                                <>
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                    Connection successful!
-                                </>
-                            ) : (
-                                "Test Tautulli Connection"
-                            )}
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    onClick={() => previousStep()}
-                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                    Back
-                </button>
-                {!localTautulliEnabled && (
-                    <button
-                        onClick={handleSkip}
-                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                        Skip
-                        <ArrowRight className="h-5 w-5" />
-                    </button>
-                )}
-                <button
-                    onClick={handleNext}
-                    disabled={localTautulliEnabled && !localTautulliApiKey && !envVars.tautulli_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    Next
-                    <ArrowRight className="h-5 w-5" />
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function SeerrStep({ wizardData, setWizardData, envVars }: { wizardData: WizardData; setWizardData: (data: WizardData) => void; envVars: EnvVars }) {
-    const { nextStep, previousStep } = useWizard();
-    const [localSeerrEnabled, setLocalSeerrEnabled] = useState(wizardData.seerrEnabled);
-    const [localSeerrApiKey, setLocalSeerrApiKey] = useState(wizardData.seerrApiKey);
-    const [localSeerrBaseUrl, setLocalSeerrBaseUrl] = useState(wizardData.seerrBaseUrl);
-    const [testingSeerr, setTestingSeerr] = useState(false);
-    const [seerrTestSuccess, setSeerrTestSuccess] = useState(false);
-    const [error, setError] = useState("");
-
-    const handleTestSeerr = async () => {
-        if ((!localSeerrApiKey && !envVars.seerr_api_key_from_env) || (!localSeerrBaseUrl && !envVars.seerr_url_from_env)) {
-            setError("Please enter both Seerr API Key and URL before testing");
-            return;
-        }
-
-        try {
-            setTestingSeerr(true);
-            setError("");
-            setSeerrTestSuccess(false);
-
-            // Test Seerr connection with provided credentials
-            // Send empty strings for values configured via env vars so backend uses env var values
-            const response = await fetch("/api/admin/config/test-seerr", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    api_key: envVars.seerr_api_key_from_env ? "" : localSeerrApiKey,
-                    base_url: envVars.seerr_url_from_env ? "" : localSeerrBaseUrl,
-                }),
-            });
-            if (!response.ok) {
-                throw new Error("Seerr connection test failed");
-            }
-
-            const result = await response.json();
-            if (!result.ok) {
-                throw new Error(result.error || "Seerr connection test failed");
-            }
-
-            setSeerrTestSuccess(true);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Seerr connection test failed");
-            setSeerrTestSuccess(false);
-        } finally {
-            setTestingSeerr(false);
-        }
-    };
-
-    const handleNext = () => {
-        setWizardData({
-            ...wizardData,
-            seerrEnabled: localSeerrEnabled,
-            seerrApiKey: localSeerrApiKey,
-            seerrBaseUrl: localSeerrBaseUrl,
-        });
-        nextStep();
-    };
-
-    const handleSkip = () => {
-        setWizardData({
-            ...wizardData,
-            seerrEnabled: false,
-            seerrApiKey: "",
-            seerrBaseUrl: "http://localhost:5055",
-        });
-        nextStep();
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <Film className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Seerr Integration</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Optionally connect Overseerr/Jellyseerr for media requests
-                </p>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Checkbox
-                        id="seerrEnabled"
-                        checked={localSeerrEnabled}
-                        onCheckedChange={(checked) => setLocalSeerrEnabled(checked === true)}
-                    />
-                    <label htmlFor="seerrEnabled" className="flex-1 cursor-pointer">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable Seerr integration
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            View and manage media requests from your dashboard
-                        </div>
-                    </label>
-                </div>
-
-                {localSeerrEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="seerrApiKey" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Seerr API Key
-                            </label>
-                            {envVars.seerr_api_key_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Seerr API Key configured via environment variable (HSH_SEERR_API_KEY)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="seerrApiKey"
-                                        type="password"
-                                        value={localSeerrApiKey}
-                                        onChange={(e) => setLocalSeerrApiKey(e.target.value)}
-                                        required={localSeerrEnabled}
-                                        placeholder="Your Seerr API key"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        Found in Overseerr/Jellyseerr under Settings → General → API Key
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="seerrBaseUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Seerr URL
-                            </label>
-                            {envVars.seerr_url_from_env ? (
-                                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-blue-700 dark:text-blue-400">
-                                        ✓ Seerr URL configured via environment variable (HSH_SEERR_BASE_URL)
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    <input
-                                        id="seerrBaseUrl"
-                                        type="text"
-                                        value={localSeerrBaseUrl}
-                                        onChange={(e) => setLocalSeerrBaseUrl(e.target.value)}
-                                        required={localSeerrEnabled}
-                                        placeholder="http://localhost:5055"
-                                        className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        The URL where your Overseerr/Jellyseerr instance is running
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleTestSeerr}
-                            disabled={testingSeerr || (!localSeerrApiKey && !envVars.seerr_api_key_from_env) || (!localSeerrBaseUrl && !envVars.seerr_url_from_env)}
-                            className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {testingSeerr ? (
-                                <>
-                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Testing connection...
-                                </>
-                            ) : seerrTestSuccess ? (
-                                <>
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                    Connection successful!
-                                </>
-                            ) : (
-                                "Test Seerr Connection"
-                            )}
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    onClick={() => previousStep()}
-                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                    <ArrowLeft className="h-5 w-5" />
-                    Back
-                </button>
-                {!localSeerrEnabled && (
-                    <button
-                        onClick={handleSkip}
-                        className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                        Skip
-                        <ArrowRight className="h-5 w-5" />
-                    </button>
-                )}
-                <button
-                    onClick={handleNext}
-                    disabled={localSeerrEnabled && !localSeerrApiKey && !envVars.seerr_api_key_from_env}
-                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    Next
-                    <ArrowRight className="h-5 w-5" />
-                </button>
-            </div>
-        </div>
-    );
-}
-
-function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; setWizardData: (data: WizardData) => void }) {
-    const { nextStep, previousStep } = useWizard();
-    const [localRotationEnabled, setLocalRotationEnabled] = useState(wizardData.rotationEnabled);
-    const [localIntervalHours, setLocalIntervalHours] = useState(wizardData.rotationIntervalHours);
-    const [localMaxCollections, setLocalMaxCollections] = useState(wizardData.rotationMaxCollections);
-    const [localAllowRepeats, setLocalAllowRepeats] = useState(wizardData.rotationAllowRepeats);
-
-    const handleNext = () => {
-        setWizardData({
-            ...wizardData,
-            rotationEnabled: localRotationEnabled,
-            rotationIntervalHours: localIntervalHours,
-            rotationMaxCollections: localMaxCollections,
-            rotationStrategy: "random",
-            rotationAllowRepeats: localAllowRepeats,
-        });
-        nextStep();
-    };
-
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
-                <Clock className="h-12 w-12 text-primary mx-auto" />
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Rotation Schedule</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Configure automatic collection rotations (optional)
-                </p>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                    <Switch
-                        checked={localRotationEnabled}
-                        onChange={setLocalRotationEnabled}
-                        className="relative inline-flex h-6 w-11 items-center rounded-full transition data-[checked]:bg-primary bg-slate-600"
-                    >
-                        <span className="inline-block h-5 w-5 transform rounded-full bg-white transition data-[checked]:translate-x-5 translate-x-1" />
-                    </Switch>
-                    <label className="flex-1 cursor-pointer" onClick={() => setLocalRotationEnabled(!localRotationEnabled)}>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                            Enable automatic rotations
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Automatically rotate featured collections on a schedule
-                        </div>
-                    </label>
-                </div>
-
-                {localRotationEnabled && (
-                    <div className="space-y-4 pl-4 border-l-2 border-primary">
-                        <div>
-                            <label htmlFor="intervalHours" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Interval (hours)
-                            </label>
-                            <input
-                                id="intervalHours"
-                                type="number"
-                                min={1}
-                                value={localIntervalHours}
-                                onChange={(e) => setLocalIntervalHours(parseInt(e.target.value) || 12)}
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                How often to rotate featured collections
-                            </p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="maxCollections" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Max collections
-                            </label>
-                            <input
-                                id="maxCollections"
-                                type="number"
-                                min={1}
-                                value={localMaxCollections}
-                                onChange={(e) => setLocalMaxCollections(parseInt(e.target.value) || 5)}
-                                className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                            />
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Maximum number of collections to feature at once
-                            </p>
-                        </div>
-
-                        <div>
-                            <label htmlFor="strategy" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                Strategy
-                            </label>
-                            <Listbox
-                                value={wizardData.rotationStrategy}
-                                onChange={(val) =>
-                                    setWizardData({
-                                        ...wizardData,
-                                        rotationStrategy: val,
-                                    })
-                                }
-                            >
-                                <div className="relative">
-                                    <Listbox.Button className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/70 text-left flex items-center justify-between">
-                                        <span>
-                                            {wizardData.rotationStrategy === "weighted" ? "Weighted" :
-                                             wizardData.rotationStrategy === "lru" ? "Least Recently Used" :
-                                             "Random"}
-                                        </span>
-                                        <ChevronDown size={16} className="text-slate-400" />
-                                    </Listbox.Button>
-
-                                    <Listbox.Options className="absolute z-10 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden focus:outline-none">
-                                        <Listbox.Option
-                                            value="random"
-                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
-                                        >
-                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
-                                                <span className="data-[selected]:font-medium">Random</span>
-                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
-                                            </div>
-                                        </Listbox.Option>
-                                        <Listbox.Option
-                                            value="weighted"
-                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
-                                        >
-                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
-                                                <span className="data-[selected]:font-medium">Weighted</span>
-                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
-                                            </div>
-                                        </Listbox.Option>
-                                        <Listbox.Option
-                                            value="lru"
-                                            className="px-4 py-3 cursor-pointer transition-colors data-[focus]:bg-slate-100 dark:data-[focus]:bg-slate-800"
-                                        >
-                                            <div className="flex items-center justify-between text-slate-900 dark:text-white text-sm">
-                                                <span className="data-[selected]:font-medium">Least Recently Used</span>
-                                                <Check size={14} className="text-primary invisible data-[selected]:visible" />
-                                            </div>
-                                        </Listbox.Option>
-                                    </Listbox.Options>
-                                </div>
-                            </Listbox>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Choose how groups are prioritized during rotation
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                            <Switch
-                                checked={localAllowRepeats}
-                                onChange={setLocalAllowRepeats}
-                                className={`${
-                                    localAllowRepeats ? "bg-primary" : "bg-slate-600"
-                                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}
-                            >
-                                <span className={`${
-                                    localAllowRepeats ? "translate-x-5" : "translate-x-1"
-                                } inline-block h-5 w-5 transform rounded-full bg-white transition-transform`} />
-                            </Switch>
-                            <label className="flex-1 cursor-pointer" onClick={() => setLocalAllowRepeats(!localAllowRepeats)}>
-                                <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                                    Allow repeats
-                                </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                    Permit the same collection to appear in consecutive rotations
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                )}
             </div>
 
             <div className="flex gap-3">
@@ -1574,9 +846,300 @@ function RotationStep({ wizardData, setWizardData }: { wizardData: WizardData; s
     );
 }
 
-function CompleteStep({ wizardData }: { wizardData: WizardData }) {
+function RotationSettingsStep({ wizardData, setWizardData }: { wizardData: WizardData; setWizardData: (data: WizardData) => void }) {
+    const { nextStep, previousStep } = useWizard();
+    const [localRotationEnabled, setLocalRotationEnabled] = useState(wizardData.rotationEnabled);
+    const [localIntervalHours, setLocalIntervalHours] = useState(wizardData.rotationIntervalHours);
+    const [localMaxCollections, setLocalMaxCollections] = useState(wizardData.rotationMaxCollections);
+    const [localStrategy, setLocalStrategy] = useState(wizardData.rotationStrategy);
+    const [localVisHome, setLocalVisHome] = useState(wizardData.visibilityHome);
+    const [localVisShared, setLocalVisShared] = useState(wizardData.visibilityShared);
+    const [localVisRecommended, setLocalVisRecommended] = useState(wizardData.visibilityRecommended);
+
+    const intervalPresets = [6, 12, 24];
+    const [customInterval, setCustomInterval] = useState(!intervalPresets.includes(wizardData.rotationIntervalHours));
+
+    const strategyChoices: { value: string; label: string; description: string; icon: LucideIcon }[] = [
+        { value: "random", label: "Random", description: "Pick collections at random each rotation", icon: Shuffle },
+        { value: "weighted", label: "Weighted", description: "Pick collections using group weights from Groups settings.", icon: Scale },
+        { value: "lru", label: "Least Recently Used", description: "Prioritize collections that haven't been shown recently", icon: RotateCcw },
+    ];
+
+    const handleNext = () => {
+        setWizardData({
+            ...wizardData,
+            rotationEnabled: localRotationEnabled,
+            rotationIntervalHours: localIntervalHours,
+            rotationMaxCollections: localMaxCollections,
+            rotationStrategy: localStrategy,
+            rotationAllowRepeats: false,
+            visibilityHome: localVisHome,
+            visibilityShared: localVisShared,
+            visibilityRecommended: localVisRecommended,
+        });
+        nextStep();
+    };
+
+    const visibilityOptions = [
+        { label: "Your Home", description: "Show on server admin's Home page", icon: Home, checked: localVisHome, onChange: setLocalVisHome },
+        { label: "Shared Users", description: "Show on shared users' Home pages", icon: Users, checked: localVisShared, onChange: setLocalVisShared },
+        { label: "Recommended", description: "Show in Library Recommended section", icon: Star, checked: localVisRecommended, onChange: setLocalVisRecommended },
+    ];
+
+    const scheduleChoices: { value: boolean; label: string; description: string; icon: LucideIcon; recommended?: boolean }[] = [
+        {
+            value: true,
+            label: "Schedule Rotations",
+            description: "Automatically rotate collections on a timer",
+            icon: Clock,
+            recommended: true,
+        },
+        {
+            value: false,
+            label: "Rotate Manually",
+            description: "Only rotate when you trigger it yourself",
+            icon: Hand,
+        },
+    ];
+
+    return (
+        <div className="space-y-6 ">
+            <StepProgress step={5} label="Rotation Schedule" />
+            <p className="text-sm text-slate-600 dark:text-slate-400 -mt-4">
+                {wizardData.rotationMode === "auto_rotate"
+                    ? "Choose how and when your collections rotate on the homescreen"
+                    : "Choose how and when your collection groups rotate on the homescreen"}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+                {scheduleChoices.map((choice) => (
+                    <button
+                        key={String(choice.value)}
+                        type="button"
+                        onClick={() => setLocalRotationEnabled(choice.value)}
+                        className={`text-left p-4 rounded-lg border-2 transition-all duration-200 ${
+                            localRotationEnabled === choice.value
+                                ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                localRotationEnabled === choice.value
+                                    ? "bg-primary/10 dark:bg-primary/20"
+                                    : "bg-slate-100 dark:bg-slate-800"
+                            }`}>
+                                <choice.icon className={`h-4.5 w-4.5 ${
+                                    localRotationEnabled === choice.value
+                                        ? "text-primary"
+                                        : "text-slate-500 dark:text-slate-400"
+                                }`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{choice.label}</span>
+                                    {choice.recommended && (
+                                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wide">Recommended</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{choice.description}</p>
+                            </div>
+                            <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                localRotationEnabled === choice.value
+                                    ? "border-primary"
+                                    : "border-slate-400 dark:border-slate-500"
+                            }`}>
+                                {localRotationEnabled === choice.value && (
+                                    <div className="h-2 w-2 rounded-full bg-primary" />
+                                )}
+                            </div>
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            <div className="space-y-5">
+                {/* Interval (collapses when rotation disabled) */}
+                <Transition
+                    show={localRotationEnabled}
+                    enter="transition-all duration-300 ease-out overflow-hidden"
+                    enterFrom="opacity-0 max-h-0 -translate-y-2"
+                    enterTo="opacity-100 max-h-40 translate-y-0"
+                    leave="transition-all duration-250 ease-in overflow-hidden"
+                    leaveFrom="opacity-100 max-h-40 translate-y-0"
+                    leaveTo="opacity-0 max-h-0 -translate-y-2"
+                >
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            Rotation interval
+                        </label>
+                        <div className="flex gap-1.5">
+                            {intervalPresets.map((hours) => (
+                                <button
+                                    key={hours}
+                                    type="button"
+                                    onClick={() => { setLocalIntervalHours(hours); setCustomInterval(false); }}
+                                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-all duration-200 ${
+                                        !customInterval && localIntervalHours === hours
+                                            ? "border-primary bg-primary/5 dark:bg-primary/10 text-primary"
+                                            : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
+                                    }`}
+                                >
+                                    {hours}h
+                                </button>
+                            ))}
+                            {customInterval ? (
+                                <div className="flex-1 relative">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        autoFocus
+                                        value={localIntervalHours}
+                                        onChange={(e) => setLocalIntervalHours(Math.max(1, parseInt(e.target.value) || 1))}
+                                        onBlur={() => { if (intervalPresets.includes(localIntervalHours)) setCustomInterval(false); }}
+                                        className="w-full py-2.5 px-3 pr-8 rounded-lg text-sm font-medium border-2 border-primary bg-primary/5 dark:bg-primary/10 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-primary/60 pointer-events-none">hours</span>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setCustomInterval(true)}
+                                    className="flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-all duration-200 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
+                                >
+                                    Custom
+                                </button>
+                            )}
+                            </div>
+                    </div>
+                </Transition>
+
+                {/* Max collections */}
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Max collections
+                        </label>
+                        <span className="text-sm font-semibold text-primary tabular-nums">
+                            {localMaxCollections}
+                        </span>
+                    </div>
+                    <Slider
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={[localMaxCollections]}
+                        onValueChange={([val]) => setLocalMaxCollections(val)}
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-600 mt-1.5">
+                        <span>1</span>
+                        <span>5</span>
+                        <span>10</span>
+                        <span>15</span>
+                        <span>20</span>
+                    </div>
+                </div>
+
+                {/* Strategy */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Selection strategy
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {strategyChoices.map((choice) => (
+                            <button
+                                key={choice.value}
+                                type="button"
+                                onClick={() => setLocalStrategy(choice.value)}
+                                className={`text-left p-3 rounded-lg border-2 transition-all duration-200 ${
+                                    localStrategy === choice.value
+                                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                                }`}
+                            >
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <choice.icon className={`h-4 w-4 ${
+                                        localStrategy === choice.value ? "text-primary" : "text-slate-400 dark:text-slate-500"
+                                    }`} />
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{choice.label}</span>
+                                </div>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug">{choice.description}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Info banner */}
+                <Transition
+                    show={localRotationEnabled}
+                    enter="transition-all duration-300 ease-out overflow-hidden"
+                    enterFrom="opacity-0 max-h-0 -translate-y-2"
+                    enterTo="opacity-100 max-h-20 translate-y-0"
+                    leave="transition-all duration-250 ease-in overflow-hidden"
+                    leaveFrom="opacity-100 max-h-20 translate-y-0"
+                    leaveTo="opacity-0 max-h-0 -translate-y-2"
+                >
+                    <div className="flex items-start gap-3 px-4 py-2.5 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/20">
+                        <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Your homescreen will rotate up to <span className="font-semibold text-primary">{localMaxCollections} collection{localMaxCollections !== 1 ? "s" : ""}</span> every <span className="font-semibold text-primary">{localIntervalHours} hour{localIntervalHours !== 1 ? "s" : ""}</span> ({Math.floor(24 / localIntervalHours)}x per day).
+                        </p>
+                    </div>
+                </Transition>
+            </div>
+
+            {wizardData.rotationMode === "auto_rotate" && (
+                <div>
+                    <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Where should collections appear?
+                    </h3>
+                    <div className="grid grid-cols-3 gap-3">
+                        {visibilityOptions.map((opt) => (
+                            <button
+                                key={opt.label}
+                                type="button"
+                                onClick={() => opt.onChange(!opt.checked)}
+                                className={`p-3 rounded-lg border-2 transition-all duration-200 text-center ${
+                                    opt.checked
+                                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                                }`}
+                            >
+                                <opt.icon className={`h-4 w-4 mx-auto mb-1.5 ${
+                                    opt.checked ? "text-primary" : "text-slate-400 dark:text-slate-500"
+                                }`} />
+                                <div className="text-xs font-medium text-slate-900 dark:text-white">{opt.label}</div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{opt.description}</div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="flex gap-3">
+                <button
+                    onClick={() => previousStep()}
+                    className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    <ArrowLeft className="h-5 w-5" />
+                    Back
+                </button>
+                <button
+                    onClick={handleNext}
+                    className="flex-1 py-3 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                    Next
+                    <ArrowRight className="h-5 w-5" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function CompleteStep({ wizardData, envVars }: { wizardData: WizardData; envVars: EnvVars }) {
     const navigate = useNavigate();
     const { refreshAuthConfig } = useAuth();
+    const { accent } = useTheme();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -1591,20 +1154,9 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                 body: JSON.stringify({
                     plex_url: wizardData.plexUrl,
                     plex_token: wizardData.plexToken,
-                    trakt_enabled: wizardData.traktEnabled,
-                    trakt_client_id: wizardData.traktEnabled ? wizardData.traktClientId : null,
-                    trakt_base_url: wizardData.traktBaseUrl,
-                    mdblist_enabled: wizardData.mdblistEnabled,
-                    mdblist_api_key: wizardData.mdblistEnabled ? wizardData.mdblistApiKey : null,
-                    mdblist_base_url: wizardData.mdblistBaseUrl,
-                    tautulli_enabled: wizardData.tautulliEnabled,
-                    tautulli_api_key: wizardData.tautulliEnabled ? wizardData.tautulliApiKey : null,
-                    tautulli_base_url: wizardData.tautulliBaseUrl,
-                    seerr_enabled: wizardData.seerrEnabled,
-                    seerr_api_key: wizardData.seerrEnabled ? wizardData.seerrApiKey : null,
-                    seerr_base_url: wizardData.seerrBaseUrl,
                     libraries: wizardData.selectedLibraries,
                     auth_enabled: wizardData.authEnabled,
+                    auth_method: wizardData.authMethod,
                     auth_username: wizardData.authUsername,
                     auth_password: wizardData.authPassword,
                     rotation_enabled: wizardData.rotationEnabled,
@@ -1612,6 +1164,10 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
                     rotation_max_collections: wizardData.rotationMaxCollections,
                     rotation_strategy: wizardData.rotationStrategy,
                     rotation_allow_repeats: wizardData.rotationAllowRepeats,
+                    rotation_mode: wizardData.rotationMode,
+                    visibility_home: wizardData.visibilityHome,
+                    visibility_shared: wizardData.visibilityShared,
+                    visibility_recommended: wizardData.visibilityRecommended,
                 }),
             });
 
@@ -1630,61 +1186,97 @@ function CompleteStep({ wizardData }: { wizardData: WizardData }) {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="text-center space-y-2">
+        <div className="space-y-6 ">
+            <StepProgress step={6} label="Review & Complete" />
+            <div className="text-center space-y-2 -mt-4">
                 <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center mx-auto">
                     <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Ready to Go!</h2>
+                <p className="text-lg font-semibold text-slate-900 dark:text-white">You're all set!</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                     Review your configuration and complete setup
                 </p>
             </div>
 
-            <div className="space-y-3 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Authentication</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.authEnabled ? `Enabled (${wizardData.authUsername})` : "Disabled"}
-                    </span>
+            <div className="grid grid-cols-2 gap-3">
+                {/* Theme */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Palette className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Theme</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {accent === "plex-orange" ? "Plex Orange" : "Default Blue"}
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Plex Server</span>
-                    <span className="text-sm text-slate-900 dark:text-white truncate max-w-xs">{wizardData.plexUrl}</span>
+                {/* Plex Server */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Server className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Plex Server</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                        {wizardData.plexUrl || envVars.plex_url_value || "Via environment"}
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Libraries</span>
-                    <span className="text-sm text-slate-900 dark:text-white">{wizardData.selectedLibraries.length} selected</span>
+                {/* Libraries */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Layers className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Libraries</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {wizardData.selectedLibraries.length} selected
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Trakt</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.traktEnabled ? "Enabled" : "Disabled"}
-                    </span>
+                {/* Authentication */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Shield className="h-4 w-4 text-green-500" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Authentication</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {wizardData.authMethod === "password" ? `Password (${wizardData.authUsername})` :
+                         wizardData.authMethod === "plex" ? "Plex SSO" :
+                         "Password + Plex"}
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">MDBList</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.mdblistEnabled ? "Enabled" : "Disabled"}
-                    </span>
+                {/* Rotation Mode */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <RefreshCw className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Rotation Mode</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {wizardData.rotationMode === "auto_rotate" ? "Auto-Rotate" : "Collection Groups"}
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Tautulli</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.tautulliEnabled ? "Enabled" : "Disabled"}
-                    </span>
+                {/* Schedule & Strategy */}
+                <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Schedule</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {wizardData.rotationEnabled
+                            ? `Every ${wizardData.rotationIntervalHours}h, ${wizardData.rotationStrategy === "lru" ? "LRU" : wizardData.rotationStrategy.charAt(0).toUpperCase() + wizardData.rotationStrategy.slice(1)}`
+                            : "Manual only"}
+                    </p>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Seerr</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.seerrEnabled ? "Enabled" : "Disabled"}
-                    </span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Automatic Rotations</span>
-                    <span className="text-sm text-slate-900 dark:text-white">
-                        {wizardData.rotationEnabled ? `Every ${wizardData.rotationIntervalHours}h` : "Disabled"}
-                    </span>
+
+            </div>
+
+            <div className="p-4 rounded-lg bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/20">
+                <div className="flex gap-3">
+                    <Plug className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium text-primary">
+                            Connect integrations after setup
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Trakt, MDBList, TMDb, Letterboxd, Tautulli, Seerr, and more can be configured from the Lists and Settings pages.
+                        </p>
+                    </div>
                 </div>
             </div>
 

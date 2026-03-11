@@ -286,9 +286,11 @@ def check_config_exists() -> ConfigExistsResponse:
 @router.get("/env-vars", response_model=EnvVarsResponse)
 def check_env_vars() -> EnvVarsResponse:
     # Check which configuration values are provided via environment variables.
+    plex_url = os.getenv("HSH_PLEX_URL")
     return EnvVarsResponse(
         plex_token_from_env=bool(os.getenv("HSH_PLEX_TOKEN")),
-        plex_url_from_env=bool(os.getenv("HSH_PLEX_URL")),
+        plex_url_from_env=bool(plex_url),
+        plex_url_value=plex_url if plex_url else None,
         auth_password_from_env=bool(os.getenv("HSH_AUTH_PASSWORD")),
         auth_secret_from_env=bool(os.getenv("HSH_AUTH_SECRET_KEY")),
         trakt_client_id_from_env=bool(os.getenv("HSH_TRAKT_CLIENT_ID")),
@@ -466,18 +468,30 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         # Convert library names to library config objects
         libraries_config = [{"name": lib, "enabled": True} for lib in payload.libraries]
 
+        # Build rotation config with optional auto-rotate
+        rotation_config = {
+            "enabled": payload.rotation_enabled,
+            "interval_hours": payload.rotation_interval_hours,
+            "max_collections": payload.rotation_max_collections,
+            "strategy": payload.rotation_strategy,
+            "allow_repeats": payload.rotation_allow_repeats,
+        }
+
+        if payload.rotation_mode == "auto_rotate":
+            rotation_config["auto_rotate"] = {
+                "enabled": True,
+                "libraries": payload.libraries,
+                "visibility_home": payload.visibility_home,
+                "visibility_shared": payload.visibility_shared,
+                "visibility_recommended": payload.visibility_recommended,
+            }
+
         minimal_config = {
             "plex": {
                 "base_url": plex_url,
                 "libraries": libraries_config
             },
-            "rotation": {
-                "enabled": payload.rotation_enabled,
-                "interval_hours": payload.rotation_interval_hours,
-                "max_collections": payload.rotation_max_collections,
-                "strategy": payload.rotation_strategy,
-                "allow_repeats": payload.rotation_allow_repeats
-            },
+            "rotation": rotation_config,
             "logging": {
                 "level": "INFO"
             },
@@ -488,124 +502,32 @@ def quick_start_setup(payload: QuickStartRequest) -> ConfigSaveResponse:
         if not plex_token_from_env:
             minimal_config["plex"]["token"] = plex_token
 
-        # Add Trakt if enabled
-        # Use environment variable if payload value is empty
-        trakt_client_id = payload.trakt_client_id or os.getenv("HSH_TRAKT_CLIENT_ID", "")
-        trakt_client_id_from_env = os.getenv("HSH_TRAKT_CLIENT_ID")
-
-        if payload.trakt_enabled and trakt_client_id:
-            minimal_config["trakt"] = {
-                "enabled": True,
-                "base_url": payload.trakt_base_url,
-                "sources": []
-            }
-            # Only write client_id to config if not from environment variable
-            if not trakt_client_id_from_env:
-                minimal_config["trakt"]["client_id"] = trakt_client_id
-        else:
-            minimal_config["trakt"] = {
-                "enabled": False,
-                "base_url": payload.trakt_base_url,
-                "sources": []
-            }
-
-        # Add MDBList if enabled
-        # Use environment variable if payload value is empty
-        mdblist_api_key = payload.mdblist_api_key or os.getenv("HSH_MDBLIST_API_KEY", "")
-        mdblist_api_key_from_env = os.getenv("HSH_MDBLIST_API_KEY")
-
-        if payload.mdblist_enabled and mdblist_api_key:
-            minimal_config["mdblist"] = {
-                "enabled": True,
-                "base_url": payload.mdblist_base_url,
-                "sources": []
-            }
-            # Only write api_key to config if not from environment variable
-            if not mdblist_api_key_from_env:
-                minimal_config["mdblist"]["api_key"] = mdblist_api_key
-        else:
-            minimal_config["mdblist"] = {
-                "enabled": False,
-                "base_url": payload.mdblist_base_url,
-                "sources": []
-            }
-
-        # Add Tautulli if enabled
-        # Use environment variables if payload values are empty
-        tautulli_api_key = payload.tautulli_api_key or os.getenv("HSH_TAUTULLI_API_KEY", "")
-        tautulli_api_key_from_env = os.getenv("HSH_TAUTULLI_API_KEY")
-        tautulli_base_url = payload.tautulli_base_url or os.getenv("HSH_TAUTULLI_BASE_URL", "http://localhost:8181")
-        tautulli_url_from_env = os.getenv("HSH_TAUTULLI_BASE_URL")
-
-        if payload.tautulli_enabled and tautulli_api_key:
-            minimal_config["tautulli"] = {
-                "enabled": True,
-                "collect_on_rotation": True,
-                "collect_interval_hours": 24,
-            }
-            # Only write api_key to config if not from environment variable
-            if not tautulli_api_key_from_env:
-                minimal_config["tautulli"]["api_key"] = tautulli_api_key
-            # Only write base_url to config if not from environment variable
-            if not tautulli_url_from_env:
-                minimal_config["tautulli"]["base_url"] = tautulli_base_url
-        else:
-            minimal_config["tautulli"] = {
-                "enabled": False,
-                "base_url": tautulli_base_url,
-                "collect_on_rotation": True,
-                "collect_interval_hours": 24,
-            }
-
-        # Add Seerr if enabled
-        # Use environment variables if payload values are empty
-        seerr_api_key = payload.seerr_api_key or os.getenv("HSH_SEERR_API_KEY", "")
-        seerr_api_key_from_env = os.getenv("HSH_SEERR_API_KEY")
-        seerr_base_url = payload.seerr_base_url or os.getenv("HSH_SEERR_BASE_URL", "http://localhost:5055")
-        seerr_url_from_env = os.getenv("HSH_SEERR_BASE_URL")
-
-        if payload.seerr_enabled and seerr_api_key:
-            minimal_config["seerr"] = {
-                "enabled": True,
-            }
-            # Only write api_key to config if not from environment variable
-            if not seerr_api_key_from_env:
-                minimal_config["seerr"]["api_key"] = seerr_api_key
-            # Only write base_url to config if not from environment variable
-            if not seerr_url_from_env:
-                minimal_config["seerr"]["base_url"] = seerr_base_url
-        else:
-            minimal_config["seerr"] = {
-                "enabled": False,
-                "base_url": seerr_base_url,
-            }
-
         # Add auth configuration
-        # Check if password is provided via env var or payload
+        needs_password = payload.auth_method in ("password", "both")
         password_from_env = os.getenv("HSH_AUTH_PASSWORD")
         auth_password = payload.auth_password or password_from_env
+        secret_from_env = os.getenv("HSH_AUTH_SECRET_KEY")
 
-        if payload.auth_enabled and payload.auth_username and auth_password:
-            secret_from_env = os.getenv("HSH_AUTH_SECRET_KEY")
-
+        if payload.auth_enabled and (not needs_password or (payload.auth_username and auth_password)):
             minimal_config["auth"] = {
                 "enabled": True,
-                "username": payload.auth_username,
-                "token_expire_days": 30
+                "method": payload.auth_method,
+                "username": payload.auth_username or "admin",
+                "token_expire_days": 30,
             }
 
-            # Only write to config if not using env vars
-            if not password_from_env:
+            # Only write password/secret to config if not using env vars
+            if needs_password and not password_from_env:
                 minimal_config["auth"]["password"] = payload.auth_password
             if not secret_from_env:
-                # Generate a random secret key
                 import secrets
                 minimal_config["auth"]["secret_key"] = secrets.token_urlsafe(32)
         else:
             minimal_config["auth"] = {
                 "enabled": False,
+                "method": "password",
                 "username": "admin",
-                "token_expire_days": 30
+                "token_expire_days": 30,
             }
 
         # Serialize and save

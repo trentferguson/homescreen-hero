@@ -35,10 +35,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "slide-expand": {
+          from: { opacity: "0", transform: "translateY(-8px)", maxHeight: "0" },
+          to: { opacity: "1", transform: "translateY(0)", maxHeight: "400px" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slide-expand": "slide-expand 0.4s ease-out forwards",
       },
     },
   },

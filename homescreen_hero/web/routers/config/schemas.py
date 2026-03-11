@@ -382,6 +382,7 @@ class ConfigExistsResponse(BaseModel):
 class EnvVarsResponse(BaseModel):
     plex_token_from_env: bool
     plex_url_from_env: bool
+    plex_url_value: Optional[str] = None
     auth_password_from_env: bool
     auth_secret_from_env: bool
     trakt_client_id_from_env: bool
@@ -433,20 +434,9 @@ class ConnectionTestResponse(BaseModel):
 class QuickStartRequest(BaseModel):
     plex_url: str
     plex_token: str
-    trakt_enabled: bool = False
-    trakt_client_id: Optional[str] = None
-    trakt_base_url: str = "https://api.trakt.tv"
-    mdblist_enabled: bool = False
-    mdblist_api_key: Optional[str] = None
-    mdblist_base_url: str = "https://api.mdblist.com"
-    tautulli_enabled: bool = False
-    tautulli_api_key: Optional[str] = None
-    tautulli_base_url: str = "http://localhost:8181"
-    seerr_enabled: bool = False
-    seerr_api_key: Optional[str] = None
-    seerr_base_url: str = "http://localhost:5055"
     libraries: List[str] = []
     auth_enabled: bool = False
+    auth_method: Literal["password", "plex", "both"] = "password"
     auth_username: Optional[str] = None
     auth_password: Optional[str] = None
     rotation_enabled: bool = False
@@ -454,6 +444,10 @@ class QuickStartRequest(BaseModel):
     rotation_max_collections: int = 5
     rotation_strategy: str = "random"
     rotation_allow_repeats: bool = False
+    rotation_mode: Literal["groups", "auto_rotate"] = "groups"
+    visibility_home: bool = True
+    visibility_shared: bool = False
+    visibility_recommended: bool = False
 
 
 class ConfigValidateResponse(BaseModel):

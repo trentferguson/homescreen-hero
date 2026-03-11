@@ -60,7 +60,7 @@ export default function PosterBackground({ children, staticPosters }: PosterBack
                 )}
 
                 {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-50/95 to-slate-100/95 dark:from-slate-900/95 dark:to-slate-800/95" />
+                <div className="absolute inset-0 bg-gradient-to-br preserve-gradient from-slate-50/95 to-slate-100/95 dark:from-slate-900/95 dark:to-slate-800/95" />
             </div>
 
             {/* Content */}
