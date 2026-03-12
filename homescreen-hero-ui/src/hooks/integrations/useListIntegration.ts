@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchWithAuth } from "../../utils/api";
+import { useOnboarding } from "../../utils/onboarding";
 import type {
     Source,
     SourceStatus,
@@ -82,6 +83,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
 ): UseListIntegrationReturn<TSettings, TMissing> {
     const { integrationName, initialSettings, hasSettings, healthEndpoint } = config;
     const basePath = `/api/admin/config/${integrationName}`;
+    const { completeStep } = useOnboarding();
 
     // Settings state
     const [settings, setSettings] = useState<TSettings>(initialSettings);
@@ -275,6 +277,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
                 setNewSource({ name: "", url: "", plex_library: "" });
             }
             setToast({ message: data.message, type: "success" });
+            completeStep("add-list-source");
             return true;
         } catch (e) {
             setToast({ message: String(e), type: "error" });
@@ -282,7 +285,7 @@ export function useListIntegration<TSettings, TMissing extends BaseMissingItem>(
         } finally {
             setSavingSource(false);
         }
-    }, [basePath, newSource]);
+    }, [basePath, newSource, completeStep]);
 
     // Update source (e.g., toggle auto_request)
     const updateSource = useCallback(

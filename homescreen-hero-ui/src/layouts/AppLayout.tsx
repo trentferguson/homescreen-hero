@@ -6,6 +6,7 @@ import TopBar from "../components/TopBar";
 import { Sheet, SheetContent, SheetTitle } from "../components/ui/sheet";
 import { useTheme } from "../utils/theme";
 import { PageHeaderProvider } from "../utils/pageHeader";
+import { OnboardingProvider } from "../utils/onboarding";
 
 function TopNavLayout() {
     return (
@@ -55,6 +56,9 @@ function SidebarLayout() {
 export default function AppLayout() {
     const { accent } = useTheme();
 
-    if (accent === "plex-orange") return <SidebarLayout />;
-    return <TopNavLayout />;
+    return (
+        <OnboardingProvider>
+            {accent === "plex-orange" ? <SidebarLayout /> : <TopNavLayout />}
+        </OnboardingProvider>
+    );
 }

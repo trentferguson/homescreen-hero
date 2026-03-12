@@ -119,7 +119,11 @@ def get_trakt_settings(_current_user: CurrentUser = Depends(require_admin)) -> T
     # Return the currently configured Trakt settings
     try:
         config = load_config()
-        return config.trakt
+        if config.trakt:
+            return config.trakt
+        # Auto-enable if the user provided an env var
+        env_key = os.getenv("HSH_TRAKT_CLIENT_ID") or None
+        return TraktSettings(enabled=bool(env_key), client_id=env_key)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - defensive
@@ -228,7 +232,8 @@ def get_mdblist_settings(_current_user: CurrentUser = Depends(require_admin)) ->
     try:
         config = load_config()
         if config.mdblist is None:
-            return MDBListSettings(enabled=False, api_key=None, base_url="https://api.mdblist.com", sources=[])
+            env_key = os.getenv("HSH_MDBLIST_API_KEY") or None
+            return MDBListSettings(enabled=bool(env_key), api_key=env_key, base_url="https://api.mdblist.com", sources=[])
         return config.mdblist
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -290,9 +295,8 @@ def get_tmdb_settings(_current_user: CurrentUser = Depends(require_admin)) -> TM
     try:
         config = load_config()
         if config.tmdb is None:
-            # Still surface the env var so the UI shows the masked key
             env_key = os.getenv("HSH_TMDB_API_KEY") or None
-            return TMDbSettings(enabled=False, api_key=env_key, base_url="https://api.themoviedb.org/3", sources=[])
+            return TMDbSettings(enabled=bool(env_key), api_key=env_key, base_url="https://api.themoviedb.org/3", sources=[])
         return config.tmdb
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -402,7 +406,8 @@ def get_mal_settings(_current_user: CurrentUser = Depends(require_admin)) -> MAL
     try:
         config = load_config()
         if config.mal is None:
-            return MALSettings(enabled=False, client_id=None, sources=[])
+            env_key = os.getenv("HSH_MAL_CLIENT_ID") or None
+            return MALSettings(enabled=bool(env_key), client_id=env_key, sources=[])
         return config.mal
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -463,10 +468,12 @@ def get_tautulli_settings(_current_user: CurrentUser = Depends(require_admin)) -
     try:
         config = load_config()
         if config.tautulli is None:
+            env_key = os.getenv("HSH_TAUTULLI_API_KEY") or None
+            env_url = os.getenv("HSH_TAUTULLI_BASE_URL") or "http://localhost:8181"
             return TautulliSettings(
-                enabled=False,
-                api_key=None,
-                base_url="http://localhost:8181",
+                enabled=bool(env_key),
+                api_key=env_key,
+                base_url=env_url,
                 collect_on_rotation=True,
                 collect_interval_hours=24,
             )
@@ -533,10 +540,12 @@ def get_seerr_settings(_current_user: CurrentUser = Depends(require_admin)) -> S
     try:
         config = load_config()
         if config.seerr is None:
+            env_key = os.getenv("HSH_SEERR_API_KEY") or None
+            env_url = os.getenv("HSH_SEERR_BASE_URL") or "http://localhost:5055"
             return SeerrSettings(
-                enabled=False,
-                api_key=None,
-                base_url="http://localhost:5055",
+                enabled=bool(env_key),
+                api_key=env_key,
+                base_url=env_url,
             )
         return config.seerr
     except FileNotFoundError as exc:

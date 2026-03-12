@@ -7,6 +7,7 @@ import { MDBListIntegration } from "../components/integrations/MDBListIntegratio
 import { AniListIntegration } from "../components/integrations/AniListIntegration";
 import { MALIntegration } from "../components/integrations/MALIntegration";
 import { TMDbIntegration } from "../components/integrations/TMDbIntegration";
+import OnboardingHint from "../components/OnboardingHint";
 
 const tabs = [
     { name: "Trakt", key: "trakt", component: TraktIntegration },
@@ -44,6 +45,10 @@ export default function ListsPage() {
                     Manage third-party list sources for automated syncing and content discovery.
                 </p>
             </div>
+
+            <OnboardingHint step="add-list-source">
+                Pick any tab below and add your first list source. This will sync external lists into Plex collections for rotation.
+            </OnboardingHint>
 
             <Tab.Group selectedIndex={selectedIndex} onChange={handleTabChange}>
                 <Tab.List className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-800">

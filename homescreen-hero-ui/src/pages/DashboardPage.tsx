@@ -25,6 +25,8 @@ import { fetchWithAuth } from "../utils/api";
 import { useDashboardLayout } from "../hooks/useDashboardLayout";
 import { useTheme } from "../utils/theme";
 import { usePageHeader } from "../utils/pageHeader";
+import { useOnboarding } from "../utils/onboarding";
+import GettingStartedCard from "../components/GettingStartedCard";
 
 type RotationHistoryItem = {
     id: number;
@@ -107,6 +109,7 @@ export default function Dashboard() {
 
     const navigate = useNavigate();
     const { authMethod } = useAuth();
+    const { completeStep } = useOnboarding();
 
     // Dashboard layout customization
     const {
@@ -120,6 +123,11 @@ export default function Dashboard() {
         reorderStatusBarWidgets,
         reorderMainWidgets,
     } = useDashboardLayout({ tautulli: tautulliEnabled, seerr: seerrEnabled });
+
+    const handleToggleEditMode = () => {
+        if (!isEditMode) completeStep("customize-dashboard");
+        toggleEditMode();
+    };
 
     // Compute hidden widgets for the "Add Widget" dropdown
     const hiddenWidgets = useMemo(() => {
@@ -445,6 +453,7 @@ export default function Dashboard() {
                 type: "success"
             });
 
+            completeStep("run-rotation");
             refresh();
             void loadActiveCollections();
         } catch (e) {
@@ -575,7 +584,7 @@ export default function Dashboard() {
             actions: (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={toggleEditMode}
+                        onClick={handleToggleEditMode}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
                             isEditMode
                                 ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
@@ -776,7 +785,7 @@ export default function Dashboard() {
 
                         <div className="flex gap-3 flex-wrap">
                             <button
-                                onClick={toggleEditMode}
+                                onClick={handleToggleEditMode}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95 ${
                                     isEditMode
                                         ? "border-amber-500/50 bg-amber-500/10 text-amber-400"
@@ -844,6 +853,12 @@ export default function Dashboard() {
                         </span>
                     </button>
                 )}
+
+                {/* Getting Started onboarding checklist */}
+                <GettingStartedCard
+                    onRunRotation={forceRunRotation}
+                    onToggleEditMode={handleToggleEditMode}
+                />
 
                 {/* Errors */}
                 {error ? (

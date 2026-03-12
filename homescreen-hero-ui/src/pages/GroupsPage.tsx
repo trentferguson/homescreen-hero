@@ -62,6 +62,8 @@ import {
 } from "../components/ui/sheet";
 import { getGroupStatus } from "../utils/dates";
 import { Sparkles } from "lucide-react";
+import OnboardingHint from "../components/OnboardingHint";
+import { useOnboarding } from "../utils/onboarding";
 
 type DateRange = {
     start: string;
@@ -181,6 +183,7 @@ function SortableGroupCard({ id, viewMode, children }: { id: string; viewMode: V
 
 export default function GroupsPage() {
     const navigate = useNavigate();
+    const { completeStep } = useOnboarding();
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -558,6 +561,10 @@ export default function GroupsPage() {
                     </button>
                 </div>
             </div>
+
+            <OnboardingHint step="create-group">
+                Create your first collection group to organize which collections rotate onto your Plex homescreen.
+            </OnboardingHint>
 
             {error ? (
                 <div className="flex items-center gap-2 rounded-xl border border-red-900/60 bg-red-900/40 px-4 py-3 text-red-100">
@@ -1341,6 +1348,7 @@ export default function GroupsPage() {
                                             setShowTypePicker(false);
                                             setNewGroupType(null);
                                             setNewGroupName("");
+                                            completeStep("create-group");
                                             if (targetIndex >= 0) {
                                                 navigate(isSmart ? `/groups/smart/${targetIndex}` : `/groups/${targetIndex}`);
                                             }
