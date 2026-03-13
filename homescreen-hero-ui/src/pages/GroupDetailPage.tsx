@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, LayoutGrid, List, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, LayoutGrid, List, Loader2, Minus, Plus, Search, Share2, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { InfoTooltip } from "../components/ui/info-tooltip";
 import { Listbox } from "@headlessui/react";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -114,7 +114,7 @@ export default function GroupDetailPage() {
     const [sources, setSources] = useState<CollectionSource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal">("all");
-    const [sourcesLoading, setSourcesLoading] = useState(false);
+
     const [showSourcesSkeleton, setShowSourcesSkeleton] = useState(false);
     const sourcesSkeletonTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -171,7 +171,6 @@ export default function GroupDetailPage() {
     }, [groupId, groups]);
 
     useEffect(() => {
-        setSourcesLoading(true);
         // Only show skeleton if loading takes longer than 300ms
         sourcesSkeletonTimer.current = setTimeout(() => setShowSourcesSkeleton(true), 300);
         fetchWithAuth("/api/admin/config/group-sources")
@@ -185,7 +184,6 @@ export default function GroupDetailPage() {
             })
             .finally(() => {
                 clearTimeout(sourcesSkeletonTimer.current);
-                setSourcesLoading(false);
                 setShowSourcesSkeleton(false);
                 // Clear initial load flag after stagger animations complete (~600ms)
                 setTimeout(() => setInitialLoad(false), 600);
