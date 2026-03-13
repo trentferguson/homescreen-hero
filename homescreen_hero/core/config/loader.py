@@ -8,7 +8,15 @@ from typing import Optional
 import yaml
 from dotenv import load_dotenv
 
-from .schema import AppConfig
+from .schema import (
+    AppConfig,
+    MDBListSettings,
+    MALSettings,
+    SeerrSettings,
+    TautulliSettings,
+    TMDbSettings,
+    TraktSettings,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -132,9 +140,12 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Auth secret key is required when auth is enabled. Set it in config.yaml or via HSH_AUTH_SECRET_KEY environment variable"
             )
 
-    # Trakt client ID override (if Trakt is enabled)
-    if config.trakt and config.trakt.enabled:
-        trakt_client_id = os.getenv("HSH_TRAKT_CLIENT_ID")
+    # Trakt: auto-create from env vars if section missing
+    trakt_client_id = os.getenv("HSH_TRAKT_CLIENT_ID")
+    if not config.trakt and trakt_client_id:
+        logger.debug("Auto-enabling Trakt from HSH_TRAKT_CLIENT_ID environment variable")
+        config.trakt = TraktSettings(enabled=True, client_id=trakt_client_id)
+    elif config.trakt and config.trakt.enabled:
         if trakt_client_id:
             logger.debug("Using Trakt client ID from HSH_TRAKT_CLIENT_ID environment variable")
             config.trakt.client_id = trakt_client_id
@@ -143,23 +154,36 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Trakt client ID is required when Trakt is enabled. Set it in config.yaml or via HSH_TRAKT_CLIENT_ID environment variable"
             )
 
-    # MDBList API key override (if MDBList is enabled)
-    if config.mdblist and config.mdblist.enabled:
-        mdblist_api_key = os.getenv("HSH_MDBLIST_API_KEY")
+    # MDBList: auto-create from env vars if section missing
+    mdblist_api_key = os.getenv("HSH_MDBLIST_API_KEY")
+    if not config.mdblist and mdblist_api_key:
+        logger.debug("Auto-enabling MDBList from HSH_MDBLIST_API_KEY environment variable")
+        config.mdblist = MDBListSettings(enabled=True, api_key=mdblist_api_key)
+    elif config.mdblist and config.mdblist.enabled:
         if mdblist_api_key:
             logger.debug("Using MDBList API key from HSH_MDBLIST_API_KEY environment variable")
             config.mdblist.api_key = mdblist_api_key
 
-    # TMDb API key override (if TMDb is enabled)
-    if config.tmdb and config.tmdb.enabled:
-        tmdb_api_key = os.getenv("HSH_TMDB_API_KEY")
+    # TMDb: auto-create from env vars if section missing
+    tmdb_api_key = os.getenv("HSH_TMDB_API_KEY")
+    if not config.tmdb and tmdb_api_key:
+        logger.debug("Auto-enabling TMDb from HSH_TMDB_API_KEY environment variable")
+        config.tmdb = TMDbSettings(enabled=True, api_key=tmdb_api_key)
+    elif config.tmdb and config.tmdb.enabled:
         if tmdb_api_key:
             logger.debug("Using TMDb API key from HSH_TMDB_API_KEY environment variable")
             config.tmdb.api_key = tmdb_api_key
 
-    # Tautulli API key override (if Tautulli is enabled)
-    if config.tautulli and config.tautulli.enabled:
-        tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
+    # Tautulli: auto-create from env vars if section missing
+    tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
+    tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
+    if not config.tautulli and tautulli_api_key:
+        logger.debug("Auto-enabling Tautulli from HSH_TAUTULLI_API_KEY environment variable")
+        kwargs = {"enabled": True, "api_key": tautulli_api_key}
+        if tautulli_base_url and tautulli_base_url != "http://your-tautulli-url:8181":
+            kwargs["base_url"] = tautulli_base_url
+        config.tautulli = TautulliSettings(**kwargs)
+    elif config.tautulli and config.tautulli.enabled:
         if tautulli_api_key:
             logger.debug("Using Tautulli API key from HSH_TAUTULLI_API_KEY environment variable")
             config.tautulli.api_key = tautulli_api_key
@@ -168,16 +192,17 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Tautulli API key is required when Tautulli is enabled. Set it in config.yaml or via HSH_TAUTULLI_API_KEY environment variable"
             )
 
-        # Tautulli base URL override (optional)
-        # Skip placeholder value from Unraid template
-        tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
+        # Tautulli base URL override (optional, skip Unraid placeholder)
         if tautulli_base_url and tautulli_base_url != "http://your-tautulli-url:8181":
             logger.debug("Using Tautulli base URL from HSH_TAUTULLI_BASE_URL environment variable")
             config.tautulli.base_url = tautulli_base_url
 
-    # MAL Client ID override (if MAL is enabled)
-    if config.mal and config.mal.enabled:
-        mal_client_id = os.getenv("HSH_MAL_CLIENT_ID")
+    # MAL: auto-create from env vars if section missing
+    mal_client_id = os.getenv("HSH_MAL_CLIENT_ID")
+    if not config.mal and mal_client_id:
+        logger.debug("Auto-enabling MAL from HSH_MAL_CLIENT_ID environment variable")
+        config.mal = MALSettings(enabled=True, client_id=mal_client_id)
+    elif config.mal and config.mal.enabled:
         if mal_client_id:
             logger.debug("Using MAL Client ID from HSH_MAL_CLIENT_ID environment variable")
             config.mal.client_id = mal_client_id
@@ -187,9 +212,16 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Set it in config.yaml or via HSH_MAL_CLIENT_ID environment variable"
             )
 
-    # Seerr API key override (if Seerr is enabled)
-    if config.seerr and config.seerr.enabled:
-        seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
+    # Seerr: auto-create from env vars if section missing
+    seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
+    seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
+    if not config.seerr and seerr_api_key:
+        logger.debug("Auto-enabling Seerr from HSH_SEERR_API_KEY environment variable")
+        kwargs = {"enabled": True, "api_key": seerr_api_key}
+        if seerr_base_url and seerr_base_url != "http://your-seerr-url:5055":
+            kwargs["base_url"] = seerr_base_url
+        config.seerr = SeerrSettings(**kwargs)
+    elif config.seerr and config.seerr.enabled:
         if seerr_api_key:
             logger.debug("Using Seerr API key from HSH_SEERR_API_KEY environment variable")
             config.seerr.api_key = seerr_api_key
@@ -198,9 +230,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 "Seerr API key is required when Seerr is enabled. Set it in config.yaml or via HSH_SEERR_API_KEY environment variable"
             )
 
-        # Seerr base URL override (optional)
-        # Skip placeholder value from Unraid template
-        seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
+        # Seerr base URL override (optional, skip Unraid placeholder)
         if seerr_base_url and seerr_base_url != "http://your-seerr-url:5055":
             logger.debug("Using Seerr base URL from HSH_SEERR_BASE_URL environment variable")
             config.seerr.base_url = seerr_base_url

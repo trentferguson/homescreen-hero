@@ -1,12 +1,14 @@
 import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
 import type { AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, X, Maximize2, Minimize2 } from "lucide-react";
 
 interface DraggableWidgetProps {
     id: string;
     isEditMode: boolean;
     colSpan?: number;
+    isResizable?: boolean;
+    onResize?: () => void;
     onHide?: () => void;
     children: React.ReactNode;
 }
@@ -25,6 +27,8 @@ export function DraggableWidget({
     id,
     isEditMode,
     colSpan,
+    isResizable,
+    onResize,
     onHide,
     children,
 }: DraggableWidgetProps) {
@@ -72,15 +76,26 @@ export function DraggableWidget({
                     >
                         <GripVertical className="w-4 h-4 text-slate-400" />
                     </div>
-                    {onHide && (
-                        <button
-                            onClick={onHide}
-                            className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-slate-800/90 border border-slate-600 shadow-lg hover:bg-red-900/80 hover:border-red-700 hover:text-red-300 transition-colors text-slate-400 backdrop-blur-sm"
-                            title="Hide widget"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    )}
+                    <div className="absolute top-2 right-2 z-10 flex gap-1.5">
+                        {isResizable && onResize && (
+                            <button
+                                onClick={onResize}
+                                className="p-1.5 rounded-lg bg-slate-800/90 border border-slate-600 shadow-lg hover:bg-primary/20 hover:border-primary/50 hover:text-primary transition-colors text-slate-400 backdrop-blur-sm"
+                                title={colSpan === 1 ? "Expand to 2 columns" : "Shrink to 1 column"}
+                            >
+                                {colSpan === 1 ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+                            </button>
+                        )}
+                        {onHide && (
+                            <button
+                                onClick={onHide}
+                                className="p-1.5 rounded-lg bg-slate-800/90 border border-slate-600 shadow-lg hover:bg-red-900/80 hover:border-red-700 hover:text-red-300 transition-colors text-slate-400 backdrop-blur-sm"
+                                title="Hide widget"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </>
             )}
             <div

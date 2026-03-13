@@ -9,6 +9,7 @@ type RotationEvent = {
     summary: string;
     error_message?: string | null;
     featured_collections: string[];
+    group_contributions?: Record<string, string[]> | null;
 };
 
 type LastRun = {
@@ -59,30 +60,39 @@ export default function RecentRotationsCard({
     loading,
     formatTimeAgo = timeAgo,
     limit,
+    compact = false,
 }: {
     items: RotationEvent[];
     lastRun: LastRun;
     loading?: boolean;
     formatTimeAgo?: (iso: string) => string;
     limit?: number;
+    compact?: boolean;
 }) {
     const displayItems = limit ? items.slice(0, limit) : items;
     const [selectedRotation, setSelectedRotation] = useState<RotationEvent | null>(null);
 
     return (
-        <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-5 space-y-4 transition-all duration-300 hover:bg-slate-800/30 h-[420px] flex flex-col">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <h3 className="text-lg font-bold text-white tracking-tight">Recent Rotations</h3>
-                    <p className="text-sm text-slate-400 mt-0.5">Latest sync attempts and their outcomes.</p>
+        <div className={`rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 transition-all duration-300 hover:bg-slate-800/30 flex flex-col ${compact ? "p-4 space-y-3 h-[420px]" : "p-5 space-y-4 h-[420px]"}`}>
+            {compact ? (
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-white tracking-tight">Recent Rotations</h3>
+                    {lastRun ? <StatusPill success={lastRun.success} /> : null}
                 </div>
-                {lastRun ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>{formatTimeAgo(lastRun.created_at)}</span>
-                        <StatusPill success={lastRun.success} />
+            ) : (
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-lg font-bold text-white tracking-tight">Recent Rotations</h3>
+                        <p className="text-sm text-slate-400 mt-0.5">Latest sync attempts and their outcomes.</p>
                     </div>
-                ) : null}
-            </div>
+                    {lastRun ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <span>{formatTimeAgo(lastRun.created_at)}</span>
+                            <StatusPill success={lastRun.success} />
+                        </div>
+                    ) : null}
+                </div>
+            )}
 
             {loading ? (
                 <div className="space-y-3">
@@ -95,14 +105,14 @@ export default function RecentRotationsCard({
                     No rotation history available yet.
                 </div>
             ) : (
-                <ul className="space-y-2 flex-1 overflow-y-auto scrollbar-hover-only pr-1">
+                <ul className={`${compact ? "space-y-1.5" : "space-y-2"} flex-1 overflow-y-auto scrollbar-hover-only pr-1`}>
                     {displayItems.map((event, idx) => {
                         const { created_at, success, summary, error_message, featured_collections } = event;
                         const hasMoreInfo = featured_collections.length > 2 || (error_message && error_message.length > 100);
                         return (
                             <li
                                 key={`${created_at}-${idx}`}
-                                className="group flex items-start gap-2.5 rounded-xl border border-slate-800/80 bg-slate-800/30 px-2.5 py-1.5 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer"
+                                className={`group flex items-start rounded-xl border border-slate-800/80 bg-slate-800/30 hover:border-slate-700 hover:bg-slate-800/50 transition-all duration-200 cursor-pointer ${compact ? "gap-2 px-2 py-1.5" : "gap-2.5 px-2.5 py-1.5"}`}
                                 onClick={() => setSelectedRotation(event)}
                             >
                                 <div className="pt-1">
@@ -114,22 +124,22 @@ export default function RecentRotationsCard({
                                     />
                                 </div>
 
-                                <div className="flex-1 min-w-0 space-y-1">
-                                    <p className="text-sm font-semibold text-white truncate" title={summary}>
+                                <div className={`flex-1 min-w-0 ${compact ? "space-y-0.5" : "space-y-1"}`}>
+                                    <p className={`font-semibold text-white truncate ${compact ? "text-xs" : "text-sm"}`} title={summary}>
                                         {summary}
                                         {hasMoreInfo && (
                                             <span className="text-slate-500 ml-1">...</span>
                                         )}
                                     </p>
 
-                                    {error_message ? (
+                                    {!compact && error_message ? (
                                         <p className="text-xs text-rose-300 leading-relaxed line-clamp-2">
                                             {error_message}
                                         </p>
                                     ) : null}
 
-                                    <div className="text-xs text-slate-400" title={formatTimestamp(created_at)}>
-                                        {formatTimeAgo(created_at)} · {formatTimestamp(created_at)}
+                                    <div className={`text-slate-400 ${compact ? "text-[11px]" : "text-xs"}`} title={formatTimestamp(created_at)}>
+                                        {compact ? formatTimeAgo(created_at) : `${formatTimeAgo(created_at)} · ${formatTimestamp(created_at)}`}
                                     </div>
                                 </div>
 
@@ -186,26 +196,47 @@ export default function RecentRotationsCard({
                             )}
 
                             {/* Featured Collections */}
-                            <div>
-                                <p className="text-sm font-medium text-slate-300 mb-2">
-                                    Featured Collections ({selectedRotation.featured_collections.length})
-                                </p>
-                                {selectedRotation.featured_collections.length > 0 ? (
-                                    <ul className="space-y-1.5">
-                                        {selectedRotation.featured_collections.map((collection, idx) => (
-                                            <li
-                                                key={`${collection}-${idx}`}
-                                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50"
-                                            >
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                                                <span className="text-sm text-white">{collection}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-slate-500 italic">No collections featured</p>
-                                )}
-                            </div>
+                            {selectedRotation.group_contributions && Object.keys(selectedRotation.group_contributions).length > 0 ? (
+                                <div className="space-y-3">
+                                    {Object.entries(selectedRotation.group_contributions).map(([groupName, collections]) => (
+                                        <div key={groupName}>
+                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{groupName}</p>
+                                            <ul className="space-y-1.5">
+                                                {collections.map((collection, idx) => (
+                                                    <li
+                                                        key={`${collection}-${idx}`}
+                                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                                                    >
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                                        <span className="text-sm text-white">{collection}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div>
+                                    <p className="text-sm font-medium text-slate-300 mb-2">
+                                        Featured Collections ({selectedRotation.featured_collections.length})
+                                    </p>
+                                    {selectedRotation.featured_collections.length > 0 ? (
+                                        <ul className="space-y-1.5">
+                                            {selectedRotation.featured_collections.map((collection, idx) => (
+                                                <li
+                                                    key={`${collection}-${idx}`}
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50"
+                                                >
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                                    <span className="text-sm text-white">{collection}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-slate-500 italic">No collections featured</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                     </div>

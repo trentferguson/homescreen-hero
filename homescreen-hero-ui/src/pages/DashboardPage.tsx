@@ -19,6 +19,7 @@ import IntegrationsHealthCard from "../components/IntegrationsHealthCard";
 import SeerrCarouselCard from "../components/SeerrCarouselCard";
 import AutoRequestActivityCard from "../components/dashboard/AutoRequestActivityCard";
 import RecentlyAddedCard from "../components/RecentlyAddedCard";
+import LibraryCompositionCard from "../components/LibraryCompositionCard";
 import Toast from "../components/Toast";
 import { timeAgo } from "../utils/dates";
 import { fetchWithAuth } from "../utils/api";
@@ -34,6 +35,7 @@ type RotationHistoryItem = {
     success: boolean;
     error_message?: string | null;
     featured_collections: string[];
+    group_contributions?: Record<string, string[]> | null;
 };
 
 type HealthComponent = { ok: boolean; error?: string;[k: string]: unknown };
@@ -122,6 +124,8 @@ export default function Dashboard() {
         toggleEditMode,
         reorderStatusBarWidgets,
         reorderMainWidgets,
+        cycleWidgetSize,
+        getEffectiveColSpan,
     } = useDashboardLayout({ tautulli: tautulliEnabled, seerr: seerrEnabled });
 
     const handleToggleEditMode = () => {
@@ -392,6 +396,7 @@ export default function Dashboard() {
             summary,
             error_message: record.error_message,
             featured_collections: featured_collections ?? [],
+            group_contributions: record.group_contributions ?? null,
         };
     });
 
@@ -562,12 +567,15 @@ export default function Dashboard() {
                         lastRun={lastRun}
                         loading={historyLoading}
                         formatTimeAgo={timeAgo}
+                        compact={getEffectiveColSpan("recent-rotations") === 1}
                     />
                 );
             case "seerr-carousel":
                 return <SeerrCarouselCard key={widgetId} loading={healthLoading} />;
             case "auto-request-activity":
                 return <AutoRequestActivityCard key={widgetId} />;
+            case "library-composition":
+                return <LibraryCompositionCard key={widgetId} loading={healthLoading} />;
             case "recently-added":
                 return <RecentlyAddedCard key={widgetId} loading={healthLoading} />;
             default:
@@ -903,17 +911,22 @@ export default function Dashboard() {
                     {visibleMainWidgets.length > 0 && (
                         <DroppableSection id="main" items={visibleMainWidgets}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {visibleMainWidgets.map((widgetId) => (
-                                    <DraggableWidget
-                                        key={widgetId}
-                                        id={widgetId}
-                                        isEditMode={isEditMode}
-                                        colSpan={widgetRegistry[widgetId]?.colSpan}
-                                        onHide={() => toggleVisibility(widgetId)}
-                                    >
-                                        {renderWidget(widgetId)}
-                                    </DraggableWidget>
-                                ))}
+                                {visibleMainWidgets.map((widgetId) => {
+                                    const def = widgetRegistry[widgetId];
+                                    return (
+                                        <DraggableWidget
+                                            key={widgetId}
+                                            id={widgetId}
+                                            isEditMode={isEditMode}
+                                            colSpan={getEffectiveColSpan(widgetId)}
+                                            isResizable={!!def?.allowedColSpans && def.allowedColSpans.length > 1}
+                                            onResize={() => cycleWidgetSize(widgetId)}
+                                            onHide={() => toggleVisibility(widgetId)}
+                                        >
+                                            {renderWidget(widgetId)}
+                                        </DraggableWidget>
+                                    );
+                                })}
                             </div>
                         </DroppableSection>
                     )}

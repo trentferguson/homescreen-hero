@@ -27,10 +27,15 @@ interface SectionConfig {
     hidden: string[]; // Widget IDs that are hidden
 }
 
+interface WidgetSettings {
+    colSpan?: number;
+}
+
 interface DashboardLayoutConfigV2 {
     version: number;
     statusBar: SectionConfig;
     main: SectionConfig;
+    widgetSettings?: Record<string, WidgetSettings>;
 }
 
 interface IntegrationStatus {
@@ -284,6 +289,35 @@ export function useDashboardLayout(integrationStatus: IntegrationStatus) {
         [integrationStatus]
     );
 
+    // Cycle widget colSpan through its allowed sizes
+    const cycleWidgetSize = useCallback((widgetId: string) => {
+        const widget = widgetRegistry[widgetId];
+        if (!widget?.allowedColSpans || widget.allowedColSpans.length < 2) return;
+
+        setConfig((prev) => {
+            const currentSettings = prev.widgetSettings ?? {};
+            const currentColSpan = currentSettings[widgetId]?.colSpan ?? widget.colSpan ?? 1;
+            const allowed = widget.allowedColSpans!;
+            const currentIdx = allowed.indexOf(currentColSpan);
+            const nextColSpan = allowed[(currentIdx + 1) % allowed.length];
+
+            return {
+                ...prev,
+                widgetSettings: {
+                    ...currentSettings,
+                    [widgetId]: { ...currentSettings[widgetId], colSpan: nextColSpan },
+                },
+            };
+        });
+    }, []);
+
+    // Get the effective colSpan for a widget (user override or registry default)
+    const getEffectiveColSpan = useCallback((widgetId: string): number | undefined => {
+        const widget = widgetRegistry[widgetId];
+        if (!widget) return undefined;
+        return config.widgetSettings?.[widgetId]?.colSpan ?? widget.colSpan;
+    }, [config.widgetSettings]);
+
     // Get visibility map for quick lookups
     const visibilityMap = useMemo(() => {
         const map: Record<string, boolean> = {};
@@ -383,5 +417,7 @@ export function useDashboardLayout(integrationStatus: IntegrationStatus) {
         reorderMainWidgets,
         statusBarOrder,
         mainOrder,
+        cycleWidgetSize,
+        getEffectiveColSpan,
     };
 }
