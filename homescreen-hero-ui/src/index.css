@@ -397,3 +397,71 @@ select option {
 .preview-poster-enter {
     animation: poster-enter 0.35s ease-out both;
 }
+
+/* ===== Group Detail Page Animations ===== */
+
+/* Staggered entrance for grid items */
+@keyframes grid-item-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.grid-item-enter {
+    animation: grid-item-in 0.35s ease-out both;
+}
+
+/* Fade out when a poster is clicked to add */
+@keyframes grid-item-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+.grid-item-exit {
+    animation: grid-item-out 0.25s ease-in both;
+    pointer-events: none;
+}
+
+/* Sidebar list item slide in */
+@keyframes sidebar-item-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.sidebar-item-enter {
+    animation: sidebar-item-in 0.3s ease-out both;
+}
+
+/* Sidebar list item fade out */
+@keyframes sidebar-item-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+.sidebar-item-exit {
+    animation: sidebar-item-out 0.2s ease-in both;
+    pointer-events: none;
+}

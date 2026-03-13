@@ -141,6 +141,7 @@ class CollectionSourcesResponse(BaseModel):
         name: str
         source: Literal["plex", "trakt", "letterboxd", "mdblist", "tmdb", "anilist", "mal"]
         detail: Optional[str] = None
+        poster_url: Optional[str] = None
 
     plex: List[CollectionSource]
     trakt: List[CollectionSource]

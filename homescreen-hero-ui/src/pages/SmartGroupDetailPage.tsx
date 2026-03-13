@@ -538,7 +538,7 @@ export default function SmartGroupDetailPage() {
                                         <div className="flex-1 border-t border-slate-700/50" />
                                     </div>
                                 )}
-                            <div className="space-y-3 rounded-xl border border-blue-500/15 bg-[#0f1d35]/85 p-4 shadow-[inset_0_0_0_1px_rgba(30,64,175,0.14)]">
+                            <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 shadow-[inset_0_0_0_1px_rgba(var(--color-primary),0.1)]">
                                 <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                                     {/* Field selector */}
                                     <Listbox value={rule.field} onChange={(val) => updateRule(i, { field: val as SmartGroupRule["field"] })}>
@@ -598,16 +598,16 @@ export default function SmartGroupDetailPage() {
                                                 updateRule(i, { values: v });
                                             }}
                                             placeholder="10"
-                                            className="w-24 rounded-lg border border-blue-400/25 bg-[#102140] px-3 py-2 text-sm text-blue-100 placeholder-blue-200/35 focus:outline-none focus:ring-2 focus:ring-blue-500/55 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            className="w-24 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2 text-sm text-slate-100 placeholder-slate-400/50 focus:outline-none focus:ring-2 focus:ring-primary/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         />
                                         <span className="text-xs text-slate-400">items</span>
                                     </div>
                                 ) : rule.field === "name" || rule.field === "sort_title" ? (
-                                    <div className="space-y-2 rounded-xl border border-blue-400/15 bg-[#0d1a31] px-3 pb-3 pt-2">
+                                    <div className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] px-3 pb-3 pt-2">
                                         {(rule.values as string[]).length > 0 && (
                                             <div className="flex flex-wrap gap-2.5">
                                                 {(rule.values as string[]).map((v, vi) => (
-                                                    <span key={vi} className="flex items-center gap-1.5 rounded-lg border border-blue-400/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-200">
+                                                    <span key={vi} className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/15 px-3 py-1.5 text-xs font-medium text-slate-200">
                                                         {v}
                                                         <button type="button" onClick={() => {
                                                             const newVals = [...rule.values];
@@ -631,7 +631,7 @@ export default function SmartGroupDetailPage() {
                                                         e.currentTarget.value = "";
                                                     }
                                                 }}
-                                                className="w-full border-b border-blue-400/20 bg-transparent py-2 pl-9 pr-2 text-sm text-blue-100 placeholder-blue-200/35 focus:border-blue-400/50 focus:outline-none"
+                                                className="w-full border-b border-primary/20 bg-transparent py-2 pl-9 pr-2 text-sm text-slate-100 placeholder-slate-400/50 focus:border-primary/50 focus:outline-none"
                                             />
                                         </div>
                                     </div>
@@ -656,7 +656,7 @@ export default function SmartGroupDetailPage() {
                                                                 key={opt}
                                                                 type="button"
                                                                 onClick={() => toggleRuleValue(i, opt)}
-                                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-blue-500/20 text-blue-100 border-blue-300/40"
+                                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-primary/20 text-slate-100 border-primary/40"
                                                             >
                                                                 {opt}
                                                                 <X className="h-3 w-3" />
@@ -674,7 +674,7 @@ export default function SmartGroupDetailPage() {
                                                             value={labelSearches[i] ?? ""}
                                                             onChange={(e) => setLabelSearches((prev) => ({ ...prev, [i]: e.target.value }))}
                                                             placeholder="Filter labels…"
-                                                            className="w-full rounded-lg border border-blue-400/20 bg-[#0d1a31] py-2 pl-9 pr-2 text-sm text-blue-100 placeholder-blue-200/35 focus:border-blue-400/50 focus:outline-none"
+                                                            className="w-full rounded-lg border border-primary/20 bg-primary/[0.04] py-2 pl-9 pr-2 text-sm text-slate-100 placeholder-slate-400/50 focus:border-primary/50 focus:outline-none"
                                                         />
                                                     </div>
                                                 )}
@@ -687,7 +687,7 @@ export default function SmartGroupDetailPage() {
                                                             key={opt}
                                                             type="button"
                                                             onClick={() => toggleRuleValue(i, opt)}
-                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-blue-500/20 text-blue-100 border-blue-300/40"
+                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-primary/20 text-slate-100 border-primary/40"
                                                         >
                                                             {opt}
                                                         </button>
@@ -697,7 +697,7 @@ export default function SmartGroupDetailPage() {
                                                             key={opt}
                                                             type="button"
                                                             onClick={() => toggleRuleValue(i, opt)}
-                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-[#102140] text-blue-200/70 border-blue-500/20 hover:border-blue-300/35 hover:text-blue-100"
+                                                            className="rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-200 bg-primary/[0.06] text-slate-300 border-primary/20 hover:border-primary/35 hover:text-slate-100"
                                                         >
                                                             {opt}
                                                         </button>
@@ -721,7 +721,7 @@ export default function SmartGroupDetailPage() {
                     <button
                         type="button"
                         onClick={addRule}
-                        className="flex w-full items-center gap-2 rounded-lg border border-blue-400/20 bg-[#0f1d35]/55 px-3 py-2.5 text-sm font-medium text-blue-200/90 transition-colors hover:bg-blue-500/10 hover:text-blue-100"
+                        className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-primary/10 hover:text-slate-100"
                     >
                         <CircleDot className="h-4 w-4" />
                         Add Rule

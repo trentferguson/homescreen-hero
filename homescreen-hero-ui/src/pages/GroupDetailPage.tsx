@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, LayoutGrid, List, Loader2, Minus, Plus, RefreshCcw, Search, Share2, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { InfoTooltip } from "../components/ui/info-tooltip";
 import { Listbox } from "@headlessui/react";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -45,6 +45,7 @@ type CollectionSource = {
     name: string;
     source: "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal";
     detail?: string | null;
+    poster_url?: string | null;
 };
 
 type CollectionSourcesResponse = {
@@ -58,6 +59,25 @@ type CollectionSourcesResponse = {
 };
 
 type ConfigSaveResponse = { ok: boolean; path: string; message: string; env_override: boolean };
+
+const sourceMeta: Record<string, { color: string; label: string }> = {
+    plex: { color: "#e5a00d", label: "Plex" },
+    trakt: { color: "#af35a3", label: "Trakt" },
+    letterboxd: { color: "#00a63d", label: "Letterboxd" },
+    mdblist: { color: "#4284c9", label: "MDBList" },
+    tmdb: { color: "#01b4e4", label: "TMDb" },
+    anilist: { color: "#2b2d42", label: "AniList" },
+    mal: { color: "#2e51a2", label: "MAL" },
+};
+
+const sourceFilterButtons: { value: "all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb"; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "plex", label: "Plex" },
+    { value: "trakt", label: "Trakt" },
+    { value: "letterboxd", label: "Letterboxd" },
+    { value: "mdblist", label: "MDBList" },
+    { value: "tmdb", label: "TMDb" },
+];
 
 const emptyGroup: CollectionGroup = {
     name: "",
@@ -84,6 +104,8 @@ export default function GroupDetailPage() {
     const [selectedIndex, setSelectedIndex] = useState<number | "new">("new");
     const [form, setForm] = useState<CollectionGroup>(emptyGroup);
     const [loading, setLoading] = useState(true);
+    const [showPageSkeleton, setShowPageSkeleton] = useState(false);
+    const pageSkeletonTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -92,23 +114,37 @@ export default function GroupDetailPage() {
     const [sources, setSources] = useState<CollectionSource[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [sourceFilter, setSourceFilter] = useState<"all" | "plex" | "trakt" | "letterboxd" | "mdblist" | "tmdb" | "anilist" | "mal">("all");
+    const [sourcesLoading, setSourcesLoading] = useState(false);
+    const [showSourcesSkeleton, setShowSourcesSkeleton] = useState(false);
+    const sourcesSkeletonTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
     const [renaming, setRenaming] = useState(false);
+    const [viewMode, setViewMode] = useState<"poster" | "card">("poster");
+    const [exitingGrid, setExitingGrid] = useState<Set<string>>(new Set());
+    const [exitingSidebar, setExitingSidebar] = useState<Set<string>>(new Set());
+    const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+    const [initialLoad, setInitialLoad] = useState(true);
     const savedFormRef = useRef<string>("");
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const itemsPerPage = 24; // 4 columns × 6 rows
 
     useEffect(() => {
         setLoading(true);
+        pageSkeletonTimer.current = setTimeout(() => setShowPageSkeleton(true), 300);
         fetchWithAuth("/api/admin/config/groups")
             .then((r) => r.json())
             .then((data: CollectionGroup[]) => {
                 setGroups(data);
             })
             .catch((e) => setError(String(e)))
-            .finally(() => setLoading(false));
+            .finally(() => {
+                clearTimeout(pageSkeletonTimer.current);
+                setLoading(false);
+                setShowPageSkeleton(false);
+            });
+        return () => clearTimeout(pageSkeletonTimer.current);
     }, []);
 
     useEffect(() => {
@@ -135,6 +171,9 @@ export default function GroupDetailPage() {
     }, [groupId, groups]);
 
     useEffect(() => {
+        setSourcesLoading(true);
+        // Only show skeleton if loading takes longer than 300ms
+        sourcesSkeletonTimer.current = setTimeout(() => setShowSourcesSkeleton(true), 300);
         fetchWithAuth("/api/admin/config/group-sources")
             .then((r) => r.json())
             .then((data: CollectionSourcesResponse) => {
@@ -143,7 +182,15 @@ export default function GroupDetailPage() {
             })
             .catch(() => {
                 // Non-fatal for UI; users can still type manual names
+            })
+            .finally(() => {
+                clearTimeout(sourcesSkeletonTimer.current);
+                setSourcesLoading(false);
+                setShowSourcesSkeleton(false);
+                // Clear initial load flag after stagger animations complete (~600ms)
+                setTimeout(() => setInitialLoad(false), 600);
             });
+        return () => clearTimeout(sourcesSkeletonTimer.current);
     }, []);
 
     // Auto-dismiss toast
@@ -252,18 +299,33 @@ export default function GroupDetailPage() {
     };
 
     const addCollection = (name: string) => {
-        if (!name.trim()) return;
-        setForm((prev) => {
-            if (prev.collections.includes(name)) return prev;
-            return { ...prev, collections: [...prev.collections, name] };
-        });
+        if (!name.trim() || form.collections.includes(name)) return;
+        // Animate out from grid, then add to sidebar
+        setExitingGrid((prev) => new Set(prev).add(name));
+        setTimeout(() => {
+            setExitingGrid((prev) => { const next = new Set(prev); next.delete(name); return next; });
+            setRecentlyAdded((prev) => new Set(prev).add(name));
+            setForm((prev) => {
+                if (prev.collections.includes(name)) return prev;
+                return { ...prev, collections: [...prev.collections, name] };
+            });
+            // Clear "recently added" flag after animation completes
+            setTimeout(() => {
+                setRecentlyAdded((prev) => { const next = new Set(prev); next.delete(name); return next; });
+            }, 350);
+        }, 200);
     };
 
     const removeCollection = (name: string) => {
-        setForm((prev) => ({
-            ...prev,
-            collections: prev.collections.filter((c) => c !== name),
-        }));
+        // Animate out from sidebar, then remove
+        setExitingSidebar((prev) => new Set(prev).add(name));
+        setTimeout(() => {
+            setExitingSidebar((prev) => { const next = new Set(prev); next.delete(name); return next; });
+            setForm((prev) => ({
+                ...prev,
+                collections: prev.collections.filter((c) => c !== name),
+            }));
+        }, 200);
     };
 
     const availableSources = useMemo(() => {
@@ -332,9 +394,57 @@ export default function GroupDetailPage() {
     };
 
     if (loading) {
+        if (!showPageSkeleton) return null;
         return (
-            <div className="flex items-center justify-center py-20 text-slate-300">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading groups…
+            <div className="space-y-6 animate-in fade-in duration-300">
+                {/* Header skeleton */}
+                <div className="flex flex-col gap-4">
+                    <div className="h-5 w-32 rounded bg-slate-800 animate-pulse" />
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-9 w-48 rounded-lg bg-slate-800 animate-pulse" />
+                            <div className="h-7 w-20 rounded-full bg-slate-800 animate-pulse" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-9 w-32 rounded-lg bg-slate-800 animate-pulse" />
+                            <div className="h-9 w-9 rounded-lg bg-slate-800 animate-pulse" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Two-column layout skeleton */}
+                <div className="flex gap-5">
+                    {/* Left column */}
+                    <div className="flex-[2] min-w-0 space-y-4">
+                        {/* Search bar */}
+                        <div className="h-10 rounded-lg bg-slate-800/60 animate-pulse" />
+                        {/* Filter pills */}
+                        <div className="flex gap-2">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="h-8 w-20 rounded-lg bg-slate-800/40 animate-pulse" />
+                            ))}
+                        </div>
+                        {/* Poster grid */}
+                        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                            {Array.from({ length: 15 }).map((_, i) => (
+                                <div key={i} className="rounded-xl overflow-hidden border border-slate-800/40">
+                                    <div className="aspect-[2/3] bg-slate-800/60 animate-pulse" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {/* Right column */}
+                    <div className="flex-1 min-w-[260px] max-w-[340px]">
+                        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/70 overflow-hidden">
+                            <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-800/40">
+                                <div className="h-5 w-28 rounded bg-slate-700 animate-pulse" />
+                            </div>
+                            <div className="px-4 py-10 flex justify-center">
+                                <div className="h-4 w-44 rounded bg-slate-800/60 animate-pulse" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -475,263 +585,234 @@ export default function GroupDetailPage() {
                 </div>
             ) : null}
 
-            {/* Content Sources Section */}
-            <section className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-slate-900/50 to-slate-900/50 shadow-lg shadow-primary/5 p-6 space-y-6">
-                <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                        <h3 className="text-lg font-bold text-white tracking-tight">Content Sources</h3>
-                        <p className="text-sm text-slate-400">Pull collections from Plex or any enabled third-party sources. Use the quick-add buttons or type names manually.</p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setForm((prev) => ({ ...prev, collections: [] }));
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 text-xs font-semibold hover:bg-slate-800 hover:border-slate-600 transition-all duration-200 active:scale-95"
-                    >
-                        <RefreshCcw className="h-3.5 w-3.5" /> Clear Selections
-                    </button>
-                </div>
-
-                {/* Selected Collections */}
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                            Selected Collections
-                        </label>
-                    </div>
-                    {form.collections.length ? (
-                        <div className="flex flex-wrap gap-2">
-                            {form.collections.map((collection) => (
-                                <span
-                                    key={collection}
-                                    className="group/chip inline-flex items-center rounded-full border border-slate-700/60 bg-slate-900/50 text-xs font-semibold text-slate-100 hover:border-primary/50 transition-all duration-200 has-[button:hover]:border-red-500/70 has-[button:hover]:bg-red-500/10 has-[button:hover]:text-red-100"
-                                >
-                                    <span className="pl-3 py-1.5">{collection}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeCollection(collection)}
-                                        className="flex items-center justify-center px-2 py-1.5 rounded-r-full text-slate-500 hover:text-red-400 transition-colors"
-                                    >
-                                        ×
-                                    </button>
-                                </span>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 p-4 text-center">
-                            <p className="text-xs text-slate-500">No collections selected.</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Available Sources */}
-                <div className="space-y-3 pt-4 border-t border-slate-800/60">
-                    <div>
-                        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                            Add From Available Sources
-                        </label>
-                        <p className="text-xs text-slate-500 mb-3">Choose from discovered Plex collections, configured Trakt lists, or Letterboxd lists.</p>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                        <div className="relative">
+            {/* Content Sources - Two Column Layout */}
+            <div className="flex gap-5">
+                {/* Left column: collection browser */}
+                <div className="flex-[2] min-w-0 space-y-4">
+                    {/* Toolbar: search, filters, view toggle */}
+                    <div className="flex items-center gap-3">
+                        <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search collections..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
+                                className="w-full pl-10 pr-4 py-2 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/70"
                             />
                         </div>
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex rounded-lg border border-slate-700 overflow-hidden">
                             <button
                                 type="button"
-                                onClick={() => setSourceFilter("all")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "all"
-                                        ? "bg-primary text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
+                                onClick={() => setViewMode("poster")}
+                                className={`p-2 transition-colors ${viewMode === "poster" ? "bg-primary/20 text-primary" : "bg-slate-800/60 text-slate-400 hover:text-slate-200"}`}
+                                title="Poster view"
                             >
-                                All
+                                <LayoutGrid className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setSourceFilter("plex")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "plex"
-                                        ? "text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
-                                style={sourceFilter === "plex" ? { backgroundColor: "#b8860b" } : undefined}
+                                onClick={() => setViewMode("card")}
+                                className={`p-2 border-l border-slate-700 transition-colors ${viewMode === "card" ? "bg-primary/20 text-primary" : "bg-slate-800/60 text-slate-400 hover:text-slate-200"}`}
+                                title="Card view"
                             >
-                                Plex
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSourceFilter("trakt")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "trakt"
-                                        ? "text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
-                                style={sourceFilter === "trakt" ? { backgroundColor: "#8b2e82" } : undefined}
-                            >
-                                Trakt
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSourceFilter("letterboxd")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "letterboxd"
-                                        ? "text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
-                                style={sourceFilter === "letterboxd" ? { backgroundColor: "#00a63d" } : undefined}
-                            >
-                                Letterboxd
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSourceFilter("mdblist")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "mdblist"
-                                        ? "text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
-                                style={sourceFilter === "mdblist" ? { backgroundColor: "#4284c9" } : undefined}
-                            >
-                                MDBList
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSourceFilter("tmdb")}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                    sourceFilter === "tmdb"
-                                        ? "text-white"
-                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                }`}
-                                style={sourceFilter === "tmdb" ? { backgroundColor: "#01b4e4" } : undefined}
-                            >
-                                TMDb
+                                <List className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {paginatedSources.map((source) => (
+                    <div className="flex gap-2 flex-wrap">
+                        {sourceFilterButtons.map(({ value, label }) => (
                             <button
-                                key={`${source.source}-${source.name}`}
+                                key={value}
                                 type="button"
-                                onClick={() => addCollection(source.name)}
-                                className="flex flex-col gap-2 rounded-xl border border-slate-800/60 bg-slate-900/50 p-3 text-left text-sm text-slate-100 transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10"
+                                onClick={() => setSourceFilter(value)}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+                                    sourceFilter === value
+                                        ? `text-white ${value === "all" ? "bg-primary" : ""}`
+                                        : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                }`}
+                                style={sourceFilter === value && value !== "all"
+                                    ? { backgroundColor: sourceMeta[value]?.color }
+                                    : undefined
+                                }
                             >
-                                <div className="flex items-start justify-between gap-2">
-                                    <p className="font-semibold text-sm leading-tight flex-1">{source.name}</p>
-                                    <span
-                                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 text-white"
-                                        style={{
-                                            backgroundColor:
-                                                source.source === "plex" ? "#e5a00d"
-                                                : source.source === "trakt" ? "#af35a3"
-                                                : source.source === "letterboxd" ? "#00a63d"
-                                                : source.source === "tmdb" ? "#01b4e4"
-                                                : source.source === "anilist" ? "#2b2d42"
-                                                : source.source === "mal" ? "#2e51a2"
-                                                : "#4284c9"
-                                        }}
-                                    >
-                                        {source.source === "plex" ? "Plex"
-                                            : source.source === "trakt" ? "Trakt"
-                                            : source.source === "letterboxd" ? "Letterboxd"
-                                            : source.source === "tmdb" ? "TMDb"
-                                            : source.source === "anilist" ? "AniList"
-                                            : source.source === "mal" ? "MAL"
-                                            : "MDBList"}
-                                    </span>
-                                </div>
-                                {source.detail ? (
-                                    <p className="text-xs text-slate-400 line-clamp-2">{source.detail}</p>
-                                ) : null}
+                                {label}
                             </button>
                         ))}
                     </div>
 
+                    {/* Collection grid */}
+                    {showSourcesSkeleton ? (
+                        <div className={viewMode === "poster"
+                            ? "grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+                            : "grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                        }>
+                            {Array.from({ length: viewMode === "poster" ? 15 : 12 }).map((_, i) => (
+                                viewMode === "poster" ? (
+                                    <div key={i} className="rounded-xl overflow-hidden border border-slate-800/40">
+                                        <div className="aspect-[2/3] bg-slate-800/60 animate-pulse" />
+                                    </div>
+                                ) : (
+                                    <div key={i} className="flex items-center gap-3 rounded-lg border border-slate-800/60 bg-slate-900/50 p-3">
+                                        <div className="h-5 w-5 rounded-full bg-slate-700 animate-pulse shrink-0" />
+                                        <div className="flex-1 space-y-1.5">
+                                            <div className="h-4 w-3/4 rounded bg-slate-800/60 animate-pulse" />
+                                            <div className="h-3 w-1/2 rounded bg-slate-800/40 animate-pulse" />
+                                        </div>
+                                        <div className="h-4 w-12 rounded-full bg-slate-800/40 animate-pulse shrink-0" />
+                                    </div>
+                                )
+                            ))}
+                        </div>
+                    ) : viewMode === "poster" ? (
+                        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                            {paginatedSources.map((source, i) => {
+                                const meta = sourceMeta[source.source] ?? { color: "#4284c9", label: source.source };
+                                const isSelected = form.collections.includes(source.name);
+                                const isExiting = exitingGrid.has(source.name);
+                                return (
+                                    <button
+                                        key={`${source.source}-${source.name}`}
+                                        type="button"
+                                        onClick={() => isSelected ? removeCollection(source.name) : addCollection(source.name)}
+                                        className={`group relative rounded-xl overflow-hidden border transition-all duration-200 ${
+                                            isExiting ? "grid-item-exit" : initialLoad ? "grid-item-enter" : ""
+                                        } ${
+                                            isSelected
+                                                ? "border-primary ring-2 ring-primary/30"
+                                                : "border-slate-800/60 hover:border-primary/40 hover:shadow-md hover:shadow-primary/10"
+                                        }`}
+                                        style={initialLoad && !isExiting ? { animationDelay: `${Math.min(i * 30, 400)}ms` } : undefined}
+                                    >
+                                        {/* Poster image or placeholder */}
+                                        <div className="aspect-[2/3] bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden">
+                                            {source.poster_url ? (
+                                                <img
+                                                    src={source.poster_url}
+                                                    alt={source.name}
+                                                    className="absolute inset-0 h-full w-full object-cover"
+                                                    loading="lazy"
+                                                />
+                                            ) : (
+                                                <div className="absolute inset-0 flex items-center justify-center p-3">
+                                                    <span className="text-sm font-bold text-slate-500 text-center leading-tight">{source.name}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Bottom overlay */}
+                                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2.5 pt-8">
+                                            <p className="text-xs font-semibold text-white leading-tight truncate">{source.name}</p>
+                                            {source.detail && <p className="text-[10px] text-slate-400 truncate mt-0.5">{source.detail}</p>}
+                                        </div>
+                                        {/* Source badge */}
+                                        <span
+                                            className="absolute top-2 right-2 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white"
+                                            style={{ backgroundColor: meta.color }}
+                                        >
+                                            {meta.label}
+                                        </span>
+                                        {/* Selected checkmark */}
+                                        {isSelected && (
+                                            <div className="absolute top-2 left-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                                                <Check className="h-3 w-3 text-white" />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                            {paginatedSources.map((source, i) => {
+                                const meta = sourceMeta[source.source] ?? { color: "#4284c9", label: source.source };
+                                const isSelected = form.collections.includes(source.name);
+                                const isExiting = exitingGrid.has(source.name);
+                                return (
+                                    <button
+                                        key={`${source.source}-${source.name}`}
+                                        type="button"
+                                        onClick={() => isSelected ? removeCollection(source.name) : addCollection(source.name)}
+                                        className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200 ${
+                                            isExiting ? "grid-item-exit" : initialLoad ? "grid-item-enter" : ""
+                                        } ${
+                                            isSelected
+                                                ? "border-primary/50 bg-primary/10"
+                                                : "border-slate-800/60 bg-slate-900/50 hover:border-primary/30 hover:bg-slate-800/50"
+                                        }`}
+                                        style={initialLoad && !isExiting ? { animationDelay: `${Math.min(i * 25, 300)}ms` } : undefined}
+                                    >
+                                        {isSelected ? (
+                                            <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                                <Check className="h-3 w-3 text-white" />
+                                            </div>
+                                        ) : (
+                                            <div className="h-5 w-5 rounded-full border-2 border-slate-600 shrink-0" />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-white truncate">{source.name}</p>
+                                            {source.detail && <p className="text-xs text-slate-400 truncate">{source.detail}</p>}
+                                        </div>
+                                        <span
+                                            className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white shrink-0"
+                                            style={{ backgroundColor: meta.color }}
+                                        >
+                                            {meta.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Pagination */}
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800/60">
-                            <p className="text-xs text-slate-400">
-                                Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, availableSources.length)} of {availableSources.length}
+                        <div className="flex items-center justify-between pt-2">
+                            <p className="text-xs text-slate-500">
+                                {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, availableSources.length)} of {availableSources.length}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                                 <button
                                     type="button"
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
-                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                                 >
-                                    Previous
+                                    Prev
                                 </button>
-                                <div className="flex items-center gap-1">
-                                    {(() => {
-                                        // Build smart page list: 1 ... (current-1) current (current+1) ... totalPages
-                                        const pages: (number | "ellipsis")[] = [];
-                                        const showEllipsisThreshold = 7;
-
-                                        if (totalPages <= showEllipsisThreshold) {
-                                            // Show all pages if there aren't many
-                                            for (let i = 1; i <= totalPages; i++) pages.push(i);
-                                        } else {
-                                            // Always show first page
-                                            pages.push(1);
-
-                                            // Left ellipsis if current page is far from start
-                                            if (currentPage > 3) {
-                                                pages.push("ellipsis");
-                                            }
-
-                                            // Pages around current
-                                            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-                                                pages.push(i);
-                                            }
-
-                                            // Right ellipsis if current page is far from end
-                                            if (currentPage < totalPages - 2) {
-                                                pages.push("ellipsis");
-                                            }
-
-                                            // Always show last page
-                                            if (!pages.includes(totalPages)) {
-                                                pages.push(totalPages);
-                                            }
-                                        }
-
-                                        return pages.map((page, idx) =>
-                                            page === "ellipsis" ? (
-                                                <span key={`ellipsis-${idx}`} className="px-2 text-xs text-slate-500">…</span>
-                                            ) : (
-                                                <button
-                                                    key={page}
-                                                    type="button"
-                                                    onClick={() => setCurrentPage(page)}
-                                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-                                                        currentPage === page
-                                                            ? "bg-primary text-white"
-                                                            : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
-                                                    }`}
-                                                >
-                                                    {page}
-                                                </button>
-                                            )
-                                        );
-                                    })()}
-                                </div>
+                                {(() => {
+                                    const pages: (number | "ellipsis")[] = [];
+                                    if (totalPages <= 7) {
+                                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                                    } else {
+                                        pages.push(1);
+                                        if (currentPage > 3) pages.push("ellipsis");
+                                        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+                                        if (currentPage < totalPages - 2) pages.push("ellipsis");
+                                        if (!pages.includes(totalPages)) pages.push(totalPages);
+                                    }
+                                    return pages.map((page, idx) =>
+                                        page === "ellipsis" ? (
+                                            <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-slate-500">…</span>
+                                        ) : (
+                                            <button
+                                                key={page}
+                                                type="button"
+                                                onClick={() => setCurrentPage(page)}
+                                                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+                                                    currentPage === page ? "bg-primary text-white" : "bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        )
+                                    );
+                                })()}
                                 <button
                                     type="button"
                                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
-                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                                 >
                                     Next
                                 </button>
@@ -739,7 +820,77 @@ export default function GroupDetailPage() {
                         </div>
                     )}
                 </div>
-            </section>
+
+                {/* Right column: selected collections sidebar */}
+                <div className="flex-1 min-w-[260px] max-w-[340px]">
+                    <div className="sticky top-4 rounded-2xl border border-slate-700/60 bg-slate-900/70 overflow-hidden">
+                        {/* Sidebar header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50 bg-slate-800/40">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-white">In This Group</h3>
+                                <span className="rounded-full bg-primary/20 text-primary text-[11px] font-bold px-2 py-0.5">
+                                    {form.collections.length}
+                                </span>
+                            </div>
+                            {form.collections.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setForm((prev) => ({ ...prev, collections: [] }))}
+                                    className="text-[11px] font-medium text-slate-500 hover:text-red-400 transition-colors"
+                                >
+                                    Clear all
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Selected list */}
+                        <div className="max-h-[480px] overflow-y-auto scrollbar-thin">
+                            {form.collections.length ? (
+                                <div className="divide-y divide-slate-800/60">
+                                    {form.collections.map((name) => {
+                                        const matchedSource = sources.find((s) => s.name === name);
+                                        const meta = matchedSource ? (sourceMeta[matchedSource.source] ?? { color: "#4284c9", label: matchedSource.source }) : null;
+                                        const isExiting = exitingSidebar.has(name);
+                                        const isNew = recentlyAdded.has(name);
+                                        return (
+                                            <div
+                                                key={name}
+                                                className={`group flex items-center gap-2 px-4 py-2.5 hover:bg-slate-800/40 transition-colors ${
+                                                    isExiting ? "sidebar-item-exit" : isNew ? "sidebar-item-enter" : ""
+                                                }`}
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm text-slate-200 truncate">{name}</p>
+                                                </div>
+                                                {meta && (
+                                                    <span
+                                                        className="rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white shrink-0"
+                                                        style={{ backgroundColor: meta.color }}
+                                                    >
+                                                        {meta.label}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeCollection(name)}
+                                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-500 hover:text-red-400 transition-all"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="px-4 py-10 text-center">
+                                    <p className="text-xs text-slate-500">Click collections to add them</p>
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
 
             {/* Group Settings Sheet */}
             <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>

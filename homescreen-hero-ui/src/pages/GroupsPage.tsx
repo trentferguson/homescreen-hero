@@ -556,8 +556,8 @@ export default function GroupsPage() {
                         onClick={() => setLayoutModalOpen(true)}
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 hover:border-primary/50 hover:bg-slate-800 hover:text-white transition-all duration-200 self-start mt-1"
                     >
-                        <LayoutGrid className="h-4 w-4 text-primary" />
-                        Configure Layout
+                        <Home className="h-4 w-4 text-primary" />
+                       Homescreen Settings
                     </button>
                 </div>
             </div>
@@ -1050,11 +1050,11 @@ export default function GroupsPage() {
                     <SheetHeader>
                         <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                                <LayoutGrid className="h-5 w-5 text-primary" />
+                                <Home className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <SheetTitle>Layout Settings</SheetTitle>
-                                <SheetDescription>Global display configuration</SheetDescription>
+                                <SheetTitle>Homescreen Settings</SheetTitle>
+                                <SheetDescription>Control how collections appear on Plex</SheetDescription>
                             </div>
                         </div>
                         <SheetCloseButton />

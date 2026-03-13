@@ -1,8 +1,9 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { User, LogOut, Settings } from "lucide-react";
+import { User, LogOut, Settings, SwatchBook } from "lucide-react";
 import IconButton from "./IconButton";
 import VersionBadge from "./VersionBadge";
 import { useAuth } from "../utils/auth";
+import { useTheme } from "../utils/theme";
 
 function NavItem({ to, label }: { to: string; label: string }) {
     return (
@@ -23,6 +24,7 @@ function NavItem({ to, label }: { to: string; label: string }) {
 
 export default function TopNav() {
     const { logout, username, authEnabled, thumb } = useAuth();
+    const { accent, setAccent } = useTheme();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -57,6 +59,12 @@ export default function TopNav() {
                 {/* RIGHT: Version + Icons */}
                 <div className="flex items-center gap-3">
                     <VersionBadge />
+                    <IconButton
+                        label={`Switch to ${accent === "plex-orange" ? "default" : "plex"} theme`}
+                        onClick={() => setAccent(accent === "plex-orange" ? "default" : "plex-orange")}
+                    >
+                        <SwatchBook size={20} />
+                    </IconButton>
                     <IconButton label="Settings" onClick={() => navigate("/settings")}>
                         <Settings size={20} />
                     </IconButton>

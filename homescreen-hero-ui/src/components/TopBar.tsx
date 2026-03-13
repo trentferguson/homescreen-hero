@@ -1,7 +1,8 @@
-import { Menu } from "lucide-react";
+import { Menu, SwatchBook } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import VersionBadge from "./VersionBadge";
 import { usePageHeader } from "../utils/pageHeader";
+import { useTheme } from "../utils/theme";
 
 const routeTitles: Record<string, string> = {
     "/": "System Overview",
@@ -19,6 +20,7 @@ type TopBarProps = {
 export default function TopBar({ onMenuClick }: TopBarProps) {
     const location = useLocation();
     const { title, actions } = usePageHeader();
+    const { accent, setAccent } = useTheme();
 
     const displayTitle = title || routeTitles[location.pathname] || "";
 
@@ -41,10 +43,17 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
                 )}
             </div>
 
-            {/* Right: page actions + version */}
+            {/* Right: page actions + version + theme toggle */}
             <div className="flex items-center gap-3">
                 {actions}
                 <VersionBadge />
+                <button
+                    onClick={() => setAccent(accent === "plex-orange" ? "default" : "plex-orange")}
+                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+                    title={`Switch to ${accent === "plex-orange" ? "default" : "plex"} theme`}
+                >
+                    <SwatchBook size={18} />
+                </button>
             </div>
         </header>
     );

@@ -21,6 +21,7 @@ from homescreen_hero.core.config.schema import (
     MALSettings,
 )
 from homescreen_hero.core.integrations.plex_client import get_plex_server
+from homescreen_hero.core.poster_proxy import build_collection_poster_url
 
 from .helpers import load_config_mapping, save_config_mapping, load_group_list
 from .schemas import (
@@ -205,11 +206,13 @@ def list_group_sources(current_user: CurrentUser = Depends(require_admin)) -> Co
         for section in server.library.sections():
             try:
                 for col in section.collections():
+                    poster_url = build_collection_poster_url(server, col)
                     plex_sources.append(
                         CollectionSourcesResponse.CollectionSource(
                             name=col.title,
                             source="plex",
                             detail=section.title,
+                            poster_url=poster_url,
                         )
                     )
             except Exception:  # pragma: no cover - defensive

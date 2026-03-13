@@ -199,8 +199,8 @@ function ThemeStep() {
     const { accent, setAccent } = useTheme();
 
     const accentChoices: { value: ThemeAccent; label: string; description: string; swatch: string }[] = [
-        { value: "default", label: "Default Blue", description: "Clean and modern", swatch: "bg-[rgb(25,93,230)]" },
-        { value: "plex-orange", label: "Plex Orange", description: "Warm and familiar", swatch: "bg-[rgb(229,160,13)]" },
+        { value: "default", label: "Cinema Blue", description: "homescreen-hero's signature look", swatch: "bg-[rgb(25,93,230)]" },
+        { value: "plex-orange", label: "Plex Orange", description: "Match your Plex experience", swatch: "bg-[rgb(229,160,13)]" },
     ];
 
     return (
