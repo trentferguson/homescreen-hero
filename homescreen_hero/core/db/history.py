@@ -66,6 +66,7 @@ def record_rotation(
     featured_collections: Iterable[str],
     success: bool = True,
     error_message: Optional[str] = None,
+    group_contributions: Optional[Dict[str, List[str]]] = None,
 ) -> int:
     # Create a new RotationRecord and update CollectionUsage
     featured_list = list(featured_collections)
@@ -76,6 +77,7 @@ def record_rotation(
             success=success,
             error_message=error_message,
             featured_collections=featured_list,
+            group_contributions=group_contributions,
         )
         db.add(record)
         db.flush()  # Ensure record.id is populated

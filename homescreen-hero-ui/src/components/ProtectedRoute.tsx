@@ -39,7 +39,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
 
     if (loading || configStatus.loading) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900">
                 <img
                     src="/logo_text.png"
                     alt="homescreen-hero"

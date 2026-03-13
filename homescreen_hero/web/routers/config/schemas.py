@@ -422,10 +422,17 @@ class MALTestRequest(BaseModel):
     client_id: Optional[str] = None  # Falls back to HSH_MAL_CLIENT_ID env var
 
 
+# Request payload for testing Plex connection with provided credentials.
+class PlexTestRequest(BaseModel):
+    plex_url: Optional[str] = None  # Falls back to HSH_PLEX_URL env var
+    plex_token: Optional[str] = None  # Falls back to HSH_PLEX_TOKEN env var
+
+
 # Response for connection test endpoints.
 class ConnectionTestResponse(BaseModel):
     ok: bool
     error: Optional[str] = None
+    libraries: Optional[List[dict]] = None  # Only populated by test-plex
 
 
 # Incoming payload for quick start setup.
@@ -433,7 +440,7 @@ class QuickStartRequest(BaseModel):
     plex_url: str
     plex_token: str
     libraries: List[str] = []
-    auth_enabled: bool = False
+    auth_enabled: bool = True
     auth_method: Literal["password", "plex", "both"] = "password"
     auth_username: Optional[str] = None
     auth_password: Optional[str] = None

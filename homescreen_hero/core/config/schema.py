@@ -538,6 +538,7 @@ class RotationRecordOut(BaseModel):
     success: bool
     error_message: Optional[str] = None
     featured_collections: List[str]
+    group_contributions: Optional[Dict[str, List[str]]] = None
 
 
 class CollectionUsageOut(BaseModel):

@@ -249,12 +249,6 @@ def run_rotation_once(
     # Resolve smart groups into concrete collection lists
     smart_group_collections = _resolve_smart_groups(server, config)
 
-    # DISABLED: Auto-cleanup was too aggressive and deleting user's collections
-    # TODO: Redesign cleanup to only delete collections that HSH created (not native Plex collections)
-    # cleanup_result = cleanup_deleted_integration_sources(server, config)
-    # if cleanup_result['deleted_from_plex']:
-    #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
-
     # Check if auto-rotate mode is enabled
     use_auto_rotate = config.rotation.auto_rotate.enabled
 
@@ -370,10 +364,17 @@ def run_rotation_once(
         collection_sort=collection_sort,
     )
 
+    group_contributions = {
+        g.group_name: g.chosen_collections
+        for g in rotation_result.groups
+        if g.chosen_collections
+    }
+
     rotation_id = record_rotation(
         rotation_result.selected_collections,
         success=True,
         error_message=None,
+        group_contributions=group_contributions or None,
     )
 
     # Collect analytics after rotation if Tautulli is enabled
@@ -412,11 +413,7 @@ def run_rotation_once(
 def simulate_rotation_once(
     config: Optional[AppConfig] = None,
 ) -> RotationExecution:
-    # Pure simulation:
-    #   - Uses current history to respect min_gap_rotations
-    #   - DOES NOT modify Plex
-    #   - DOES NOT write to rotation history
-    #   - DOES persist a PendingSimulation so it can be applied later
+    # Simulation only, doesn't actualy write/set anything on Plex
     if config is None:
         config = load_config()
 
@@ -480,13 +477,6 @@ def sync_all_sources(config: Optional[AppConfig] = None) -> Dict[str, int]:
 
     # Connect to Plex
     server = get_plex_server(config)
-
-    # DISABLED: Auto-cleanup was too aggressive and could delete collections
-    # managed by other tools (e.g. Kometa). Same issue as the rotation path.
-    # TODO: Redesign cleanup to only delete collections that HSH created
-    # cleanup_result = cleanup_deleted_integration_sources(server, config)
-    # if cleanup_result['deleted_from_plex']:
-    #     logger.info(f"Cleaned up {len(cleanup_result['deleted_from_plex'])} deleted integration sources from Plex")
 
     # Sync all sources
     sync_all_trakt_sources(server, config)
@@ -569,10 +559,16 @@ def apply_simulation(
     )
 
     # Record in db as a real rotation in history
+    sim_group_contributions = {
+        g.group_name: g.chosen_collections
+        for g in rotation_result.groups
+        if g.chosen_collections
+    }
     record_rotation(
         rotation_result.selected_collections,
         success=True,
         error_message=None,
+        group_contributions=sim_group_contributions or None,
     )
 
     # Mark simulation as applied

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 
@@ -11,6 +11,7 @@ from homescreen_hero.core.config.schema import (
     CollectionUsageOut,
     RotationRecordOut,
 )
+from homescreen_hero.core.config.loader import load_config
 from homescreen_hero.core.db import clear_history, list_rotations, list_usage
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ def get_history(limit: int = 20) -> List[RotationRecordOut]:
             success=r.success,
             error_message=r.error_message,
             featured_collections=r.featured_collections or [],
+            group_contributions=r.group_contributions,
         )
         for r in rows
     ]
@@ -68,3 +70,29 @@ def clear_history_endpoint(current_user: CurrentUser = Depends(require_admin)) -
     except Exception as exc:  # pragma: no cover - defensive
         logger.exception("Failed to clear history")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Return the most recent rotation timestamp for each group
+@router.get("/group-last-rotated")
+def get_group_last_rotated() -> Dict[str, Optional[str]]:
+    config = load_config()
+
+    # Initialize all groups with None
+    result: Dict[str, Optional[str]] = {g.name: None for g in config.groups}
+
+    # Walk rotation history (most recent first) and find the latest timestamp per group
+    rows = list_rotations(limit=100)
+    groups_found: set[str] = set()
+
+    for record in rows:
+        if not record.group_contributions:
+            continue
+        for group_name in record.group_contributions:
+            if group_name in result and group_name not in groups_found:
+                result[group_name] = record.created_at.isoformat() + "Z"
+                groups_found.add(group_name)
+        # Stop early if we've found all groups
+        if len(groups_found) >= len(result):
+            break
+
+    return result

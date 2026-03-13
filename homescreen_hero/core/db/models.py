@@ -28,6 +28,9 @@ class RotationRecord(Base):
     # List of collection names featured in this rotation
     featured_collections = Column(JSON, nullable=False)
 
+    # Which group contributed which collections: {"Group A": ["coll1", "coll2"], ...}
+    group_contributions = Column(JSON, nullable=True)
+
 
 class CollectionUsage(Base):
     # Tracks how often each collection has been used and in which rotation

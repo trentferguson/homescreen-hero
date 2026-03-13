@@ -60,7 +60,7 @@ import {
     SheetBody,
     SheetCloseButton,
 } from "../components/ui/sheet";
-import { getGroupStatus } from "../utils/dates";
+import { getGroupStatus, timeAgo } from "../utils/dates";
 import { Sparkles } from "lucide-react";
 import OnboardingHint from "../components/OnboardingHint";
 import { useOnboarding } from "../utils/onboarding";
@@ -211,6 +211,9 @@ export default function GroupsPage() {
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
+    // Last rotated timestamps per group
+    const [groupLastRotated, setGroupLastRotated] = useState<Record<string, string | null>>({});
+
     // Display settings state
     const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({ group_display_mode: "grouped" });
     const [layoutModalOpen, setLayoutModalOpen] = useState(false);
@@ -256,6 +259,15 @@ export default function GroupsPage() {
             setLibraries(data.libraries ?? []);
         } catch (e) {
             console.error("Failed to fetch libraries:", e);
+        }
+    };
+
+    const fetchGroupLastRotated = async () => {
+        try {
+            const data = await fetchWithAuth("/api/history/group-last-rotated").then((r) => r.json());
+            setGroupLastRotated(data);
+        } catch (e) {
+            console.error("Failed to fetch group last rotated:", e);
         }
     };
 
@@ -434,6 +446,7 @@ export default function GroupsPage() {
         fetchRotationSettings();
         fetchLibraries();
         fetchDisplaySettings();
+        fetchGroupLastRotated();
     }, []);
 
     // Auto-dismiss toast
@@ -836,6 +849,11 @@ export default function GroupsPage() {
                                                         <span className="text-xs text-slate-500 shrink-0">
                                                             {group.smart ? `${group.rules?.length || 0} rules` : `${group.collections.length} collections`}
                                                         </span>
+                                                        {groupLastRotated[group.name] && (
+                                                            <span className="hidden sm:inline text-xs text-slate-600 shrink-0" title={`Last rotated: ${new Date(groupLastRotated[group.name]!).toLocaleString()}`}>
+                                                                {timeAgo(groupLastRotated[group.name]!)}
+                                                            </span>
+                                                        )}
 
                                                         {(group.date_range?.start || group.date_range?.end) && (
                                                             <span className="hidden sm:inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-300 border border-slate-700/50 shrink-0">
@@ -957,7 +975,14 @@ export default function GroupsPage() {
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <div className="min-w-0">
                                                                     <p className="text-lg font-bold text-white truncate" title={group.name}>{group.name || "Untitled group"}</p>
-                                                                    <p className="text-xs text-slate-400">{group.collections.length} collections</p>
+                                                                    <p className="text-xs text-slate-400">
+                                                                        {group.collections.length} collections
+                                                                        {groupLastRotated[group.name] && (
+                                                                            <span className="text-slate-600 ml-2" title={`Last rotated: ${new Date(groupLastRotated[group.name]!).toLocaleString()}`}>
+                                                                                {timeAgo(groupLastRotated[group.name]!)}
+                                                                            </span>
+                                                                        )}
+                                                                    </p>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <button

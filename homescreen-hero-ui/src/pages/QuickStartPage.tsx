@@ -459,13 +459,12 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
 
             const minDelay = new Promise((r) => setTimeout(r, 1200));
 
-            const response = await fetch("/api/admin/config/quick-start", {
+            const response = await fetch("/api/admin/config/test-plex", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     plex_url: plexUrl,
                     plex_token: plexToken,
-                    libraries: ["dummy"],
                 }),
             });
 
@@ -474,14 +473,12 @@ function PlexStep({ wizardData, setWizardData, envVars }: { wizardData: WizardDa
                 throw new Error(text || "Failed to connect to Plex");
             }
 
-            // Fetch libraries but don't show them yet
-            const libResponse = await fetch("/api/collections/libraries");
-            if (!libResponse.ok) {
-                const errorText = await libResponse.text();
-                throw new Error(`Failed to fetch libraries: ${errorText}`);
+            const data = await response.json();
+            if (!data.ok) {
+                throw new Error(data.error || "Failed to connect to Plex");
             }
-            const libData = await libResponse.json();
-            const libs: Library[] = (libData.libraries || []).filter(
+
+            const libs: Library[] = (data.libraries || []).filter(
                 (lib: Library) => lib.type === "movie" || lib.type === "show" || lib.type === "other"
             );
 
