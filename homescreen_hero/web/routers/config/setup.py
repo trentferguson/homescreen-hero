@@ -317,10 +317,7 @@ def test_trakt_connection(payload: TraktTestRequest) -> ConnectionTestResponse:
         if not client_id:
             return ConnectionTestResponse(ok=False, error="No Trakt Client ID provided")
 
-        cfg = TraktConfig(
-            client_id=client_id,
-            base_url=payload.base_url,
-        )
+        cfg = TraktConfig(client_id=client_id)
         client = TraktClient(cfg)
         ok, error = client.ping()
         return ConnectionTestResponse(ok=ok, error=error)
@@ -338,10 +335,7 @@ def test_mdblist_connection(payload: MDBListTestRequest) -> ConnectionTestRespon
         if not api_key:
             return ConnectionTestResponse(ok=False, error="No MDBList API Key provided")
 
-        cfg = MDBListConfig(
-            api_key=api_key,
-            base_url=payload.base_url,
-        )
+        cfg = MDBListConfig(api_key=api_key)
         client = MDBListClient(cfg)
         ok, error = client.ping()
         return ConnectionTestResponse(ok=ok, error=error)
@@ -354,9 +348,11 @@ def test_mdblist_connection(payload: MDBListTestRequest) -> ConnectionTestRespon
 def test_tautulli_connection(payload: TautulliTestRequest) -> ConnectionTestResponse:
     # Test Tautulli connection with provided credentials (for quick-start wizard).
     try:
-        # Use provided values or fall back to environment variables
-        api_key = payload.api_key or os.getenv("HSH_TAUTULLI_API_KEY")
-        base_url = payload.base_url or os.getenv("HSH_TAUTULLI_BASE_URL", "http://localhost:8181")
+        api_key = payload.api_key
+        base_url = payload.base_url
+        if not api_key:
+            api_key = os.getenv("HSH_TAUTULLI_API_KEY")
+            base_url = os.getenv("HSH_TAUTULLI_BASE_URL", "http://localhost:8181")
         if not api_key:
             return ConnectionTestResponse(ok=False, error="No Tautulli API Key provided")
 
@@ -376,9 +372,11 @@ def test_tautulli_connection(payload: TautulliTestRequest) -> ConnectionTestResp
 def test_seerr_connection(payload: SeerrTestRequest) -> ConnectionTestResponse:
     # Test Seerr connection with provided credentials (for quick-start wizard).
     try:
-        # Use provided values or fall back to environment variables
-        api_key = payload.api_key or os.getenv("HSH_SEERR_API_KEY")
-        base_url = payload.base_url or os.getenv("HSH_SEERR_BASE_URL", "http://localhost:5055")
+        api_key = payload.api_key
+        base_url = payload.base_url
+        if not api_key:
+            api_key = os.getenv("HSH_SEERR_API_KEY")
+            base_url = os.getenv("HSH_SEERR_BASE_URL", "http://localhost:5055")
         if not api_key:
             return ConnectionTestResponse(ok=False, error="No Seerr API Key provided")
 
@@ -422,7 +420,7 @@ def test_tmdb_connection(payload: TMDbTestRequest) -> ConnectionTestResponse:
         if not api_key:
             return ConnectionTestResponse(ok=False, error="No TMDb API Key provided")
 
-        cfg = TMDbConfig(api_key=api_key, base_url=payload.base_url)
+        cfg = TMDbConfig(api_key=api_key)
         client = TMDbClient(cfg)
         ok, error = client.ping()
         return ConnectionTestResponse(ok=ok, error=error)

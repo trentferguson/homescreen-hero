@@ -296,7 +296,6 @@ class TMDbMissingItemOut(BaseModel):
 # Request payload for testing TMDb connection with provided credentials.
 class TMDbTestRequest(BaseModel):
     api_key: Optional[str] = None  # Falls back to HSH_TMDB_API_KEY env var
-    base_url: str = "https://api.themoviedb.org/3"
 
 
 # Status information for an AniList source including sync history.
@@ -398,13 +397,11 @@ class EnvVarsResponse(BaseModel):
 # Request payload for testing Trakt connection with provided credentials.
 class TraktTestRequest(BaseModel):
     client_id: Optional[str] = None  # Falls back to HSH_TRAKT_CLIENT_ID env var
-    base_url: str = "https://api.trakt.tv"
 
 
 # Request payload for testing MDBList connection with provided credentials.
 class MDBListTestRequest(BaseModel):
     api_key: Optional[str] = None  # Falls back to HSH_MDBLIST_API_KEY env var
-    base_url: str = "https://api.mdblist.com"
 
 
 # Request payload for testing Tautulli connection with provided credentials.
