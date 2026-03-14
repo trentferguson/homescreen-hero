@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
@@ -56,9 +57,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _config_file_is_parseable(path: Path | None = None) -> bool:
+    config_path = path or get_config_path()
+    if not config_path.exists():
+        return False
+
+    try:
+        content = config_path.read_text(encoding="utf-8")
+        data = yaml.safe_load(content)
+    except Exception:
+        return False
+
+    return isinstance(data, dict)
+
+
 def _is_initial_setup_open() -> bool:
-    # Initial setup stays available only until a config file has been created once.
-    return not get_config_path().exists()
+    # Initial setup/recovery stays available until a parseable config file exists.
+    return not _config_file_is_parseable()
 
 
 def require_initial_setup_open() -> None:
@@ -292,14 +307,15 @@ def revert_config(
 
 @router.get("/exists", response_model=ConfigExistsResponse)
 def check_config_exists() -> ConfigExistsResponse:
-    # Check whether the one-time initial setup has already been completed.
+    # Check whether the app has a parseable config file ready for normal startup.
     try:
         config_path = get_config_path()
         exists = config_path.exists()
+        is_configured = exists and _config_file_is_parseable(config_path)
 
         return ConfigExistsResponse(
             exists=exists,
-            is_configured=exists,
+            is_configured=is_configured,
             path=str(config_path)
         )
     except Exception as exc:
@@ -511,8 +527,18 @@ def quick_start_setup(
     # Initialize config.yaml with minimal Plex and optional Trakt settings.
     try:
         # Initial setup lockout is enforced by the dependency above.
-        # Keep config_path resolution here for the response payload below.
+        # If a broken config exists, preserve it before overwriting during recovery.
         config_path = get_config_path()
+        if config_path.exists() and not _config_file_is_parseable(config_path):
+            backup_path = config_path.with_suffix(".yaml.bak")
+            try:
+                shutil.copy2(config_path, backup_path)
+                logger.info("Backed up invalid config to %s before quick-start recovery", backup_path)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to create backup before recovery: {exc}",
+                ) from exc
 
         # Use environment variables if payload values are empty
         plex_url = payload.plex_url or os.getenv("HSH_PLEX_URL", "")

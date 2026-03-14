@@ -16,6 +16,7 @@ from homescreen_hero.core.auth import (
     create_access_token,
     get_current_user,
     require_admin,
+    security,
     verify_password,
 )
 from homescreen_hero.core.config.loader import load_config
@@ -132,7 +133,14 @@ def _upsert_plex_user(
 @router.get("/config", response_model=AuthConfigResponse)
 async def get_auth_config() -> AuthConfigResponse:
     # Public endpoint — tells the frontend what auth method is configured.
-    config = load_config()
+    try:
+        config = load_config()
+    except Exception as exc:
+        logger.warning(
+            "Auth config unavailable during startup probe, treating auth as disabled: %s",
+            exc,
+        )
+        return AuthConfigResponse(auth_enabled=False)
     if not config.auth or not config.auth.enabled:
         return AuthConfigResponse(auth_enabled=False)
     return AuthConfigResponse(
@@ -349,8 +357,17 @@ async def plex_oauth_callback(request: PlexCallbackRequest) -> LoginResponse:
 # --- User info ---
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> UserResponse:
-    config = load_config()
+async def get_me(credentials=Depends(security)) -> UserResponse:
+    try:
+        config = load_config()
+    except Exception as exc:
+        logger.warning("Config is invalid, cannot determine auth state: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="Configuration is unavailable. Please re-run setup.",
+        ) from exc
+
+    current_user = await get_current_user(credentials)
     auth_enabled = config.auth is not None and config.auth.enabled
     method = config.auth.method if config.auth and config.auth.enabled else None
 

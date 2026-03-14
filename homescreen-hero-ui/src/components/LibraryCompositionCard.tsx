@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { fetchWithAuth } from "../utils/api";
-import { usePrimaryColor } from "../utils/theme";
 import { Listbox, Dialog } from "@headlessui/react";
 import { ChevronDown, Check, ChevronLeft, ChevronRight, Settings, X } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -99,7 +98,6 @@ function CustomTooltip({ active, payload, total }: CustomTooltipProps) {
 }
 
 export default function LibraryCompositionCard({ loading }: { loading?: boolean }) {
-    const primaryColor = usePrimaryColor();
     const [activePage, setActivePage] = useState<PageId>(getStoredPage);
     const [libraries, setLibraries] = useState<LibraryInfo[]>([]);
     const [selectedLibrary, setSelectedLibrary] = useState<string>(getStoredLibrary);
@@ -111,7 +109,7 @@ export default function LibraryCompositionCard({ loading }: { loading?: boolean 
     const [defaultLibrary, setDefaultLibrary] = useState<string>(getStoredLibrary);
     const [contentVisible, setContentVisible] = useState(true);
     const [initialLoad, setInitialLoad] = useState(true);
-    const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+    const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // Fetch available libraries on mount
     useEffect(() => {

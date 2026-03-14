@@ -80,7 +80,7 @@ class TestSetupBootstrap:
         assert response.status_code == 200
         assert response.json()["is_configured"] is False
 
-    def test_exists_stays_configured_once_config_file_exists(self, client, config_path):
+    def test_exists_reports_unconfigured_when_config_file_is_invalid(self, client, config_path):
         config_path.write_text("not: [valid", encoding="utf-8")
 
         response = client.get("/api/admin/config/exists")
@@ -88,7 +88,7 @@ class TestSetupBootstrap:
         assert response.status_code == 200
         data = response.json()
         assert data["exists"] is True
-        assert data["is_configured"] is True
+        assert data["is_configured"] is False
 
     def test_quick_start_is_forbidden_after_config_file_exists(self, client, config_path):
         config_path.write_text(CONFIGURED_YAML, encoding="utf-8")
@@ -107,6 +107,25 @@ class TestSetupBootstrap:
 
         assert response.status_code == 403
         assert "Initial setup has already been completed" in response.json()["detail"]
+
+    def test_quick_start_recovers_from_invalid_config_and_backs_it_up(self, client, config_path):
+        config_path.write_text("not: [valid", encoding="utf-8")
+
+        response = client.post(
+            "/api/admin/config/quick-start",
+            json={
+                "plex_url": "http://localhost:32400",
+                "plex_token": "test-token",
+                "libraries": ["Movies"],
+                "auth_method": "password",
+                "auth_username": "admin",
+                "auth_password": "password123",
+            },
+        )
+
+        assert response.status_code == 200
+        assert config_path.with_suffix(".yaml.bak").read_text(encoding="utf-8") == "not: [valid"
+        assert "Configuration initialized successfully" in response.json()["message"]
 
     def test_env_vars_is_public_during_first_setup(self, client):
         response = client.get("/api/admin/config/env-vars")
@@ -137,3 +156,22 @@ class TestSetupBootstrap:
         response = client.post("/api/admin/config/test-trakt", json={})
 
         assert response.status_code == 401
+
+    def test_auth_config_falls_back_gracefully_for_invalid_config(self, client, config_path):
+        config_path.write_text("not: [valid", encoding="utf-8")
+
+        response = client.get("/api/auth/config")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "auth_enabled": False,
+            "method": None,
+        }
+
+    def test_auth_me_rejects_requests_when_config_is_invalid(self, client, config_path):
+        config_path.write_text("not: [valid", encoding="utf-8")
+
+        response = client.get("/api/auth/me")
+
+        assert response.status_code == 503
+        assert "unavailable" in response.json()["detail"].lower()
