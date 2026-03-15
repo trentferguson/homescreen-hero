@@ -27,7 +27,7 @@ export default function ClearUserTargeting({ onClose }: ClearUserTargetingProps)
     const [confirming, setConfirming] = useState(false);
     const [result, setResult] = useState<ClearResult | null>(null);
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-    const confirmTimeout = useRef<ReturnType<typeof setTimeout>>();
+    const confirmTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     // Reset confirm state after 3 seconds
     useEffect(() => {

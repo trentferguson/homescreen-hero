@@ -41,31 +41,23 @@ def sync_all_user_filters(config: AppConfig) -> None:
         needs_filter = username.lower() in excluded_usernames
 
         try:
-            current = _read_current_filters(account, user)
+            current = _read_current_filters(account, username, user_id)
+            if current is None:
+                logger.warning(f"Could not read filters for {username}, skipping to avoid data loss")
+                continue
 
             if needs_filter:
                 label = _make_hide_label(username)
                 new_movies = _merge_hsh_filter(current.get("filterMovies", ""), [label])
                 new_tv = _merge_hsh_filter(current.get("filterTelevision", ""), [label])
             else:
-                # No targeting applies to this user, clean any leftover hsh filters
                 new_movies = _clean_hsh_filter(current.get("filterMovies", ""))
                 new_tv = _clean_hsh_filter(current.get("filterTelevision", ""))
 
-            # Always push - the read can return stale data so skip-if-unchanged is unreliable
-            success = False
-            if username and username != user.get("title", ""):
-                success = _set_user_filter_v2(account, username, new_movies, new_tv)
-                if success:
-                    action = "Set" if needs_filter else "Cleaned"
-                    logger.info(f"{action} filters for {username} via V2 API")
-                    continue
-
-            # V1 fallback for managed users
-            success = _set_user_filter_v1(account, user_id, new_movies, new_tv)
-            if success:
+            existing_music = current.get("filterMusic", "")
+            if _set_user_filter(account, username, user_id, new_movies, new_tv, existing_music):
                 action = "Set" if needs_filter else "Cleaned"
-                logger.info(f"{action} filters for {username} (id={user_id}) via V1 API")
+                logger.info(f"{action} filters for {username}")
             else:
                 logger.warning(f"Failed to sync filters for {username} (id={user_id})")
 
@@ -105,9 +97,7 @@ def clear_all_targeting(config: AppConfig) -> Dict[str, int]:
         except Exception as e:
             logger.error(f"Failed to clear labels from '{lib.name}': {e}")
 
-    # Clean user filter settings. We read current filters to preserve non-hsh filters,
-    # but always push the cleaned result (no skip-if-unchanged) because the read can
-    # return stale/empty data while Plex still has the restriction applied.
+    # Clean user filter settings, preserving any non-hsh filters
     filters_cleaned = 0
     account = get_plex_account(config)
     all_users = get_all_plex_users(config)
@@ -119,18 +109,16 @@ def clear_all_targeting(config: AppConfig) -> Dict[str, int]:
             username = user["username"]
             user_id = user["id"]
 
-            current = _read_current_filters(account, user)
+            current = _read_current_filters(account, username, user_id)
+            if current is None:
+                logger.warning(f"Could not read filters for {username}, skipping to avoid data loss")
+                continue
+
             clean_movies = _clean_hsh_filter(current.get("filterMovies", ""))
             clean_tv = _clean_hsh_filter(current.get("filterTelevision", ""))
+            existing_music = current.get("filterMusic", "")
 
-            success = False
-            if username and username != user.get("title", ""):
-                success = _set_user_filter_v2(account, username, clean_movies, clean_tv)
-
-            if not success:
-                success = _set_user_filter_v1(account, user_id, clean_movies, clean_tv)
-
-            if success:
+            if _set_user_filter(account, username, user_id, clean_movies, clean_tv, existing_music):
                 filters_cleaned += 1
                 logger.info(f"Cleared filters for {username}")
             else:
@@ -249,20 +237,31 @@ def _remove_hsh_labels(collection) -> None:
             collection.removeLabel(label.tag)
 
 
-def _read_current_filters(account, user: Dict[str, Any]) -> Dict[str, str]:
-    # Read a users current filter settings from Plex
-    try:
-        user_sharing = account.user(user["title"])
-        result = {"filterMovies": "", "filterTelevision": ""}
-        for section in user_sharing.servers[0].sections():
-            if hasattr(section, "filterMovies") and section.filterMovies:
-                result["filterMovies"] = section.filterMovies
-            if hasattr(section, "filterTelevision") and section.filterTelevision:
-                result["filterTelevision"] = section.filterTelevision
-        return result
-    except Exception as e:
-        logger.debug(f"Could not read current filters for {user['username']}: {e}")
-        return {"filterMovies": "", "filterTelevision": ""}
+def _read_current_filters(account, username: str, user_id: int) -> Optional[Dict[str, str]]:
+    # Read current filter settings from the V2 API.
+    # Tries invitedEmail first, falls back to invitedId for managed users.
+    base_url = (
+        "https://clients.plex.tv/api/v2/sharing_settings"
+        "?X-Plex-Product=Homescreen+Hero"
+        "&X-Plex-Client-Identifier=homescreen-hero"
+    )
+    headers = {"Accept": "application/json", "X-Plex-Token": account._token}
+
+    for param in [f"invitedEmail={username}", f"invitedId={user_id}"]:
+        try:
+            resp = requests.get(f"{base_url}&{param}", headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "filterMovies": data.get("filterMovies", "") or "",
+                    "filterTelevision": data.get("filterTelevision", "") or "",
+                    "filterMusic": data.get("filterMusic", "") or "",
+                }
+        except Exception as e:
+            logger.debug(f"V2 read failed for {username} ({param}): {e}")
+
+    logger.warning(f"Could not read filters for {username} (id={user_id}) via V2 API")
+    return None
 
 
 def _merge_hsh_filter(existing_filter: str, hsh_labels: List[str]) -> str:
@@ -323,55 +322,38 @@ def _clean_hsh_filter(existing_filter: str) -> str:
     return "&".join(result_parts)
 
 
-def _set_user_filter_v2(
-    account, username: str, filter_movies: str, filter_tv: str
+def _set_user_filter(
+    account, username: str, user_id: int,
+    filter_movies: str, filter_tv: str, filter_music: str = "",
 ) -> bool:
-    # V2 API: POST clients.plex.tv/api/v2/sharing_settings (doesn't work for shared users, I'm pretty sure)
+    # Set user filter settings via V2 API.
+    # Tries invitedEmail first, falls back to invitedId for managed users.
     url = (
         "https://clients.plex.tv/api/v2/sharing_settings"
-        f"?X-Plex-Product=Homescreen+Hero"
-        f"&X-Plex-Client-Identifier=homescreen-hero"
-        f"&X-Plex-Token={account._token}"
+        "?X-Plex-Product=Homescreen+Hero"
+        "&X-Plex-Client-Identifier=homescreen-hero"
     )
-
-    payload = {
-        "settings": {
-            "filterMovies": filter_movies,
-            "filterTelevision": filter_tv,
-            "filterMusic": "",
-        },
-        "invitedEmail": username,
-    }
-
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
-
-    try:
-        resp = requests.post(url, json=payload, headers=headers)
-        return resp.status_code in (200, 201)
-    except Exception as e:
-        logger.debug(f"V2 API failed for {username}: {e}")
-        return False
-
-
-def _set_user_filter_v1(
-    account, user_id: int, filter_movies: str, filter_tv: str
-) -> bool:
-    # V1 API: PUT plex.tv/api/users/{id} (fallback to V1 for managed users)
-    url = f"https://plex.tv/api/users/{user_id}"
-
-    params = {
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
         "X-Plex-Token": account._token,
-        "X-Plex-Product": "Homescreen Hero",
-        "X-Plex-Client-Identifier": "homescreen-hero",
+    }
+    settings = {
         "filterMovies": filter_movies,
         "filterTelevision": filter_tv,
+        "filterMusic": filter_music,
     }
 
-    headers = {"Accept": "application/json"}
+    # Try invitedEmail first (works for friends/shared users)
+    for payload in [
+        {"settings": settings, "invitedEmail": username},
+        {"settings": settings, "invitedId": user_id},
+    ]:
+        try:
+            resp = requests.post(url, json=payload, headers=headers)
+            if resp.status_code in (200, 201):
+                return True
+        except Exception as e:
+            logger.debug(f"V2 write failed for {username}: {e}")
 
-    try:
-        resp = requests.put(url, params=params, headers=headers)
-        return resp.status_code in (200, 201)
-    except Exception as e:
-        logger.debug(f"V1 API failed for user_id={user_id}: {e}")
-        return False
+    return False
