@@ -118,14 +118,12 @@ def create_app() -> FastAPI:
         except Exception as exc:  # pragma: no cover
             logger.exception("Failed to start rotation scheduler: %s", exc)
 
-        # Sync user filter settings for per-user targeting (hsh-hide-{username} labels)
+        # Sync user filter settings for per-user targeting (hsh-hide-{username} labels).
         try:
             config = load_config()
-            # Only sync if there is a group that has targeting configured
-            if any(g.target_users is not None for g in config.groups):
-                from homescreen_hero.core.user_targeting import sync_all_user_filters
-                sync_all_user_filters(config)
-                logger.info("User targeting filters synced on startup")
+            from homescreen_hero.core.user_targeting import sync_all_user_filters
+            sync_all_user_filters(config)
+            logger.info("User targeting filters synced on startup")
         except Exception as exc:
             logger.warning("Failed to sync user targeting filters on startup: %s", exc)
 
