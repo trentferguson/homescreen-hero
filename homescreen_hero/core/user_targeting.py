@@ -49,44 +49,59 @@ def clear_targeting(collections: list) -> None:
 
 
 def sync_all_user_filters(config: AppConfig) -> None:
-    # Make sure every users sharing settings include their hsh-hide label exclusion.
-    # V2 API doesn't work for managed users? Fallback to V1 for those guys
+    # Make sure every user's sharing settings include their hsh-hide label exclusion.
+    # Users not excluded by any group get their hsh filters cleaned instead.
     all_users = get_all_plex_users(config)
     account = get_plex_account(config)
 
+    # Build set of usernames that are excluded by at least one group's targeting
+    # (i.e. users NOT in a group's target_users list)
+    groups_with_targeting = [g for g in config.groups if g.target_users is not None]
+    excluded_usernames: set = set()
+    if groups_with_targeting:
+        for group in groups_with_targeting:
+            target_lower = {u.lower() for u in group.target_users}
+            for u in all_users:
+                if (u["username"].lower() not in target_lower
+                        and u["title"].lower() not in target_lower):
+                    excluded_usernames.add(u["username"].lower())
+
     for user in all_users:
         if user["is_admin"]:
-            continue  # Come back to this, not sure how I want to handle admin filtering yet
+            continue
 
-        label = _make_hide_label(user["username"])
         username = user["username"]
         user_id = user["id"]
+        needs_filter = username.lower() in excluded_usernames
 
         try:
-            # Read current filters to merge with
             current = _read_current_filters(account, user)
-            new_movies = _merge_hsh_filter(current.get("filterMovies", ""), [label])
-            new_tv = _merge_hsh_filter(current.get("filterTelevision", ""), [label])
 
-            # Skip if filters already correct
-            if (new_movies == current.get("filterMovies", "")
-                    and new_tv == current.get("filterTelevision", "")):
-                logger.debug(f"Filters already set for {username}, skipping")
-                continue
+            if needs_filter:
+                label = _make_hide_label(username)
+                new_movies = _merge_hsh_filter(current.get("filterMovies", ""), [label])
+                new_tv = _merge_hsh_filter(current.get("filterTelevision", ""), [label])
+            else:
+                # No targeting applies to this user, clean any leftover hsh filters
+                new_movies = _clean_hsh_filter(current.get("filterMovies", ""))
+                new_tv = _clean_hsh_filter(current.get("filterTelevision", ""))
 
-            # Try V2 first (will fail for managed users with no email)
+            # Always push - the read can return stale data so skip-if-unchanged is unreliable
+            success = False
             if username and username != user.get("title", ""):
                 success = _set_user_filter_v2(account, username, new_movies, new_tv)
                 if success:
-                    logger.info(f"Set filters for {username} via V2 API")
+                    action = "Set" if needs_filter else "Cleaned"
+                    logger.info(f"{action} filters for {username} via V2 API")
                     continue
 
             # V1 fallback for managed users
             success = _set_user_filter_v1(account, user_id, new_movies, new_tv)
             if success:
-                logger.info(f"Set filters for {username} (id={user_id}) via V1 API")
+                action = "Set" if needs_filter else "Cleaned"
+                logger.info(f"{action} filters for {username} (id={user_id}) via V1 API")
             else:
-                logger.warning(f"Failed to set filters for {username} (id={user_id})")
+                logger.warning(f"Failed to sync filters for {username} (id={user_id})")
 
         except Exception as e:
             logger.error(f"Error syncing filters for {username}: {e}")
@@ -124,7 +139,9 @@ def clear_all_targeting(config: AppConfig) -> Dict[str, int]:
         except Exception as e:
             logger.error(f"Failed to clear labels from '{lib.name}': {e}")
 
-    # Clean user filter settings
+    # Clean user filter settings. We read current filters to preserve non-hsh filters,
+    # but always push the cleaned result (no skip-if-unchanged) because the read can
+    # return stale/empty data while Plex still has the restriction applied.
     filters_cleaned = 0
     account = get_plex_account(config)
     all_users = get_all_plex_users(config)
@@ -133,18 +150,14 @@ def clear_all_targeting(config: AppConfig) -> Dict[str, int]:
         if user["is_admin"]:
             continue
         try:
+            username = user["username"]
+            user_id = user["id"]
+
             current = _read_current_filters(account, user)
             clean_movies = _clean_hsh_filter(current.get("filterMovies", ""))
             clean_tv = _clean_hsh_filter(current.get("filterTelevision", ""))
 
-            if (clean_movies == current.get("filterMovies", "")
-                    and clean_tv == current.get("filterTelevision", "")):
-                continue
-
-            username = user["username"]
-            user_id = user["id"]
             success = False
-
             if username and username != user.get("title", ""):
                 success = _set_user_filter_v2(account, username, clean_movies, clean_tv)
 
@@ -153,9 +166,9 @@ def clear_all_targeting(config: AppConfig) -> Dict[str, int]:
 
             if success:
                 filters_cleaned += 1
-                logger.info(f"Cleared filters for {user['username']}")
+                logger.info(f"Cleared filters for {username}")
             else:
-                logger.warning(f"Failed to clear filters for {user['username']}")
+                logger.warning(f"Failed to clear filters for {username}")
         except Exception as e:
             logger.error(f"Error clearing filters for {user['username']}: {e}")
 
@@ -178,11 +191,7 @@ def apply_rotation_targeting(
 ) -> None:
     # Apply user targeting for all groups that have target_users set.
 
-    # Check if any collection groups have targeting configured
-    # Side note, do I wanna stick with the term "targeting" for this? Maybe "filtering"? not sure, I'll come back
     groups_with_targeting = [g for g in config.groups if g.target_users is not None]
-    if not groups_with_targeting:
-        return
 
     applied_set = set(applied_collection_names)
 
@@ -194,13 +203,26 @@ def apply_rotation_targeting(
             except Exception as e:
                 logger.error(f"Failed to fetch collections from '{lib.name}' for targeting: {e}")
 
-    # clear any existing hsh labels from all applied collections
+    # Clean labels from collections that were removed from the homescreen
+    from .db.history import get_last_rotation_collections
+    previous = set(get_last_rotation_collections())
+    removed_from_homescreen = previous - applied_set
+
+    for name in removed_from_homescreen:
+        coll = all_collections.get(name)
+        if coll:
+            _remove_hsh_labels(coll)
+
+    # Clean labels from currently applied collections so they get a fresh set
     for name in applied_set:
         coll = all_collections.get(name)
         if coll:
             _remove_hsh_labels(coll)
 
-    # apply targeting per group
+    if not groups_with_targeting:
+        return
+
+    # Apply targeting per group
     all_users = get_all_plex_users(config)
 
     for group in groups_with_targeting:
