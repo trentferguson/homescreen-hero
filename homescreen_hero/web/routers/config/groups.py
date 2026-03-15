@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from homescreen_hero.core.auth import CurrentUser, get_current_user, require_admin
+from homescreen_hero.core.auth import CurrentUser, require_admin
 from homescreen_hero.core.config.loader import (
     CONFIG_ENV_VAR,
     get_config_path,
@@ -27,6 +27,7 @@ from .helpers import load_config_mapping, save_config_mapping, load_group_list
 from .schemas import (
     ConfigSaveResponse,
     CollectionGroupPayload,
+    GroupTargetUsersPayload,
     GroupValidationResult,
     CollectionSourcesResponse,
     GroupReorderRequest,
@@ -144,6 +145,47 @@ def delete_group(
             path=str(config_path),
             env_override=CONFIG_ENV_VAR in os.environ,
             message=f"Group '{name or index}' deleted.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.patch("/groups/{index}/target-users", response_model=ConfigSaveResponse)
+def set_group_target_users(
+    index: int,
+    payload: GroupTargetUsersPayload,
+    current_user: CurrentUser = Depends(require_admin),
+) -> ConfigSaveResponse:
+    # Set target_users on a group without replacing the whole group
+    try:
+        data = load_config_mapping()
+        groups = load_group_list(data)
+
+        if index < 0 or index >= len(groups):
+            raise HTTPException(status_code=404, detail="Group not found")
+
+        group = groups[index]
+        if payload.target_users is not None:
+            group["target_users"] = payload.target_users
+        else:
+            group.pop("target_users", None)
+
+        config_path = get_config_path()
+        save_config_mapping({**data, "groups": groups})
+
+        name = group.get("name", index)
+        action = f"set to {payload.target_users}" if payload.target_users else "cleared"
+        return ConfigSaveResponse(
+            ok=True,
+            path=str(config_path),
+            env_override=CONFIG_ENV_VAR in os.environ,
+            message=f"Target users for '{name}' {action}.",
         )
     except HTTPException:
         raise

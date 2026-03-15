@@ -121,6 +121,11 @@ class CollectionGroupPayload(CollectionGroupConfig):
     pass
 
 
+# Partial update for target_users on a group.
+class GroupTargetUsersPayload(BaseModel):
+    target_users: Optional[List[str]] = None
+
+
 # Incoming payload for rotation settings updates.
 class RotationConfigSaveRequest(RotationSettings):
     pass

@@ -14,6 +14,7 @@ from .seerr import router as seerr_router
 from .collection_io import router as collection_io_router
 from .version import router as version_router
 from .library_stats import router as library_stats_router
+from .user_targeting import router as user_targeting_router
 
 __all__ = [
     "analytics_router",
@@ -29,5 +30,6 @@ __all__ = [
     "rotation_router",
     "seerr_router",
     "tools_router",
+    "user_targeting_router",
     "version_router",
 ]

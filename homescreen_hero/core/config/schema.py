@@ -223,6 +223,10 @@ class CollectionGroupConfig(BaseModel):
         default_factory=list,
         description="Smart group filter rules (only used when smart=True)",
     )
+    target_users: Optional[List[str]] = Field(
+        default=None,
+        description="Plex usernames who should see this group's collections. None = everyone.",
+    )
     collections: List[str] = Field(
         default_factory=list,
         description="List of Plex collection names belonging to this group (ignored when smart=True)",

@@ -525,17 +525,56 @@ def get_plex_account(config: AppConfig) -> MyPlexAccount:
     return MyPlexAccount(token=config.plex.token)
 
 
-def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
-    # Return list of home users with id, username, title, thumb, is_admin
-    # Note: For managed users, username may be empty - use title for switchHomeUser()
+def get_all_plex_users(config: AppConfig) -> List[Dict[str, Any]]:
+    # Return all Plex users (friends + home) with id, username, title, thumb, is_home, is_admin
+    # Used by user targeting to compute exclusion sets
     account = get_plex_account(config)
     users = []
 
-    # Include the main account owner
-    # Use title as the primary identifier for consistency with managed users
+    # Admin account
     users.append({
         "id": account.id,
-        "username": account.title or account.username,  # Use title as username for consistency
+        "username": account.username or account.title,
+        "title": account.title or account.username,
+        "thumb": account.thumb,
+        "is_home": True,
+        "is_admin": True,
+    })
+
+    skipped = 0
+    for user in account.users():
+        # Skip users with no active server access (old/removed friends, pending invites)
+        servers = getattr(user, "servers", []) or []
+        if not servers or all(getattr(s, "pending", False) for s in servers):
+            skipped += 1
+            continue
+
+        username = getattr(user, "username", "") or ""
+        title = getattr(user, "title", "") or ""
+        users.append({
+            "id": user.id,
+            "username": username or title,  # Fall back to title for managed users
+            "title": title or username,
+            "thumb": getattr(user, "thumb", None),
+            "is_home": bool(getattr(user, "home", False)),
+            "is_admin": False,
+        })
+
+    if skipped:
+        logger.debug(f"Skipped {skipped} users with no active server access")
+    logger.debug(f"Found {len(users)} total Plex users")
+    return users
+
+
+def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
+    # Return list of home users with id, username, title, thumb, is_admin
+    account = get_plex_account(config)
+    users = []
+
+    # Include server owner account (unsure how I plan to handle admin account labels, will come back)
+    users.append({
+        "id": account.id,
+        "username": account.title or account.username,
         "title": account.title or account.username,
         "thumb": account.thumb,
         "is_admin": True,
@@ -558,28 +597,23 @@ def get_home_users(config: AppConfig) -> List[Dict[str, Any]]:
 
 def get_server_for_user(config: AppConfig, username: str) -> PlexServer:
     # Get PlexServer authenticated as a specific home user
-    # Uses switchHomeUser to switch context, then connects via resource
     account = get_plex_account(config)
 
-    # If it's the admin account, just return normal server
+    # Just return normal server if it's my admin account
     if username == account.username or username == account.title:
         return get_plex_server(config)
 
-    # Switch to the home user's context
+    # Switch to the home user
     logger.debug(f"Switching to home user: {username}")
     user_account = account.switchHomeUser(username)
 
-    # Find the server resource and connect
-    # For managed users, we need to go through the resource to get proper auth
     for resource in user_account.resources():
         if resource.product == "Plex Media Server":
             try:
-                # Try to connect - it will use the best available connection
                 logger.debug(f"Connecting to server as {username} via resource")
                 return resource.connect(timeout=30)
             except Exception as e:
                 logger.warning(f"Failed to connect via resource: {e}")
-                # If that fails, try forcing the configured base_url
                 try:
                     logger.debug(f"Retrying with configured base_url")
                     return PlexServer(config.plex.base_url, resource.accessToken, session=_make_session())

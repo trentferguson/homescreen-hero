@@ -364,6 +364,16 @@ def run_rotation_once(
         collection_sort=collection_sort,
     )
 
+    # Apply per-user targeting labels and sync filter settings
+    if not dry_run:
+        try:
+            from .user_targeting import apply_rotation_targeting, sync_all_user_filters
+            apply_rotation_targeting(server, config, applied, smart_group_collections)
+            # Sync user filter settings so Plex actually hides labeled collections
+            sync_all_user_filters(config)
+        except Exception as e:
+            logger.error("Failed to apply user targeting: %s", e, exc_info=True)
+
     group_contributions = {
         g.group_name: g.chosen_collections
         for g in rotation_result.groups
@@ -557,6 +567,14 @@ def apply_simulation(
         dry_run=False,
         smart_group_collections=smart_group_collections,
     )
+
+    # Apply per-user targeting labels and sync filter settings
+    try:
+        from .user_targeting import apply_rotation_targeting, sync_all_user_filters
+        apply_rotation_targeting(server, config, applied, smart_group_collections)
+        sync_all_user_filters(config)
+    except Exception as e:
+        logger.error("Failed to apply user targeting: %s", e, exc_info=True)
 
     # Record in db as a real rotation in history
     sim_group_contributions = {
