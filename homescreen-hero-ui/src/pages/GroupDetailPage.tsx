@@ -16,6 +16,8 @@ import {
 } from "../components/ui/sheet";
 import { Slider } from "../components/ui/slider";
 import { getGroupStatus } from "../utils/dates";
+import { useTargetableUsers } from "../hooks/useTargetableUsers";
+import { UserTargetingSelector } from "../components/UserTargetingSelector";
 
 
 type DateRange = {
@@ -38,6 +40,7 @@ type CollectionGroup = {
     collection_order?: "random" | "alpha" | null;
     collection_sort?: "release" | "alpha" | null;
     date_range?: DateRange | null;
+    target_users?: string[] | null;
     collections: string[];
 };
 
@@ -94,6 +97,7 @@ const emptyGroup: CollectionGroup = {
     collection_order: null,
     collection_sort: null,
     date_range: null,
+    target_users: null,
     collections: [],
 };
 
@@ -128,6 +132,7 @@ export default function GroupDetailPage() {
     const [initialLoad, setInitialLoad] = useState(true);
     const savedFormRef = useRef<string>("");
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const { users: targetableUsers, loading: targetableUsersLoading } = useTargetableUsers();
     const itemsPerPage = 24; // 4 columns × 6 rows
 
     useEffect(() => {
@@ -208,6 +213,8 @@ export default function GroupDetailPage() {
                 ...formToSave,
                 date_range: formToSave.date_range?.start && formToSave.date_range?.end
                     ? formToSave.date_range : null,
+                // Empty target_users list means "everyone" - send null so backend removes the field
+                target_users: formToSave.target_users?.length ? formToSave.target_users : null,
             };
             const r = await fetchWithAuth(`/api/admin/config/groups/${index}`, {
                 method: "PUT",
@@ -1011,6 +1018,28 @@ export default function GroupDetailPage() {
                                 />
                             </div>
                         </div>
+
+                        <hr className="border-slate-700/50" />
+
+                        {/* Audience */}
+                        <UserTargetingSelector
+                            mode={form.target_users ? "specific" : "everyone"}
+                            selectedUsernames={form.target_users ?? []}
+                            users={targetableUsers}
+                            loading={targetableUsersLoading}
+                            onModeChange={(mode) => {
+                                setForm((p) => ({
+                                    ...p,
+                                    target_users: mode === "everyone" ? null : [],
+                                }));
+                            }}
+                            onSelectionChange={(usernames) => {
+                                setForm((p) => ({
+                                    ...p,
+                                    target_users: usernames.length > 0 ? usernames : [],
+                                }));
+                            }}
+                        />
 
                         <hr className="border-slate-700/50" />
 

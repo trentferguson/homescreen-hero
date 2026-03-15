@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Calendar, Wrench, History, FileSearch, Users, ArrowLeftRight } from "lucide-react";
+import { Calendar, Wrench, History, FileSearch, Users, ArrowLeftRight, ShieldOff } from "lucide-react";
 import ToolCard from "../components/tools/ToolCard";
 import DateAddedEditor from "../components/tools/DateAddedEditor";
 import WatchHistoryCleaner from "../components/tools/WatchHistoryCleaner";
 import UnwatchedReport from "../components/tools/UnwatchedReport";
 import CopyWatchHistory from "../components/tools/CopyWatchHistory";
 import CollectionImportExport from "../components/tools/CollectionImportExport";
+import ClearUserTargeting from "../components/tools/ClearUserTargeting";
 
 type Tool = {
     id: string;
@@ -44,6 +45,12 @@ const tools: Tool[] = [
         title: "Collection Import / Export",
         description: "Share collection contents via JSON file or share code",
         icon: ArrowLeftRight,
+    },
+    {
+        id: "clear-user-targeting",
+        title: "Clear User Targeting Labels",
+        description: "Remove all hsh-hide labels and reset user filter settings",
+        icon: ShieldOff,
     },
 ];
 
@@ -96,6 +103,9 @@ export default function ToolsPage() {
             )}
             {activeTool === "collection-import-export" && (
                 <CollectionImportExport onClose={() => setActiveTool(null)} />
+            )}
+            {activeTool === "clear-user-targeting" && (
+                <ClearUserTargeting onClose={() => setActiveTool(null)} />
             )}
         </div>
     );

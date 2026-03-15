@@ -14,40 +14,6 @@ logger = logging.getLogger(__name__)
 LABEL_PREFIX = "Hsh-hide-"  # I hate having to capitalize, but Plex likes to auto-capitalize. Yay.
 
 
-def apply_targeting(
-    config: AppConfig,
-    collections: list,
-    target_usernames: Optional[List[str]],
-) -> None:
-    # Target collections to specific users by adding exclusion labels.
-    if target_usernames is None:
-        return
-
-    all_users = get_all_plex_users(config)
-    # Inconsistent issue with Plex capitalization- make lowercase juist to be safe
-    target_lower = {u.lower() for u in target_usernames}
-
-    # Users who should NOT see these collections
-    excluded = [
-        u for u in all_users
-        if u["username"].lower() not in target_lower
-        and u["title"].lower() not in target_lower
-    ]
-
-    if not excluded:
-        logger.debug("No users to exclude, skipping label application")
-        return
-
-    for collection in collections:
-        _add_exclusion_labels(collection, excluded)
-
-
-def clear_targeting(collections: list) -> None:
-    # Remove all hsh-hide-* labels from collections
-    for collection in collections:
-        _remove_hsh_labels(collection)
-
-
 def sync_all_user_filters(config: AppConfig) -> None:
     # Make sure every user's sharing settings include their hsh-hide label exclusion.
     # Users not excluded by any group get their hsh filters cleaned instead.
