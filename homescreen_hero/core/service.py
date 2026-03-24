@@ -478,9 +478,38 @@ def simulate_rotation_once(
         smart_group_collections=smart_group_collections,
     )
 
+    # Sort chosen_collections per group to match display ordering
+    group_cfg_map = {g.name: g for g in config.groups}
+    for group_result in rotation_result.groups:
+        gcfg = group_cfg_map.get(group_result.group_name)
+        if not gcfg or not group_result.chosen_collections:
+            continue
+        if gcfg.collection_order == "alpha":
+            group_result.chosen_collections = sorted(group_result.chosen_collections)
+        elif gcfg.collection_order == "custom" and not gcfg.smart:
+            coll_list = gcfg.collections
+            group_result.chosen_collections = sorted(
+                group_result.chosen_collections,
+                key=lambda c: coll_list.index(c) if c in coll_list else len(coll_list),
+            )
+
+    # Group by library to match how Plex displays collections per-library section
+    enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
+    library_grouped: list[str] = []
+    used = set()
+    for lib_name in enabled_libraries:
+        for name in ordered:
+            if name not in used and collection_library_map.get(name) == lib_name:
+                library_grouped.append(name)
+                used.add(name)
+    # Append any collections not found in a library (e.g. TV collections with only Movies enabled)
+    for name in ordered:
+        if name not in used:
+            library_grouped.append(name)
+
     execution = RotationExecution(
         rotation=rotation_result,
-        applied_collections=ordered,
+        applied_collections=library_grouped,
         dry_run=True,
         simulation_id=simulation_id,
     )

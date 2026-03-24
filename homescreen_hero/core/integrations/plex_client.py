@@ -17,6 +17,10 @@ from ..config.schema import AppConfig
 
 logger = logging.getLogger(__name__)
 
+_REORDER_MOVE_DELAY_SECONDS = 0.2
+_REORDER_SETTLE_DELAY_SECONDS = 0.35
+_REORDER_MAX_ATTEMPTS = 2
+
 
 def _make_session() -> requests.Session:
     # Shared session that skips SSL cert verification for local Plex connections.
@@ -396,6 +400,132 @@ def apply_home_screen_selection(
     return applied
 
 
+def _get_managed_hubs_for_library(server: PlexServer, library_name: str) -> List[Any]:
+    library = server.library.section(library_name)
+    return [hub for hub in library.managedHubs() if hasattr(hub, "title")]
+
+
+def _get_target_hub_order_for_library(
+    managed_hubs: List[Any],
+    ordered_collection_names: List[str],
+) -> List[str]:
+    hub_titles = {hub.title for hub in managed_hubs}
+    return [name for name in ordered_collection_names if name in hub_titles]
+
+
+def _get_current_hub_order_for_library(
+    server: PlexServer,
+    library_name: str,
+    target_names: List[str],
+) -> List[str]:
+    target_set = set(target_names)
+    return [
+        hub.title
+        for hub in _get_managed_hubs_for_library(server, library_name)
+        if hub.title in target_set
+    ]
+
+
+def _reorder_library_hubs(
+    server: PlexServer,
+    library_name: str,
+    target_order: List[str],
+) -> List[str]:
+    if len(target_order) < 2:
+        return list(target_order)
+
+    current_order = _get_current_hub_order_for_library(server, library_name, target_order)
+    if current_order == target_order:
+        logger.debug(
+            "Managed hub order already correct for '%s': %s",
+            library_name,
+            target_order,
+        )
+        return current_order
+
+    # Move first item to top, then chain each subsequent item after the previous one.
+    # This gives Plex an explicit anchor for each move rather than racing for position 0.
+    for attempt in range(1, _REORDER_MAX_ATTEMPTS + 1):
+        hub_map = {
+            hub.title: hub
+            for hub in _get_managed_hubs_for_library(server, library_name)
+        }
+
+        first_hub = hub_map.get(target_order[0])
+        if first_hub is None:
+            logger.warning(
+                "First collection '%s' not found in managed hubs for '%s'",
+                target_order[0],
+                library_name,
+            )
+            break
+
+        try:
+            first_hub.move(after=None)
+            logger.debug("Moved '%s' to top in '%s'", target_order[0], library_name)
+        except Exception as e:
+            logger.warning("Failed to move collection '%s' in '%s': %s", target_order[0], library_name, e)
+            break
+
+        prev_hub = first_hub
+        for name in target_order[1:]:
+            hub = hub_map.get(name)
+            if hub is None:
+                logger.debug(
+                    "Skipping '%s' during reorder for '%s' - not found in managed hubs",
+                    name,
+                    library_name,
+                )
+                continue
+
+            try:
+                time.sleep(_REORDER_MOVE_DELAY_SECONDS)
+                hub.move(after=prev_hub)
+                logger.debug(
+                    "Moved '%s' after '%s' in '%s' (attempt %d/%d)",
+                    name,
+                    prev_hub.title,
+                    library_name,
+                    attempt,
+                    _REORDER_MAX_ATTEMPTS,
+                )
+                prev_hub = hub
+            except Exception as e:
+                logger.warning(
+                    "Failed to move collection '%s' in '%s': %s",
+                    name,
+                    library_name,
+                    e,
+                )
+
+        time.sleep(_REORDER_SETTLE_DELAY_SECONDS)
+        current_order = _get_current_hub_order_for_library(
+            server,
+            library_name,
+            target_order,
+        )
+        if current_order == target_order:
+            logger.debug(
+                "Verified managed hub order for '%s' on attempt %d/%d",
+                library_name,
+                attempt,
+                _REORDER_MAX_ATTEMPTS,
+            )
+            return current_order
+
+        logger.warning(
+            "Managed hub order mismatch for '%s' after attempt %d/%d. "
+            "Requested=%s Current=%s",
+            library_name,
+            attempt,
+            _REORDER_MAX_ATTEMPTS,
+            target_order,
+            current_order,
+        )
+
+    return current_order
+
+
 def reorder_homescreen_collections(
     server: PlexServer,
     config: AppConfig,
@@ -407,69 +537,45 @@ def reorder_homescreen_collections(
     # Plex keeps libraries separate, so we reorder within each library.
     enabled_libraries = [lib.name for lib in config.plex.libraries if lib.enabled]
 
-    # Build map: collection_name -> (ManagedHub, library_name)
-    hub_map: Dict[str, tuple[Any, str]] = {}
+    library_orders: Dict[str, List[str]] = {}
+    total_hubs = 0
     for library_name in enabled_libraries:
         try:
-            library = server.library.section(library_name)
-            hubs = library.managedHubs()
-            for hub in hubs:
-                if hasattr(hub, "title"):
-                    hub_map[hub.title] = (hub, library_name)
+            hubs = _get_managed_hubs_for_library(server, library_name)
+            total_hubs += len(hubs)
+            target_order = _get_target_hub_order_for_library(
+                hubs,
+                ordered_collection_names,
+            )
+            if target_order:
+                library_orders[library_name] = target_order
         except Exception as e:
             logger.warning(
                 "Could not get managed hubs for library %s: %s", library_name, e
             )
 
-    logger.debug("Found %d managed hubs for reordering, requested order: %s", len(hub_map), ordered_collection_names)
+    logger.debug(
+        "Found %d managed hubs for reordering, requested order: %s",
+        total_hubs,
+        ordered_collection_names,
+    )
 
     if dry_run:
         logger.info("Dry run - would reorder collections: %s", ordered_collection_names)
         return ordered_collection_names
 
-    # Group requested collections by library, preserving order within each library
-    library_orders: Dict[str, List[tuple[str, Any]]] = {}
-    for name in ordered_collection_names:
-        if name not in hub_map:
-            # Collection might be a built-in Plex hub (not a custom collection)
-            logger.debug("Skipping '%s' - not found in managed hubs", name)
-            continue
-        hub, library_name = hub_map[name]
-        if library_name not in library_orders:
-            library_orders[library_name] = []
-        library_orders[library_name].append((name, hub))
-
     # Reorder within each library
     applied_order: List[str] = []
-    for library_name, collections in library_orders.items():
-        logger.debug("Reordering %d collections in '%s': %s", len(collections), library_name, [n for n, _ in collections])
-
-        if len(collections) < 2:
-            for name, _ in collections:
-                applied_order.append(name)
-            continue
-
-        # Move first item to top, then position others relative to it
-        first_name, first_hub = collections[0]
-        try:
-            first_hub.move(after=None)
-            applied_order.append(first_name)
-            logger.debug("Moved '%s' to top", first_name)
-        except Exception as e:
-            logger.warning("Failed to move collection '%s': %s", first_name, e)
-            continue
-
-        # Move subsequent items after the previous one
-        prev_hub = first_hub
-        for name, hub in collections[1:]:
-            try:
-                time.sleep(0.15)
-                hub.move(after=prev_hub)
-                applied_order.append(name)
-                logger.debug("Moved '%s' after '%s'", name, prev_hub.title)
-                prev_hub = hub
-            except Exception as e:
-                logger.warning("Failed to move collection '%s': %s", name, e)
+    for library_name, target_order in library_orders.items():
+        logger.debug(
+            "Reordering %d collections in '%s': %s",
+            len(target_order),
+            library_name,
+            target_order,
+        )
+        applied_order.extend(
+            _reorder_library_hubs(server, library_name, target_order)
+        )
 
     if applied_order:
         logger.info("Reordered %d collections on homescreen", len(applied_order))

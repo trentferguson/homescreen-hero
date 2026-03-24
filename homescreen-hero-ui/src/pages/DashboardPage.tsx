@@ -671,9 +671,9 @@ export default function Dashboard() {
                         <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hover-only">
                             <div>
                                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Selected Collections</h4>
-                                {simulation.rotation.selected_collections.length ? (
+                                {simulation.applied_collections.length ? (
                                     <ul className="list-disc list-inside text-slate-700 dark:text-slate-200 space-y-1">
-                                        {simulation.rotation.selected_collections.map((name) => (
+                                        {simulation.applied_collections.map((name) => (
                                             <li key={name}>{name}</li>
                                         ))}
                                     </ul>
