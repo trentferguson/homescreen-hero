@@ -282,6 +282,9 @@ def record_missing_items_in_db(
                 )
                 session.add(row)
 
+        # Flush updates so last_seen values are in the DB before bulk delete
+        session.flush()
+
         # Remove items no longer missing
         session.query(TMDbMissingItem).filter(
             TMDbMissingItem.source_name == source.name,
