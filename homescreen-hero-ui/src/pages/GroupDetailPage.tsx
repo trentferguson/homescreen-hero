@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithAuth } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, Home, LayoutGrid, List, Loader2, Minus, Plus, Search, Share2, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Check, ChevronDown, Compass, Eye, GripVertical, Home, LayoutGrid, List, Loader2, Minus, Plus, Search, Share2, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { InfoTooltip } from "../components/ui/info-tooltip";
 import { Listbox } from "@headlessui/react";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -18,6 +18,23 @@ import { Slider } from "../components/ui/slider";
 import { getGroupStatus } from "../utils/dates";
 import { useTargetableUsers } from "../hooks/useTargetableUsers";
 import { UserTargetingSelector } from "../components/UserTargetingSelector";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 
 type DateRange = {
@@ -37,7 +54,7 @@ type CollectionGroup = {
     visibility_shared: boolean;
     visibility_recommended: boolean;
     collection_selection?: "random" | "lru";
-    collection_order?: "random" | "alpha" | null;
+    collection_order?: "random" | "alpha" | "custom" | null;
     collection_sort?: "release" | "alpha" | null;
     date_range?: DateRange | null;
     target_users?: string[] | null;
@@ -101,6 +118,75 @@ const emptyGroup: CollectionGroup = {
     collections: [],
 };
 
+function SortableCollectionItem({
+    name,
+    meta,
+    isExiting,
+    isNew,
+    onRemove,
+    showDragHandle,
+}: {
+    name: string;
+    meta: { color: string; label: string } | null;
+    isExiting: boolean;
+    isNew: boolean;
+    onRemove: () => void;
+    showDragHandle: boolean;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: name, disabled: !showDragHandle });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition: transition ?? "transform 200ms ease",
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`group flex items-center gap-2 px-4 py-2.5 hover:bg-slate-800/40 transition-colors ${
+                isExiting ? "sidebar-item-exit" : isNew ? "sidebar-item-enter" : ""
+            } ${isDragging ? "z-50 bg-slate-800 rounded-lg shadow-lg shadow-black/30 border border-slate-600/50" : ""}`}
+        >
+            {showDragHandle && (
+                <button
+                    type="button"
+                    className="touch-none p-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0"
+                    {...attributes}
+                    {...listeners}
+                >
+                    <GripVertical className="h-3.5 w-3.5" />
+                </button>
+            )}
+            <div className="min-w-0 flex-1">
+                <p className="text-sm text-slate-200 truncate">{name}</p>
+            </div>
+            {meta && (
+                <span
+                    className="rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white shrink-0"
+                    style={{ backgroundColor: meta.color }}
+                >
+                    {meta.label}
+                </span>
+            )}
+            <button
+                type="button"
+                onClick={onRemove}
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-500 hover:text-red-400 transition-all"
+            >
+                <X className="h-3.5 w-3.5" />
+            </button>
+        </div>
+    );
+}
+
 export default function GroupDetailPage() {
     const navigate = useNavigate();
     const { groupId } = useParams();
@@ -134,6 +220,22 @@ export default function GroupDetailPage() {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const { users: targetableUsers, loading: targetableUsersLoading } = useTargetableUsers();
     const itemsPerPage = 24; // 4 columns × 6 rows
+
+    const dndSensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    );
+
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setForm((prev) => {
+                const oldIndex = prev.collections.indexOf(active.id as string);
+                const newIndex = prev.collections.indexOf(over.id as string);
+                return { ...prev, collections: arrayMove(prev.collections, oldIndex, newIndex) };
+            });
+        }
+    }, []);
 
     useEffect(() => {
         setLoading(true);
@@ -851,41 +953,27 @@ export default function GroupDetailPage() {
                         {/* Selected list */}
                         <div className="max-h-[480px] overflow-y-auto scrollbar-thin">
                             {form.collections.length ? (
-                                <div className="divide-y divide-slate-800/60">
-                                    {form.collections.map((name) => {
-                                        const matchedSource = sources.find((s) => s.name === name);
-                                        const meta = matchedSource ? (sourceMeta[matchedSource.source] ?? { color: "#4284c9", label: matchedSource.source }) : null;
-                                        const isExiting = exitingSidebar.has(name);
-                                        const isNew = recentlyAdded.has(name);
-                                        return (
-                                            <div
-                                                key={name}
-                                                className={`group flex items-center gap-2 px-4 py-2.5 hover:bg-slate-800/40 transition-colors ${
-                                                    isExiting ? "sidebar-item-exit" : isNew ? "sidebar-item-enter" : ""
-                                                }`}
-                                            >
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm text-slate-200 truncate">{name}</p>
-                                                </div>
-                                                {meta && (
-                                                    <span
-                                                        className="rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white shrink-0"
-                                                        style={{ backgroundColor: meta.color }}
-                                                    >
-                                                        {meta.label}
-                                                    </span>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeCollection(name)}
-                                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-slate-500 hover:text-red-400 transition-all"
-                                                >
-                                                    <X className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <SortableContext items={form.collections} strategy={verticalListSortingStrategy}>
+                                        <div className="divide-y divide-slate-800/60">
+                                            {form.collections.map((name) => {
+                                                const matchedSource = sources.find((s) => s.name === name);
+                                                const meta = matchedSource ? (sourceMeta[matchedSource.source] ?? { color: "#4284c9", label: matchedSource.source }) : null;
+                                                return (
+                                                    <SortableCollectionItem
+                                                        key={name}
+                                                        name={name}
+                                                        meta={meta}
+                                                        isExiting={exitingSidebar.has(name)}
+                                                        isNew={recentlyAdded.has(name)}
+                                                        onRemove={() => removeCollection(name)}
+                                                        showDragHandle={form.collection_order === "custom"}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    </SortableContext>
+                                </DndContext>
                             ) : (
                                 <div className="px-4 py-10 text-center">
                                     <p className="text-xs text-slate-500">Click collections to add them</p>
@@ -1093,6 +1181,7 @@ export default function GroupDetailPage() {
                                         {([
                                             { value: null, label: "Random" },
                                             { value: "alpha" as const, label: "Alpha" },
+                                            { value: "custom" as const, label: "Custom" },
                                         ]).map(({ value, label }, i, arr) => {
                                             const isSelected = form.collection_order === value;
                                             return (

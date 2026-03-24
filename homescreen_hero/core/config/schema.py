@@ -203,9 +203,9 @@ class CollectionGroupConfig(BaseModel):
         default="random",
         description="How collections are picked from this group during rotation.",
     )
-    collection_order: Optional[Literal["random", "alpha"]] = Field(
+    collection_order: Optional[Literal["random", "alpha", "custom"]] = Field(
         default=None,
-        description="Display order of picked collections on homescreen. None = random.",
+        description="Display order of picked collections on homescreen. 'custom' preserves the order defined in the collections list. None = random.",
     )
     collection_sort: Optional[Literal["release", "alpha"]] = Field(
         default=None,

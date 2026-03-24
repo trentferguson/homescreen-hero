@@ -786,6 +786,10 @@ def order_collections_for_display(
         coll_order = group_cfg.collection_order if group_cfg else None
         if coll_order == "alpha":
             bucket.sort()
+        elif coll_order == "custom" and group_cfg and not group_cfg.smart:
+            # Preserve the order defined in the group's collections list
+            coll_list = group_cfg.collections
+            bucket.sort(key=lambda c: coll_list.index(c) if c in coll_list else len(coll_list))
         else:
             rng.shuffle(bucket)
 
