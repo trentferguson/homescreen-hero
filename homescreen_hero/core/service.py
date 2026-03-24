@@ -465,9 +465,22 @@ def simulate_rotation_once(
         rotation_result.selected_collections,
     )
 
+    # Apply display ordering so simulation preview matches actual rotation order
+    from .rotation import order_collections_for_display
+    from .db import get_pinned_collections
+    pinned_collections = get_pinned_collections()
+    pinned_order = {p.collection_name: p.display_order for p in pinned_collections}
+    ordered = order_collections_for_display(
+        list(rotation_result.selected_collections),
+        config,
+        pinned_names=pinned_names,
+        pinned_order=pinned_order,
+        smart_group_collections=smart_group_collections,
+    )
+
     execution = RotationExecution(
         rotation=rotation_result,
-        applied_collections=list(rotation_result.selected_collections),
+        applied_collections=ordered,
         dry_run=True,
         simulation_id=simulation_id,
     )

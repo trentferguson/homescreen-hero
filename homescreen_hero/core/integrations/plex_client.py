@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Dict, Iterable, List, Set
 
 import requests
@@ -420,7 +421,7 @@ def reorder_homescreen_collections(
                 "Could not get managed hubs for library %s: %s", library_name, e
             )
 
-    logger.debug("Found %d collections available for reordering", len(hub_map))
+    logger.debug("Found %d managed hubs for reordering, requested order: %s", len(hub_map), ordered_collection_names)
 
     if dry_run:
         logger.info("Dry run - would reorder collections: %s", ordered_collection_names)
@@ -431,7 +432,7 @@ def reorder_homescreen_collections(
     for name in ordered_collection_names:
         if name not in hub_map:
             # Collection might be a built-in Plex hub (not a custom collection)
-            logger.debug("Skipping '%s' - not a custom collection or not found", name)
+            logger.debug("Skipping '%s' - not found in managed hubs", name)
             continue
         hub, library_name = hub_map[name]
         if library_name not in library_orders:
@@ -441,7 +442,7 @@ def reorder_homescreen_collections(
     # Reorder within each library
     applied_order: List[str] = []
     for library_name, collections in library_orders.items():
-        logger.debug("Reordering %d collections in '%s'", len(collections), library_name)
+        logger.debug("Reordering %d collections in '%s': %s", len(collections), library_name, [n for n, _ in collections])
 
         if len(collections) < 2:
             for name, _ in collections:
@@ -462,6 +463,7 @@ def reorder_homescreen_collections(
         prev_hub = first_hub
         for name, hub in collections[1:]:
             try:
+                time.sleep(0.15)
                 hub.move(after=prev_hub)
                 applied_order.append(name)
                 logger.debug("Moved '%s' after '%s'", name, prev_hub.title)

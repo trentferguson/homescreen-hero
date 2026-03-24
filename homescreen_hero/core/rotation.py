@@ -789,7 +789,9 @@ def order_collections_for_display(
         elif coll_order == "custom" and group_cfg and not group_cfg.smart:
             # Preserve the order defined in the group's collections list
             coll_list = group_cfg.collections
+            logger.debug("Custom order for group '%s': config list=%s, bucket before sort=%s", gn, coll_list, bucket)
             bucket.sort(key=lambda c: coll_list.index(c) if c in coll_list else len(coll_list))
+            logger.debug("Custom order for group '%s': bucket after sort=%s", gn, bucket)
         else:
             rng.shuffle(bucket)
 
