@@ -22,6 +22,9 @@ services:
       HSH_TAUTULLI_BASE_URL: ${HSH_TAUTULLI_BASE_URL:-}
       HSH_SEERR_API_KEY: ${HSH_SEERR_API_KEY:-}
       HSH_SEERR_BASE_URL: ${HSH_SEERR_BASE_URL:-}
+      # Docker secrets: use _FILE suffix to read secrets from files instead
+      # Example: HSH_PLEX_TOKEN_FILE: /run/secrets/plex_token
+      # See .env.example for details
     volumes:
       - ./data:/data
     restart: unless-stopped

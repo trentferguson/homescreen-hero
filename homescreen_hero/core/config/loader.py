@@ -21,6 +21,36 @@ from .schema import (
 
 logger = logging.getLogger(__name__)
 
+
+def _resolve_env(var_name: str) -> str | None:
+    # Resolve an env var, supporting _FILE indirection for Docker secrets.
+    # e.g. HSH_PLEX_TOKEN_FILE=/run/secrets/plex_token reads the secret from file.
+    file_var = f"{var_name}_FILE"
+    from_file = os.getenv(file_var)
+    from_env = os.getenv(var_name)
+
+    if from_file and from_env:
+        raise ValueError(
+            f"Both {var_name} and {file_var} are set. Use only one."
+        )
+
+    if from_file:
+        path = Path(from_file)
+        if not path.is_file():
+            raise ValueError(
+                f"{file_var} points to '{from_file}' which is not a readable file"
+            )
+        value = path.read_text(encoding="utf-8").strip()
+        if not value:
+            raise ValueError(
+                f"{file_var} points to '{from_file}' which is empty"
+            )
+        logger.debug(f"Using {var_name} from {file_var} (file: {from_file})")
+        return value
+
+    return from_env
+
+
 # Load .env file if it exists (for local development)
 # Docker Compose will handle env vars automatically
 env_file = Path(".env")
@@ -95,7 +125,7 @@ def _read_raw_config(path: Path) -> dict:
 # Apply environment variable overrides for sensitive fields
 def _apply_env_overrides(config: AppConfig) -> AppConfig:
     # Plex URL override
-    plex_url = os.getenv("HSH_PLEX_URL")
+    plex_url = _resolve_env("HSH_PLEX_URL")
     if plex_url:
         logger.debug("Using Plex URL from HSH_PLEX_URL environment variable")
         config.plex.base_url = plex_url
@@ -105,7 +135,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
         )
 
     # Plex token override
-    plex_token = os.getenv("HSH_PLEX_TOKEN")
+    plex_token = _resolve_env("HSH_PLEX_TOKEN")
     if plex_token:
         logger.debug("Using Plex token from HSH_PLEX_TOKEN environment variable")
         config.plex.token = plex_token
@@ -120,7 +150,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
 
         # Password is only required when method allows password login
         if method in ("password", "both"):
-            auth_password = os.getenv("HSH_AUTH_PASSWORD")
+            auth_password = _resolve_env("HSH_AUTH_PASSWORD")
             if auth_password:
                 logger.debug("Using auth password from HSH_AUTH_PASSWORD environment variable")
                 config.auth.password = auth_password
@@ -131,7 +161,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
                 )
 
         # Secret key is always required when auth is enabled (used for JWT signing)
-        auth_secret = os.getenv("HSH_AUTH_SECRET_KEY")
+        auth_secret = _resolve_env("HSH_AUTH_SECRET_KEY")
         if auth_secret:
             logger.debug("Using auth secret key from HSH_AUTH_SECRET_KEY environment variable")
             config.auth.secret_key = auth_secret
@@ -141,7 +171,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             )
 
     # Trakt: auto-create from env vars if section missing
-    trakt_client_id = os.getenv("HSH_TRAKT_CLIENT_ID")
+    trakt_client_id = _resolve_env("HSH_TRAKT_CLIENT_ID")
     if not config.trakt and trakt_client_id:
         logger.debug("Auto-enabling Trakt from HSH_TRAKT_CLIENT_ID environment variable")
         config.trakt = TraktSettings(enabled=True, client_id=trakt_client_id)
@@ -155,7 +185,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             )
 
     # MDBList: auto-create from env vars if section missing
-    mdblist_api_key = os.getenv("HSH_MDBLIST_API_KEY")
+    mdblist_api_key = _resolve_env("HSH_MDBLIST_API_KEY")
     if not config.mdblist and mdblist_api_key:
         logger.debug("Auto-enabling MDBList from HSH_MDBLIST_API_KEY environment variable")
         config.mdblist = MDBListSettings(enabled=True, api_key=mdblist_api_key)
@@ -165,7 +195,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             config.mdblist.api_key = mdblist_api_key
 
     # TMDb: auto-create from env vars if section missing
-    tmdb_api_key = os.getenv("HSH_TMDB_API_KEY")
+    tmdb_api_key = _resolve_env("HSH_TMDB_API_KEY")
     if not config.tmdb and tmdb_api_key:
         logger.debug("Auto-enabling TMDb from HSH_TMDB_API_KEY environment variable")
         config.tmdb = TMDbSettings(enabled=True, api_key=tmdb_api_key)
@@ -175,8 +205,8 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             config.tmdb.api_key = tmdb_api_key
 
     # Tautulli: auto-create from env vars if section missing
-    tautulli_api_key = os.getenv("HSH_TAUTULLI_API_KEY")
-    tautulli_base_url = os.getenv("HSH_TAUTULLI_BASE_URL")
+    tautulli_api_key = _resolve_env("HSH_TAUTULLI_API_KEY")
+    tautulli_base_url = _resolve_env("HSH_TAUTULLI_BASE_URL")
     if not config.tautulli and tautulli_api_key:
         logger.debug("Auto-enabling Tautulli from HSH_TAUTULLI_API_KEY environment variable")
         kwargs = {"enabled": True, "api_key": tautulli_api_key}
@@ -198,7 +228,7 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             config.tautulli.base_url = tautulli_base_url
 
     # MAL: auto-create from env vars if section missing
-    mal_client_id = os.getenv("HSH_MAL_CLIENT_ID")
+    mal_client_id = _resolve_env("HSH_MAL_CLIENT_ID")
     if not config.mal and mal_client_id:
         logger.debug("Auto-enabling MAL from HSH_MAL_CLIENT_ID environment variable")
         config.mal = MALSettings(enabled=True, client_id=mal_client_id)
@@ -213,8 +243,8 @@ def _apply_env_overrides(config: AppConfig) -> AppConfig:
             )
 
     # Seerr: auto-create from env vars if section missing
-    seerr_api_key = os.getenv("HSH_SEERR_API_KEY")
-    seerr_base_url = os.getenv("HSH_SEERR_BASE_URL")
+    seerr_api_key = _resolve_env("HSH_SEERR_API_KEY")
+    seerr_base_url = _resolve_env("HSH_SEERR_BASE_URL")
     if not config.seerr and seerr_api_key:
         logger.debug("Auto-enabling Seerr from HSH_SEERR_API_KEY environment variable")
         kwargs = {"enabled": True, "api_key": seerr_api_key}
