@@ -64,6 +64,8 @@ A portable Windows build is available as a zip download on each [Release](https:
 
 Copy `.env.example` to `.env` and fill in your Plex URL, token, and any integration API keys. The Setup Wizard handles the rest on first launch.
 
+`HOMESCREEN_HERO_CONFIG` overrides the configuration file location. Without it, the app first checks `config.yaml` in its working directory, then an existing `/data/config.yaml` in the Docker data volume. If neither file exists, first-time setup still creates `config.yaml` in the working directory.
+
 See the [Environment Variables](https://docs.homescreenhero.com/docs/getting-started/environment-variables) and [Configuration](https://docs.homescreenhero.com/docs/getting-started/configuration) docs for the full reference.
 
 ## Docker Image Tags
